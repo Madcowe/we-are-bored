@@ -207,7 +207,7 @@ mod tests {
 
     #[test]
     fn test_notice_relocate() {
-        let bored = Bored::new("");
+        let bored = Bored::create("");
         let mut notice = Notice::new();
         assert_eq!(notice.relocate(&bored, Coordinate { x: 10, y: 7 }), Ok(()));
         assert_eq!(notice.top_left, Coordinate { x: 10, y: 7 });

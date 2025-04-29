@@ -1,6 +1,7 @@
 use autonomi::client::payment::PaymentOption;
 use autonomi::{Bytes, Client, Network, Scratchpad, SecretKey, Wallet};
 use notice::Notice;
+use regex::NoExpand;
 use serde::{Deserialize, Serialize};
 use std::error::Error;
 use std::fmt::{self};
@@ -171,7 +172,7 @@ struct Bored {
 // using an older version of the protocol
 impl Bored {
     /// Creates a new board using the most recent protocol version
-    pub fn new(name: &str) -> Bored {
+    pub fn create(name: &str) -> Bored {
         Bored {
             protocol_version: PROTOCOL_VERSIONS[PROTOCOL_VERSIONS.len() - 1],
             name: name.to_string(),
@@ -202,9 +203,18 @@ impl Bored {
         Err(BoredError::NoticeOutOfBounds)
     }
 
-    /// returns a vector if option<usize> representing the contents of the bored
-    /// if the coordinate is empty it will be some otherwise it will be the
-    /// notices index of the top notice in that position
+    /// check the content will fit in the notice and update content if so
+    pub fn edit_draft(&mut self, content: &str) -> Result<(), BoredError> {
+        if let Some(mut notice) = self.draft_notice.clone() {
+            notice.write(content)?;
+            self.draft_notice = Some(notice);
+        }
+        Ok(())
+    }
+
+    /// returns a vector of option<usize> representing the contents of the bored
+    /// if the coordinate is empty it will be none otherwise it will be the
+    /// notices index of the topmost (most recently added) notice in that position
     fn whats_on_the_bored(&self) -> Vec<Option<usize>> {
         // create vector with as many elements as volume of the board
         let mut whats_on_the_bored: Vec<Option<usize>> =
@@ -234,7 +244,7 @@ impl Bored {
         // create vector with as many elements as volume of the board
         let mut whats_on_the_bored = self.whats_on_the_bored();
         // !!!! use this to check for ones which aren't in whats_on_the_bored
-        let mut notices_indexes: Vec<usize> = self
+        let notices_indexes: Vec<usize> = self
             .notices
             .iter()
             .enumerate()
@@ -296,7 +306,7 @@ impl BoredClient {
     /// Creates a new instance of a board and places in current_bored and attempts to create
     /// a scratchpad containing it at the BoredAddress
     pub async fn create_bored(&mut self, name: &str, private_key: &str) -> Result<(), BoredError> {
-        let bored = Bored::new(name);
+        let bored = Bored::create(name);
         let serialized_bored = serde_json::to_vec(&bored)?;
         // let serialized_bored: Vec<u8> = match bincode::serialize(&serialized_bored) {
         //     Err(_) => return Err(BoredError::BinaryError),
@@ -444,7 +454,7 @@ mod tests {
 
     #[test]
     fn test_bored_add() {
-        let mut bored = Bored::new("");
+        let mut bored = Bored::create("");
         let notice = Notice::new();
         assert!(bored.add(notice, Coordinate { x: 0, y: 0 }).is_ok());
         let notice = Notice::new();
@@ -453,7 +463,7 @@ mod tests {
 
     #[test]
     fn test_prune_non_visible() -> Result<(), BoredError> {
-        let mut bored = Bored::new("");
+        let mut bored = Bored::create("");
         let mut notice = Notice::new();
         notice.write("hello")?;
         bored.add(notice, Coordinate { x: 0, y: 0 }).unwrap();
@@ -478,6 +488,43 @@ mod tests {
         assert_eq!(
             format!("bored://{}", scratchpad_key.to_hex()),
             format!("{}", bored_address)
+        );
+    }
+
+    #[test]
+    fn test_edit_draft() {
+        let mut bored = Bored::create("");
+        bored.create_draft(Coordinate { x: 0, y: 0 });
+        assert_eq!(bored.edit_draft("I am BORED"), Err(BoredError::TooMuchText));
+        bored.create_draft(Coordinate { x: 7, y: 4 });
+        assert_eq!(
+            bored.edit_draft("I am BORED!"),
+            Err(BoredError::TooMuchText)
+        );
+        bored.create_draft(Coordinate { x: 7, y: 4 });
+        assert_eq!(bored.edit_draft("I am BORED"), Ok(()));
+        assert_eq!(
+            bored.draft_notice.as_ref().unwrap().get_content(),
+            "I am BORED"
+        );
+        bored.create_draft(Coordinate { x: 7, y: 4 });
+        assert_eq!(
+            bored.edit_draft("I\nam\nBORED"),
+            Err(BoredError::TooMuchText)
+        );
+        bored.create_draft(Coordinate { x: 7, y: 6 });
+        assert_eq!(bored.edit_draft("I\nam\nBORED"), Ok(()));
+        let draft_notice = bored.draft_notice.clone();
+        assert_eq!(draft_notice.as_ref().unwrap().get_content(), "I\nam\nBORED");
+        bored.create_draft(Coordinate { x: 7, y: 4 });
+        assert_eq!(
+            bored.edit_draft("I am [BORED](NOT)!"),
+            Err(BoredError::TooMuchText)
+        );
+        assert_eq!(bored.edit_draft("I am [BORED](NOT)"), Ok(()));
+        assert_eq!(
+            bored.draft_notice.as_ref().unwrap().get_content(),
+            "I am [BORED](NOT)"
         );
     }
 
