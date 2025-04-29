@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 use std::error::Error;
 use std::fmt::{self};
 use std::ops::Add;
+use tokio::sync::futures::Notified;
 
 mod notice;
 
@@ -193,25 +194,25 @@ impl Bored {
     }
 
     /// create a draft notice that can be edited and added to the bored
-    pub fn create_draft(&mut self) -> Result<(), BoredError> {
-        Ok(())
+    pub fn create_draft(&mut self, dimensions: Coordinate) -> Result<(), BoredError> {
+        if dimensions.within(&self.dimensions) {
+            self.draft_notice = Some(Notice::create(dimensions));
+            return Ok(());
+        }
+        Err(BoredError::NoticeOutOfBounds)
     }
 
-    /// Removes any notices that are entirely occluded by notices above them
-    pub fn prune_non_visible(&mut self) -> Result<(), BoredError> {
-        if self.protocol_version.get_version() < 1 {
-            return Err(BoredError::MethodNotInProtocol);
-        }
+    /// returns a vector if option<usize> representing the contents of the bored
+    /// if the coordinate is empty it will be some otherwise it will be the
+    /// notices index of the top notice in that position
+    fn whats_on_the_bored(&self) -> Vec<Option<usize>> {
         // create vector with as many elements as volume of the board
         let mut whats_on_the_bored: Vec<Option<usize>> =
             vec![None; (self.dimensions.x * self.dimensions.y).into()];
-        // !!!! use this to check for ones which aren't in whats_on_the_bored
-        let mut notices_indexes = Vec::new();
         // for each element in notices put the index in the locations it occupies in whats on the
         // board as the top most items will be at the end of the vector hence will overwrite
         // any earlier notices they are occulding
         for (notices_index, notice) in self.notices.iter().enumerate() {
-            notices_indexes.push(notices_index);
             for x in notice.get_top_left().x..notice.get_top_left().x.add(notice.get_dimensions().x)
             {
                 for y in
@@ -222,6 +223,23 @@ impl Bored {
                 }
             }
         }
+        whats_on_the_bored
+    }
+
+    /// Removes any notices that are entirely occluded by notices above them
+    pub fn prune_non_visible(&mut self) -> Result<(), BoredError> {
+        if self.protocol_version.get_version() < 1 {
+            return Err(BoredError::MethodNotInProtocol);
+        }
+        // create vector with as many elements as volume of the board
+        let mut whats_on_the_bored = self.whats_on_the_bored();
+        // !!!! use this to check for ones which aren't in whats_on_the_bored
+        let mut notices_indexes: Vec<usize> = self
+            .notices
+            .iter()
+            .enumerate()
+            .map(|(notices_index, _)| notices_index)
+            .collect();
         whats_on_the_bored.sort();
         whats_on_the_bored.dedup();
         let whats_on_the_bored: Vec<_> = whats_on_the_bored
