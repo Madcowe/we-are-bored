@@ -162,6 +162,7 @@ struct Bored {
     name: String,
     dimensions: Coordinate, // the board will range from (0,0) up to this
     notices: Vec<Notice>,
+    draft_notice: Option<Notice>,
 }
 
 // only methods dealing with the interal items of bored need to perform the protocol check
@@ -175,6 +176,7 @@ impl Bored {
             name: name.to_string(),
             dimensions: Coordinate { x: 120, y: 40 },
             notices: Vec::new(),
+            draft_notice: None,
         }
     }
 
@@ -190,7 +192,12 @@ impl Bored {
         return Ok(());
     }
 
-    /// Removes any notices that are entirely occlued by notices above them
+    /// create a draft notice that can be edited and added to the bored
+    pub fn create_draft(&mut self) -> Result<(), BoredError> {
+        Ok(())
+    }
+
+    /// Removes any notices that are entirely occluded by notices above them
     pub fn prune_non_visible(&mut self) -> Result<(), BoredError> {
         if self.protocol_version.get_version() < 1 {
             return Err(BoredError::MethodNotInProtocol);

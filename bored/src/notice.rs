@@ -85,6 +85,15 @@ impl Notice {
         }
     }
 
+    /// Create a new blank note of specfied size at (0,0)
+    pub fn create(dimensions: Coordinate) -> Notice {
+        Notice {
+            top_left: Coordinate { x: 0, y: 0 },
+            dimensions,
+            content: String::new(),
+        }
+    }
+
     pub fn get_top_left(&self) -> Coordinate {
         self.top_left
     }
