@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 use std::error::Error;
 use std::fmt::{self};
 use std::ops::Add;
+use tokio::io::AsyncWriteExt;
 use tokio::sync::futures::Notified;
 
 mod notice;
@@ -76,6 +77,8 @@ pub enum BoredError {
     URLTooLong,
     #[error("Error performing regular expression search")]
     RegexError,
+    #[error("No notice in that directions")]
+    NoNotice,
 }
 
 impl From<serde_json::Error> for BoredError {
@@ -155,6 +158,14 @@ impl Coordinate {
     }
 }
 
+/// Indicate direction of movement
+pub enum Direction {
+    Up,
+    Down,
+    Left,
+    Right,
+}
+
 /// Bored, inspired by a pin board a 2d area onto which notices can be placed.
 /// If a notice becomes entirley occluded it no longer exists. Once placed notices cannot be
 /// moved/edited but can be covered by new ones.
@@ -212,15 +223,15 @@ impl Bored {
         Ok(())
     }
 
-    /// returns a vector of option<usize> representing the contents of the bored
+    /// returns a 2d vector of option<usize> representing the contents of the bored
     /// if the coordinate is empty it will be none otherwise it will be the
     /// notices index of the topmost (most recently added) notice in that position
-    fn whats_on_the_bored(&self) -> Vec<Option<usize>> {
-        // create vector with as many elements as volume of the board
-        let mut whats_on_the_bored: Vec<Option<usize>> =
-            vec![None; (self.dimensions.x * self.dimensions.y).into()];
+    fn whats_on_the_bored(&self) -> Vec<Vec<Option<usize>>> {
+        // create 2D vector reporesenting the bored
+        let mut whats_on_the_bored: Vec<Vec<Option<usize>>> =
+            vec![vec![None; self.dimensions.y.into()]; self.dimensions.x.into()];
         // for each element in notices put the index in the locations it occupies in whats on the
-        // board as the top most items will be at the end of the vector hence will overwrite
+        // board as the top most items will be later on in the vector hence will overwrite
         // any earlier notices they are occulding
         for (notices_index, notice) in self.notices.iter().enumerate() {
             for x in notice.get_top_left().x..notice.get_top_left().x.add(notice.get_dimensions().x)
@@ -228,8 +239,7 @@ impl Bored {
                 for y in
                     notice.get_top_left().y..notice.get_top_left().y.add(notice.get_dimensions().y)
                 {
-                    let i = (x + (y * self.dimensions.x)) as usize;
-                    whats_on_the_bored[i] = Some(notices_index);
+                    whats_on_the_bored[x as usize][y as usize] = Some(notices_index);
                 }
             }
         }
@@ -241,25 +251,30 @@ impl Bored {
         if self.protocol_version.get_version() < 1 {
             return Err(BoredError::MethodNotInProtocol);
         }
-        // create vector with as many elements as volume of the board
-        let mut whats_on_the_bored = self.whats_on_the_bored();
-        // !!!! use this to check for ones which aren't in whats_on_the_bored
+        let whats_on_the_bored = self.whats_on_the_bored();
+        // flaten whats_on_the_bored into 1 dimension
+        let mut whats_on_the_bored_1d = vec![];
+        for row in whats_on_the_bored {
+            for cell in row {
+                whats_on_the_bored_1d.push(cell);
+            }
+        }
         let notices_indexes: Vec<usize> = self
             .notices
             .iter()
             .enumerate()
             .map(|(notices_index, _)| notices_index)
             .collect();
-        whats_on_the_bored.sort();
-        whats_on_the_bored.dedup();
-        let whats_on_the_bored: Vec<_> = whats_on_the_bored
+        whats_on_the_bored_1d.sort();
+        whats_on_the_bored_1d.dedup();
+        let whats_on_the_bored_1d: Vec<_> = whats_on_the_bored_1d
             .iter()
             .filter(|x| x.is_some())
             .map(|x| x.unwrap())
             .collect();
         for notice_index in &notices_indexes {
             let mut remove = true;
-            for on_bored in &whats_on_the_bored {
+            for on_bored in &whats_on_the_bored_1d {
                 if notice_index == on_bored {
                     remove = false;
                 }
@@ -269,6 +284,30 @@ impl Bored {
             }
         }
         Ok(())
+    }
+
+    /// Attempts to get the first notice (most upward and leftward) in that directionr
+    pub fn get_cardianl_notice(
+        &self,
+        current_notice: usize,
+        direction: Direction,
+    ) -> Option<Notice> {
+        let notice = &self.notices[current_notice];
+        let whats_on_the_bored = self.whats_on_the_bored();
+        // make into
+        let coordinate = match direction {
+            Direction::Up => notice.get_top_left(),
+            Direction::Right => notice.get_top_left().add(&Coordinate {
+                x: notice.get_dimensions().x,
+                y: 0,
+            }),
+            Direction::Down => notice.get_top_left().add(&notice.get_dimensions()),
+            Direction::Left => notice.get_top_left().add(&Coordinate {
+                x: 0,
+                y: notice.get_dimensions().y,
+            }),
+        };
+        None
     }
 }
 
@@ -308,12 +347,7 @@ impl BoredClient {
     pub async fn create_bored(&mut self, name: &str, private_key: &str) -> Result<(), BoredError> {
         let bored = Bored::create(name);
         let serialized_bored = serde_json::to_vec(&bored)?;
-        // let serialized_bored: Vec<u8> = match bincode::serialize(&serialized_bored) {
-        //     Err(_) => return Err(BoredError::BinaryError),
-        //     Ok(serialzed_bored) => serialzed_bored,
-        // };
         let content = Bytes::from(serialized_bored);
-        // self.current_bored = Some(bored);
         let wallet = match get_funded_wallet(self.connection_type, private_key).await {
             Ok(wallet) => wallet,
             Err(_) => return Err(BoredError::FailedToGetWallet),
@@ -411,6 +445,8 @@ async fn get_funded_wallet(
 
 #[cfg(test)]
 mod tests {
+
+    use regex::bytes::NoExpand;
 
     use super::*;
 
@@ -526,6 +562,12 @@ mod tests {
             bored.draft_notice.as_ref().unwrap().get_content(),
             "I am [BORED](NOT)"
         );
+    }
+
+    #[test]
+    fn test_get_cardinal_notice() {
+        let bored = Bored::create("");
+        let notice = Notice::create(Coordinate { x: 10, y: 10 });
     }
 
     #[tokio::test]
