@@ -214,6 +214,14 @@ impl WhatsOnTheBored {
         WhatsOnTheBored { visible }
     }
 
+    fn flip_horizontally(&mut self) {
+        self.visible.iter_mut().for_each(|r| r.reverse());
+    }
+
+    fn flip_vertically(&mut self) {
+        self.visible.reverse();
+    }
+
     /// flattens into a one dimesonal vectors
     pub fn get_1d(&self) -> Vec<Option<usize>> {
         let mut whats_on_the_bored_1d = vec![];
@@ -607,7 +615,13 @@ mod tests {
         let mut bored = Bored::create("");
         let notice = Notice::create(Coordinate { x: 10, y: 10 });
         bored.add(notice, Coordinate { x: 0, y: 0 }).unwrap();
-        let visible = WhatsOnTheBored::create(&bored);
+        let mut visible = WhatsOnTheBored::create(&bored);
+        eprintln!("{}", visible);
+        visible.flip_horizontally();
+        eprintln!("{}", visible);
+        visible.flip_vertically();
+        eprintln!("{}", visible);
+        visible.flip_horizontally();
         eprintln!("{}", visible);
     }
 
