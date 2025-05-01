@@ -1,13 +1,10 @@
 use autonomi::client::payment::PaymentOption;
 use autonomi::{Bytes, Client, Network, Scratchpad, SecretKey, Wallet};
-use notice::Notice;
-use regex::NoExpand;
+use notice::{Display, Notice};
 use serde::{Deserialize, Serialize};
 use std::error::Error;
 use std::fmt::{self};
 use std::ops::Add;
-use tokio::io::AsyncWriteExt;
-use tokio::sync::futures::Notified;
 
 mod notice;
 
@@ -137,7 +134,7 @@ impl BoredAddress {
 /// A coordiante on a board, the unit of mesauremeant is a character that might appear on screen
 // Unsigned as all notice must be within board space, u16 as no readablle board would be that big
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone, Copy)]
-struct Coordinate {
+pub struct Coordinate {
     x: u16,
     y: u16,
 }
@@ -166,11 +163,74 @@ pub enum Direction {
     Right,
 }
 
+/// a 2d vector of option<uszie> representing the visible contents of the bored
+/// if the coordinate is empty it will be none otherwise it will be the
+/// notices index of the topmost (most recently added) notice in that position
+#[derive(Debug, Clone)]
+pub struct WhatsOnTheBored {
+    visible: Vec<Vec<Option<usize>>>,
+}
+impl Iterator for WhatsOnTheBored {
+    type Item = Vec<Option<usize>>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.visible.iter().next().cloned()
+    }
+}
+
+impl fmt::Display for WhatsOnTheBored {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut display = String::new();
+        for row in &self.visible {
+            for coordinate in row {
+                let text = match coordinate {
+                    None => "*",
+                    Some(notice_index) => &notice_index.to_string(),
+                };
+                display.push_str(text);
+            }
+            display.push_str("\n");
+        }
+        write!(f, "{}", display)
+    }
+}
+
+impl WhatsOnTheBored {
+    pub fn create(bored: &Bored) -> WhatsOnTheBored {
+        let mut visible = vec![vec![None; bored.dimensions.x.into()]; bored.dimensions.y.into()];
+        // for each element in notices put the index in the locations it occupies in whats on the
+        // board as the top most items will be later on in the vector hence will overwrite
+        // any earlier notices they are occulding
+        for (notices_index, notice) in bored.notices.iter().enumerate() {
+            for y in notice.get_top_left().y..notice.get_top_left().y.add(notice.get_dimensions().y)
+            {
+                for x in
+                    notice.get_top_left().x..notice.get_top_left().x.add(notice.get_dimensions().x)
+                {
+                    visible[y as usize][x as usize] = Some(notices_index);
+                }
+            }
+        }
+        WhatsOnTheBored { visible }
+    }
+
+    /// flattens into a one dimesonal vectors
+    pub fn get_1d(&self) -> Vec<Option<usize>> {
+        let mut whats_on_the_bored_1d = vec![];
+        for row in &self.visible {
+            for cell in row {
+                whats_on_the_bored_1d.push(*cell);
+            }
+        }
+        whats_on_the_bored_1d
+    }
+}
+
 /// Bored, inspired by a pin board a 2d area onto which notices can be placed.
 /// If a notice becomes entirley occluded it no longer exists. Once placed notices cannot be
 /// moved/edited but can be covered by new ones.
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
-struct Bored {
+pub struct Bored {
     protocol_version: ProtocolVersion,
     name: String,
     dimensions: Coordinate, // the board will range from (0,0) up to this
@@ -223,42 +283,14 @@ impl Bored {
         Ok(())
     }
 
-    /// returns a 2d vector of option<usize> representing the contents of the bored
-    /// if the coordinate is empty it will be none otherwise it will be the
-    /// notices index of the topmost (most recently added) notice in that position
-    fn whats_on_the_bored(&self) -> Vec<Vec<Option<usize>>> {
-        // create 2D vector reporesenting the bored
-        let mut whats_on_the_bored: Vec<Vec<Option<usize>>> =
-            vec![vec![None; self.dimensions.y.into()]; self.dimensions.x.into()];
-        // for each element in notices put the index in the locations it occupies in whats on the
-        // board as the top most items will be later on in the vector hence will overwrite
-        // any earlier notices they are occulding
-        for (notices_index, notice) in self.notices.iter().enumerate() {
-            for x in notice.get_top_left().x..notice.get_top_left().x.add(notice.get_dimensions().x)
-            {
-                for y in
-                    notice.get_top_left().y..notice.get_top_left().y.add(notice.get_dimensions().y)
-                {
-                    whats_on_the_bored[x as usize][y as usize] = Some(notices_index);
-                }
-            }
-        }
-        whats_on_the_bored
-    }
-
     /// Removes any notices that are entirely occluded by notices above them
     pub fn prune_non_visible(&mut self) -> Result<(), BoredError> {
         if self.protocol_version.get_version() < 1 {
             return Err(BoredError::MethodNotInProtocol);
         }
-        let whats_on_the_bored = self.whats_on_the_bored();
+        let whats_on_the_bored = WhatsOnTheBored::create(&self);
         // flaten whats_on_the_bored into 1 dimension
-        let mut whats_on_the_bored_1d = vec![];
-        for row in whats_on_the_bored {
-            for cell in row {
-                whats_on_the_bored_1d.push(cell);
-            }
-        }
+        let mut whats_on_the_bored_1d = whats_on_the_bored.get_1d();
         let notices_indexes: Vec<usize> = self
             .notices
             .iter()
@@ -286,27 +318,35 @@ impl Bored {
         Ok(())
     }
 
-    /// Attempts to get the first notice (most upward and leftward) in that directionr
-    pub fn get_cardianl_notice(
+    /// Attempts to get the index of the first notice (most upward and leftward) in that direction
+    /// Diagram shows order of coordinates checked 1 - 8 when going up from the notice
+    /// the first notice found in rhia order is the one that will be returned
+    ///   ----- - edge of bored
+    ///  | 8634
+    ///  | 7512   
+    ///  |   XX - border of notice   
+    pub fn get_cardinal_notice(
         &self,
         current_notice: usize,
         direction: Direction,
-    ) -> Option<Notice> {
+    ) -> Option<usize> {
         let notice = &self.notices[current_notice];
-        let whats_on_the_bored = self.whats_on_the_bored();
-        // make into
-        let coordinate = match direction {
-            Direction::Up => notice.get_top_left(),
-            Direction::Right => notice.get_top_left().add(&Coordinate {
-                x: notice.get_dimensions().x,
-                y: 0,
-            }),
-            Direction::Down => notice.get_top_left().add(&notice.get_dimensions()),
-            Direction::Left => notice.get_top_left().add(&Coordinate {
-                x: 0,
-                y: notice.get_dimensions().y,
-            }),
-        };
+        let whats_on_the_bored = WhatsOnTheBored::create(&self);
+        // let coordinate = match direction {
+        //     Direction::Up => {
+        //         let start_point = notice.get_top_left()
+
+        //     }
+        //     Direction::Right => notice.get_top_left().add(&Coordinate {
+        //         x: notice.get_dimensions().x,
+        //         y: 0,
+        //     }),
+        //     Direction::Down => notice.get_top_left().add(&notice.get_dimensions()),
+        //     Direction::Left => notice.get_top_left().add(&Coordinate {
+        //         x: 0,
+        //         y: notice.get_dimensions().y,
+        //     }),
+        // };
         None
     }
 }
@@ -446,8 +486,6 @@ async fn get_funded_wallet(
 #[cfg(test)]
 mod tests {
 
-    use regex::bytes::NoExpand;
-
     use super::*;
 
     #[test]
@@ -530,29 +568,29 @@ mod tests {
     #[test]
     fn test_edit_draft() {
         let mut bored = Bored::create("");
-        bored.create_draft(Coordinate { x: 0, y: 0 });
+        bored.create_draft(Coordinate { x: 0, y: 0 }).unwrap();
         assert_eq!(bored.edit_draft("I am BORED"), Err(BoredError::TooMuchText));
-        bored.create_draft(Coordinate { x: 7, y: 4 });
+        bored.create_draft(Coordinate { x: 7, y: 4 }).unwrap();
         assert_eq!(
             bored.edit_draft("I am BORED!"),
             Err(BoredError::TooMuchText)
         );
-        bored.create_draft(Coordinate { x: 7, y: 4 });
+        bored.create_draft(Coordinate { x: 7, y: 4 }).unwrap();
         assert_eq!(bored.edit_draft("I am BORED"), Ok(()));
         assert_eq!(
             bored.draft_notice.as_ref().unwrap().get_content(),
             "I am BORED"
         );
-        bored.create_draft(Coordinate { x: 7, y: 4 });
+        bored.create_draft(Coordinate { x: 7, y: 4 }).unwrap();
         assert_eq!(
             bored.edit_draft("I\nam\nBORED"),
             Err(BoredError::TooMuchText)
         );
-        bored.create_draft(Coordinate { x: 7, y: 6 });
+        bored.create_draft(Coordinate { x: 7, y: 6 }).unwrap();
         assert_eq!(bored.edit_draft("I\nam\nBORED"), Ok(()));
         let draft_notice = bored.draft_notice.clone();
         assert_eq!(draft_notice.as_ref().unwrap().get_content(), "I\nam\nBORED");
-        bored.create_draft(Coordinate { x: 7, y: 4 });
+        bored.create_draft(Coordinate { x: 7, y: 4 }).unwrap();
         assert_eq!(
             bored.edit_draft("I am [BORED](NOT)!"),
             Err(BoredError::TooMuchText)
@@ -566,8 +604,11 @@ mod tests {
 
     #[test]
     fn test_get_cardinal_notice() {
-        let bored = Bored::create("");
+        let mut bored = Bored::create("");
         let notice = Notice::create(Coordinate { x: 10, y: 10 });
+        bored.add(notice, Coordinate { x: 0, y: 0 }).unwrap();
+        let visible = WhatsOnTheBored::create(&bored);
+        eprintln!("{}", visible);
     }
 
     #[tokio::test]
