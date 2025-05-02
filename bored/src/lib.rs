@@ -362,12 +362,42 @@ impl Bored {
                 }
             }
             coordinate_sets[0] = coordinates;
-
             // to left of above set
             if notice.get_top_left().x > 0 {
                 let mut coordinates = vec![];
                 for y in (0..notice.get_top_left().y).rev() {
                     for x in (0..notice.get_dimensions().x).rev() {
+                        coordinates.push(Coordinate { x, y });
+                    }
+                }
+                coordinate_sets[1] = coordinates;
+            }
+        }
+        coordinate_sets
+    }
+
+    /// Get all the coordiantes to check going right from a notice
+    fn get_right_coordinates(&self, notice: &Notice) -> [Vec<Coordinate>; 2] {
+        let mut coordinate_sets: [Vec<Coordinate>; 2] = [vec![], vec![]];
+        let top_right = Coordinate {
+            x: notice.get_top_left().x + notice.get_dimensions().x,
+            y: notice.get_top_left().y,
+        };
+        // above set
+        eprintln!("{:?}", top_right);
+        if top_right.x < self.dimensions.x {
+            let mut coordinates = vec![];
+            for y in top_right.y..top_right.y + notice.get_dimensions().y {
+                for x in top_right.x..self.dimensions.x {
+                    coordinates.push(Coordinate { x, y });
+                }
+            }
+            coordinate_sets[0] = coordinates;
+            // to left of above set
+            if top_right.y > 0 {
+                let mut coordinates = vec![];
+                for x in top_right.x..self.dimensions.x {
+                    for y in (0..top_right.y).rev() {
                         coordinates.push(Coordinate { x, y });
                     }
                 }
@@ -391,7 +421,7 @@ impl Bored {
     ) -> Option<usize> {
         let notice = &self.notices[current_notice];
         let visible = WhatsOnTheBored::create(&self);
-        let to_check = self.get_up_coordinates(&notice);
+        let to_check = self.get_right_coordinates(&notice);
         for coordinate_set in to_check {
             for coordinate in coordinate_set {
                 eprintln!(
@@ -663,7 +693,7 @@ mod tests {
     fn test_get_cardinal_notice() {
         let mut bored = Bored::create("");
         let notice = Notice::create(Coordinate { x: 10, y: 20 });
-        bored.add(notice, Coordinate { x: 1, y: 1 }).unwrap();
+        bored.add(notice, Coordinate { x: 108, y: 1 }).unwrap();
         let mut visible = WhatsOnTheBored::create(&bored);
         eprintln!("{}", visible);
         bored.get_cardinal_notice(0, Direction::Up);
