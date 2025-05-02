@@ -214,7 +214,16 @@ impl WhatsOnTheBored {
         WhatsOnTheBored { visible }
     }
 
-    fn flip_horizontally(&mut self) {
+    fn rotate_horizontally(&mut self) {
+        let mut visible: Vec<Vec<Option<usize>>> =
+            vec![vec![None; self.visible.len()]; self.visible[0].len()];
+        for (y, row) in self.visible.iter().enumerate() {
+            for (x, cell) in row.iter().enumerate() {
+                visible[x][y] = *cell;
+                // eprintln!("{} : {}", x, y);
+            }
+        }
+        self.visible = visible;
         self.visible.iter_mut().for_each(|r| r.reverse());
     }
 
@@ -617,11 +626,11 @@ mod tests {
         bored.add(notice, Coordinate { x: 0, y: 0 }).unwrap();
         let mut visible = WhatsOnTheBored::create(&bored);
         eprintln!("{}", visible);
-        visible.flip_horizontally();
+        visible.rotate_horizontally();
         eprintln!("{}", visible);
         visible.flip_vertically();
         eprintln!("{}", visible);
-        visible.flip_horizontally();
+        visible.rotate_horizontally();
         eprintln!("{}", visible);
     }
 
