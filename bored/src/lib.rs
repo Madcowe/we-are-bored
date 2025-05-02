@@ -1,7 +1,9 @@
 use autonomi::client::payment::PaymentOption;
 use autonomi::{Bytes, Client, Network, Scratchpad, SecretKey, Wallet};
 use notice::{Display, Notice};
+use regex::NoExpand;
 use serde::{Deserialize, Serialize};
+use std::collections::btree_map::Range;
 use std::error::Error;
 use std::fmt::{self};
 use std::ops::Add;
@@ -214,6 +216,14 @@ impl WhatsOnTheBored {
         WhatsOnTheBored { visible }
     }
 
+    fn get_x_len(&self) -> usize {
+        self.visible[0].len()
+    }
+
+    fn get_y_len(&self) -> usize {
+        self.visible.len()
+    }
+
     fn rotate_horizontally(&mut self) {
         let mut visible: Vec<Vec<Option<usize>>> =
             vec![vec![None; self.visible.len()]; self.visible[0].len()];
@@ -240,6 +250,11 @@ impl WhatsOnTheBored {
             }
         }
         whats_on_the_bored_1d
+    }
+
+    /// get value at coordiante
+    fn get_vaule_at_coordinate(&self, coordinate: Coordinate) -> Option<usize> {
+        self.visible[coordinate.y as usize][coordinate.x as usize]
     }
 }
 
@@ -335,6 +350,33 @@ impl Bored {
         Ok(())
     }
 
+    /// Get all the coordiantes to check going up from a notice
+    fn get_up_coordinates(&self, notice: &Notice) -> [Vec<Coordinate>; 2] {
+        let mut coordinate_sets: [Vec<Coordinate>; 2] = [vec![], vec![]];
+        // above set
+        if notice.get_top_left().y > 0 {
+            let mut coordinates = vec![];
+            for x in notice.get_top_left().x..notice.get_dimensions().x {
+                for y in 0..notice.get_top_left().y {
+                    coordinates.push(Coordinate { x, y });
+                }
+            }
+            coordinate_sets[0] = coordinates;
+
+            // to left of above set
+            if notice.get_top_left().x > 0 {
+                let mut coordinates = vec![];
+                for y in (0..notice.get_top_left().y).rev() {
+                    for x in (0..notice.get_dimensions().x).rev() {
+                        coordinates.push(Coordinate { x, y });
+                    }
+                }
+                coordinate_sets[1] = coordinates;
+            }
+        }
+        coordinate_sets
+    }
+
     /// Attempts to get the index of the first notice (most upward and leftward) in that direction
     /// Diagram shows order of coordinates checked 1 - 8 when going up from the notice
     /// the first notice found in rhia order is the one that will be returned
@@ -348,22 +390,20 @@ impl Bored {
         direction: Direction,
     ) -> Option<usize> {
         let notice = &self.notices[current_notice];
-        let whats_on_the_bored = WhatsOnTheBored::create(&self);
-        // let coordinate = match direction {
-        //     Direction::Up => {
-        //         let start_point = notice.get_top_left()
-
-        //     }
-        //     Direction::Right => notice.get_top_left().add(&Coordinate {
-        //         x: notice.get_dimensions().x,
-        //         y: 0,
-        //     }),
-        //     Direction::Down => notice.get_top_left().add(&notice.get_dimensions()),
-        //     Direction::Left => notice.get_top_left().add(&Coordinate {
-        //         x: 0,
-        //         y: notice.get_dimensions().y,
-        //     }),
-        // };
+        let visible = WhatsOnTheBored::create(&self);
+        let to_check = self.get_up_coordinates(&notice);
+        for coordinate_set in to_check {
+            for coordinate in coordinate_set {
+                eprintln!(
+                    "{:?}: {:?}",
+                    coordinate,
+                    visible.get_vaule_at_coordinate(coordinate)
+                );
+                // if let Some(notice_index) = visible.get_vaule_at_coordinate(coordinate) {
+                //     return Some(notice_index);
+                // }
+            }
+        }
         None
     }
 }
@@ -622,16 +662,11 @@ mod tests {
     #[test]
     fn test_get_cardinal_notice() {
         let mut bored = Bored::create("");
-        let notice = Notice::create(Coordinate { x: 10, y: 10 });
-        bored.add(notice, Coordinate { x: 0, y: 0 }).unwrap();
+        let notice = Notice::create(Coordinate { x: 10, y: 20 });
+        bored.add(notice, Coordinate { x: 1, y: 1 }).unwrap();
         let mut visible = WhatsOnTheBored::create(&bored);
         eprintln!("{}", visible);
-        visible.rotate_horizontally();
-        eprintln!("{}", visible);
-        visible.flip_vertically();
-        eprintln!("{}", visible);
-        visible.rotate_horizontally();
-        eprintln!("{}", visible);
+        bored.get_cardinal_notice(0, Direction::Up);
     }
 
     #[tokio::test]
