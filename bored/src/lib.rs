@@ -384,7 +384,6 @@ impl Bored {
             y: notice.get_top_left().y,
         };
         // above set
-        eprintln!("{:?}", top_right);
         if top_right.x < self.dimensions.x {
             let mut coordinates = vec![];
             for y in top_right.y..top_right.y + notice.get_dimensions().y {
@@ -407,6 +406,36 @@ impl Bored {
         coordinate_sets
     }
 
+    /// Get all the coordiantes to check going down from a notice
+    fn get_down_coordinates(&self, notice: &Notice) -> [Vec<Coordinate>; 2] {
+        let mut coordinate_sets: [Vec<Coordinate>; 2] = [vec![], vec![]];
+        let bottom_left = Coordinate {
+            x: notice.get_top_left().x,
+            y: notice.get_top_left().y + notice.get_dimensions().y,
+        };
+        // above set
+        eprintln!("{:?}", bottom_left);
+        if bottom_left.y < self.dimensions.y {
+            let mut coordinates = vec![];
+            for x in bottom_left.x..self.dimensions.x {
+                for y in bottom_left.y..self.dimensions.y {
+                    coordinates.push(Coordinate { x, y });
+                }
+            }
+            coordinate_sets[0] = coordinates;
+            // to left of above set
+            if bottom_left.x + notice.get_dimensions().x < self.dimensions.x {
+                let mut coordinates = vec![];
+                for y in bottom_left.y..self.dimensions.y {
+                    for x in bottom_left.x + notice.get_dimensions().x..self.dimensions.x {
+                        coordinates.push(Coordinate { x, y });
+                    }
+                }
+                coordinate_sets[1] = coordinates;
+            }
+        }
+        coordinate_sets
+    }
     /// Attempts to get the index of the first notice (most upward and leftward) in that direction
     /// Diagram shows order of coordinates checked 1 - 8 when going up from the notice
     /// the first notice found in rhia order is the one that will be returned
@@ -421,7 +450,7 @@ impl Bored {
     ) -> Option<usize> {
         let notice = &self.notices[current_notice];
         let visible = WhatsOnTheBored::create(&self);
-        let to_check = self.get_right_coordinates(&notice);
+        let to_check = self.get_down_coordinates(&notice);
         for coordinate_set in to_check {
             for coordinate in coordinate_set {
                 eprintln!(
@@ -693,7 +722,7 @@ mod tests {
     fn test_get_cardinal_notice() {
         let mut bored = Bored::create("");
         let notice = Notice::create(Coordinate { x: 10, y: 20 });
-        bored.add(notice, Coordinate { x: 108, y: 1 }).unwrap();
+        bored.add(notice, Coordinate { x: 109, y: 19 }).unwrap();
         let mut visible = WhatsOnTheBored::create(&bored);
         eprintln!("{}", visible);
         bored.get_cardinal_notice(0, Direction::Up);
