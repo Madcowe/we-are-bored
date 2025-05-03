@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::fmt::{self};
 use std::ops::Add;
 
-mod bored_client;
+pub mod bored_client;
 mod notice;
 
 // Should be entered in order as created as default looks at last element
@@ -76,6 +76,8 @@ pub enum BoredError {
     NoNotice,
     #[error("{0}")]
     QuoteError(String),
+    #[error("No bored has been set yet")]
+    NoBored,
 }
 
 impl From<serde_json::Error> for BoredError {
@@ -109,7 +111,8 @@ impl From<autonomi::client::quote::CostError> for BoredError {
 /// Hence this means anyone who has the address can update the board which probalby won't
 /// be sensible in a long term project but this is an experiment so starting with the
 /// most basic level of a human trust network seems appropriate, you share it you bare it!
-enum BoredAddress {
+#[derive(Clone)]
+pub enum BoredAddress {
     ScratchpadKey(autonomi::SecretKey),
 }
 impl fmt::Display for BoredAddress {

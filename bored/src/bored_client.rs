@@ -2,21 +2,22 @@ use crate::notice::{Display, Notice};
 use crate::{Bored, BoredAddress, BoredError, Coordinate};
 use autonomi::client::payment::PaymentOption;
 use autonomi::{Bytes, Client, Network, Scratchpad, SecretKey, Wallet};
+use std::clone;
 use std::error::Error;
 
 #[derive(Clone, Copy)]
-enum ConnectionType {
+pub enum ConnectionType {
     Local,
     Antnet,
 }
 
 /// An client implementing the methods of the Bored protocol via an autonomi client for storage
-struct BoredClient {
+pub struct BoredClient {
     connection_type: ConnectionType,
     client: Client,
     current_bored: Option<Bored>,
     scratchpad_counter: Option<u64>,
-    bored_address: BoredAddress,
+    bored_address: Option<BoredAddress>,
 }
 
 impl BoredClient {
@@ -31,7 +32,7 @@ impl BoredClient {
             client,
             current_bored: None,
             scratchpad_counter: None,
-            bored_address: BoredAddress::new(),
+            bored_address: None,
         })
     }
 
@@ -48,6 +49,7 @@ impl BoredClient {
     /// a scratchpad containing it at the BoredAddress
     pub async fn create_bored(&mut self, name: &str, private_key: &str) -> Result<(), BoredError> {
         let bored = Bored::create(name);
+        self.bored_address = Some(BoredAddress::new());
         let serialized_bored = serde_json::to_vec(&bored)?;
         let content = Bytes::from(serialized_bored);
         let wallet = match get_funded_wallet(self.connection_type, private_key).await {
@@ -57,7 +59,12 @@ impl BoredClient {
         let payment_option = PaymentOption::from(&wallet);
         let (..) = self
             .client
-            .scratchpad_create(&self.bored_address.get_key(), 27, &content, payment_option)
+            .scratchpad_create(
+                &self.bored_address.as_ref().unwrap().get_key(),
+                27,
+                &content,
+                payment_option,
+            )
             .await?;
         // wait for the scratchpad to be replicated
         tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
@@ -65,13 +72,24 @@ impl BoredClient {
         Ok(())
     }
 
+    /// Get bored address if it exists
+    pub fn get_bored_address(&self) -> Result<BoredAddress, BoredError> {
+        let Some(bored_address) = &self.bored_address else {
+            return Err(BoredError::NoBored);
+        };
+        Ok(bored_address.clone())
+    }
+
     /// Downloads an existing bored
-    pub async fn retrieve_bored(&mut self) -> Result<(Bored, u64), BoredError> {
+    pub async fn retrieve_bored(
+        &mut self,
+        bored_address: &BoredAddress,
+    ) -> Result<(Bored, u64), BoredError> {
         let got = self
             .client
-            .scratchpad_get_from_public_key(&self.bored_address.get_public_key())
+            .scratchpad_get_from_public_key(&bored_address.get_public_key())
             .await?;
-        let content = match got.decrypt_data(&self.bored_address.get_key()) {
+        let content = match got.decrypt_data(bored_address.get_key()) {
             Ok(content) => content,
             Err(e) => return Err(BoredError::DecryptionError(format!("{e}"))),
         };
@@ -90,7 +108,11 @@ impl BoredClient {
 
     /// Refresh the current bored
     pub async fn refresh_bored(&mut self) -> Result<(), BoredError> {
-        let (bored, scratchpad_counter) = self.retrieve_bored().await?;
+        let Some(bored_address) = &self.bored_address else {
+            return Err(BoredError::NoBored);
+        };
+        let bored_address = bored_address.clone();
+        let (bored, scratchpad_counter) = self.retrieve_bored(&bored_address).await?;
         self.current_bored = Some(bored);
         self.scratchpad_counter = Some(scratchpad_counter);
         Ok(())
@@ -99,20 +121,24 @@ impl BoredClient {
     /// Updates the current bored, if there is a newer version of the bored on th antnet it
     /// returns it within the error so that the local version can be updated
     pub async fn update_bored(&mut self, updated_bored: &Bored) -> Result<(), BoredError> {
+        let Some(bored_address) = &self.bored_address else {
+            return Err(BoredError::NoBored);
+        };
+        let bored_address = bored_address.clone();
         if self.scratchpad_counter.is_none() {
             return Err(BoredError::BoredNotYetDownloaded);
         }
-        let (bored, scratchpad_counter) = self.retrieve_bored().await?;
-        if scratchpad_counter > self.scratchpad_counter.unwrap() {
+        let (bored, scratchpad_counter) = &self.retrieve_bored(&bored_address).await?;
+        if scratchpad_counter > &self.scratchpad_counter.unwrap() {
             return Err(BoredError::MoreRecentVersionExists(
-                bored,
-                scratchpad_counter,
+                bored.clone(),
+                scratchpad_counter.clone(),
             ));
         }
         let serialized_bored = serde_json::to_vec(&updated_bored)?;
         let content = Bytes::from(serialized_bored);
         self.client
-            .scratchpad_update(&self.bored_address.get_key(), 27, &content)
+            .scratchpad_update(bored_address.get_key(), 27, &content)
             .await?;
         // wait for the scratchpad to be replicated
         tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
@@ -182,7 +208,9 @@ mod tests {
         bored_client.update_bored(&bored).await?;
         // wait for the scratchpad to be replicated
         tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
-        let (antnet_bored, antnet_counter) = bored_client.retrieve_bored().await?;
+        let (antnet_bored, antnet_counter) = bored_client
+            .retrieve_bored(&bored_client.get_bored_address()?)
+            .await?;
         assert_eq!(
             bored_client.scratchpad_counter.unwrap(),
             scrachpad_counter + 1,

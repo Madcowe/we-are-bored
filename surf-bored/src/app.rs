@@ -1,5 +1,6 @@
 use bored::bored_client::{BoredClient, ConnectionType};
 use bored::{Bored, BoredAddress, BoredError};
+use ratatui::backend::ClearType;
 
 pub enum CurrentView {
     ErrorView(BoredError),
@@ -85,5 +86,12 @@ impl App {
 
     pub fn goto(&mut self, bored_address: BoredAddress) {
         self.current_view = CurrentView::BoredView(Some(bored_address));
+    }
+
+    pub async fn create(&mut self, name: &str, private_key: &str) -> Result<Bored, BoredError> {
+        self.client.create_bored(name, private_key).await?;
+        let bored = self.client.get_current_bored()?;
+        self.current_view = CurrentView::BoredView(Some(self.client.get_bored_address()?));
+        Ok(bored)
     }
 }
