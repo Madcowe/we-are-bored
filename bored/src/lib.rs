@@ -356,8 +356,10 @@ impl Bored {
         // above set
         if notice.get_top_left().y > 0 {
             let mut coordinates = vec![];
-            for x in notice.get_top_left().x..notice.get_dimensions().x {
-                for y in 0..notice.get_top_left().y {
+            for y in (0..notice.get_top_left().y).rev() {
+                for x in
+                    notice.get_top_left().x..notice.get_top_left().x + notice.get_dimensions().x
+                {
                     coordinates.push(Coordinate { x, y });
                 }
             }
@@ -365,8 +367,8 @@ impl Bored {
             // to left of above set
             if notice.get_top_left().x > 0 {
                 let mut coordinates = vec![];
-                for y in (0..notice.get_top_left().y).rev() {
-                    for x in (0..notice.get_dimensions().x).rev() {
+                for x in (0..notice.get_top_left().x).rev() {
+                    for y in (0..notice.get_top_left().y).rev() {
                         coordinates.push(Coordinate { x, y });
                     }
                 }
@@ -395,8 +397,8 @@ impl Bored {
             // above right set
             if top_right.y > 0 {
                 let mut coordinates = vec![];
-                for x in top_right.x..self.dimensions.x {
-                    for y in (0..top_right.y).rev() {
+                for y in (0..top_right.y).rev() {
+                    for x in top_right.x..self.dimensions.x {
                         coordinates.push(Coordinate { x, y });
                     }
                 }
@@ -416,7 +418,7 @@ impl Bored {
         // down set
         if bottom_left.y < self.dimensions.y {
             let mut coordinates = vec![];
-            for x in bottom_left.x..self.dimensions.x {
+            for x in bottom_left.x..bottom_left.x + notice.get_dimensions().x {
                 for y in bottom_left.y..self.dimensions.y {
                     coordinates.push(Coordinate { x, y });
                 }
@@ -425,7 +427,7 @@ impl Bored {
             // right of down set
             if bottom_left.x + notice.get_dimensions().x < self.dimensions.x {
                 let mut coordinates = vec![];
-                for y in bottom_left.y..self.dimensions.y {
+                for y in (bottom_left.y..self.dimensions.y).rev() {
                     for x in bottom_left.x + notice.get_dimensions().x..self.dimensions.x {
                         coordinates.push(Coordinate { x, y });
                     }
@@ -451,9 +453,8 @@ impl Bored {
             // below left set
             if notice.get_top_left().y + notice.get_dimensions().y < self.dimensions.y {
                 let mut coordinates = vec![];
-                for x in (0..notice.get_top_left().x).rev() {
-                    for y in notice.get_top_left().y + notice.get_dimensions().y..self.dimensions.y
-                    {
+                for y in notice.get_top_left().y + notice.get_dimensions().y..self.dimensions.y {
+                    for x in 0..notice.get_top_left().x {
                         coordinates.push(Coordinate { x, y });
                     }
                 }
@@ -477,17 +478,22 @@ impl Bored {
     ) -> Option<usize> {
         let notice = &self.notices[current_notice];
         let visible = WhatsOnTheBored::create(&self);
-        let to_check = self.get_left_coordinates(&notice);
+        let to_check = match direction {
+            Direction::Up => self.get_up_coordinates(&notice),
+            Direction::Right => self.get_right_coordinates(&notice),
+            Direction::Down => self.get_down_coordinates(&notice),
+            Direction::Left => self.get_left_coordinates(&notice),
+        };
         for coordinate_set in to_check {
             for coordinate in coordinate_set {
-                eprintln!(
-                    "{:?}: {:?}",
-                    coordinate,
-                    visible.get_vaule_at_coordinate(coordinate)
-                );
-                // if let Some(notice_index) = visible.get_vaule_at_coordinate(coordinate) {
-                //     return Some(notice_index);
-                // }
+                // eprintln!(
+                //     "{:?}: {:?}",
+                //     coordinate,
+                //     visible.get_vaule_at_coordinate(coordinate)
+                // );
+                if let Some(notice_index) = visible.get_vaule_at_coordinate(coordinate) {
+                    return Some(notice_index);
+                }
             }
         }
         None
@@ -746,13 +752,33 @@ mod tests {
     }
 
     #[test]
-    fn test_get_cardinal_notice() {
+    fn test_get_cardinal_notice() -> Result<(), BoredError> {
         let mut bored = Bored::create("");
         let notice = Notice::create(Coordinate { x: 10, y: 20 });
-        bored.add(notice, Coordinate { x: 2, y: 19 }).unwrap();
-        let mut visible = WhatsOnTheBored::create(&bored);
+        bored.add(notice, Coordinate { x: 50, y: 10 }).unwrap();
+        assert_eq!(bored.get_cardinal_notice(0, Direction::Left), None);
+        let notice = Notice::create(Coordinate { x: 10, y: 10 });
+        bored.add(notice, Coordinate { x: 0, y: 0 })?;
+        assert_eq!(bored.get_cardinal_notice(0, Direction::Up), Some(1));
+        let notice = Notice::create(Coordinate { x: 10, y: 10 });
+        bored.add(notice, Coordinate { x: 59, y: 0 })?;
+        assert_eq!(bored.get_cardinal_notice(0, Direction::Up), Some(2));
+        assert_eq!(bored.get_cardinal_notice(0, Direction::Right), Some(2));
+        let notice = Notice::create(Coordinate { x: 10, y: 10 });
+        bored.add(notice, Coordinate { x: 100, y: 25 })?;
+        assert_eq!(bored.get_cardinal_notice(0, Direction::Right), Some(3));
+        assert_eq!(bored.get_cardinal_notice(0, Direction::Down), Some(3));
+        let notice = Notice::create(Coordinate { x: 10, y: 10 });
+        bored.add(notice, Coordinate { x: 45, y: 29 })?;
+        assert_eq!(bored.get_cardinal_notice(0, Direction::Down), Some(4));
+        assert_eq!(bored.get_cardinal_notice(0, Direction::Left), Some(4));
+        let notice = Notice::create(Coordinate { x: 10, y: 10 });
+        bored.add(notice, Coordinate { x: 1, y: 5 })?;
+        assert_eq!(bored.get_cardinal_notice(0, Direction::Left), Some(5));
+        assert_eq!(bored.get_cardinal_notice(0, Direction::Up), Some(2));
+        let visible = WhatsOnTheBored::create(&bored);
         eprintln!("{}", visible);
-        bored.get_cardinal_notice(0, Direction::Up);
+        Ok(())
     }
 
     #[tokio::test]
