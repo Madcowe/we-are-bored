@@ -42,7 +42,7 @@ impl ProtocolVersion {
 }
 
 /// Errors that can occur when using Bored client
-#[derive(Debug, thiserror::Error, PartialEq)]
+#[derive(Debug, thiserror::Error, PartialEq, Clone)]
 pub enum BoredError {
     #[error("Version of protocol {0} is not know to exist by this implementation of bored")]
     InvalidProtocolVersion(u64),

@@ -5739,6 +5739,7 @@ version = "0.1.0"
 dependencies = [
  "bored",
  "ratatui",
+ "tokio",
 ]
 
 [[package]]
