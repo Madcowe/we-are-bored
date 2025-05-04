@@ -16,6 +16,7 @@ pub struct BoredClient {
     connection_type: ConnectionType,
     client: Client,
     current_bored: Option<Bored>,
+    draft_notice: Option<Notice>,
     scratchpad_counter: Option<u64>,
     bored_address: Option<BoredAddress>,
 }
@@ -31,6 +32,7 @@ impl BoredClient {
             connection_type,
             client,
             current_bored: None,
+            draft_notice: None,
             scratchpad_counter: None,
             bored_address: None,
         })
@@ -152,6 +154,30 @@ impl BoredClient {
             return Err(BoredError::BoredNotYetDownloaded);
         };
         Ok(bored)
+    }
+
+    /// create a draft notice that can be edited and added to the bored
+    pub fn create_draft(&mut self, dimensions: Coordinate) -> Result<(), BoredError> {
+        let Some(bored) = &self.current_bored else {
+            return Err(BoredError::NoBored);
+        };
+        if dimensions.within(&bored.get_dimensions()) {
+            self.draft_notice = Some(Notice::create(dimensions));
+            return Ok(());
+        }
+        Err(BoredError::NoticeOutOfBounds)
+    }
+
+    /// check the content will fit in the notice and update content if so
+    pub fn edit_draft(&mut self, content: &str) -> Result<(), BoredError> {
+        let Some(bored) = &self.current_bored else {
+            return Err(BoredError::NoBored);
+        };
+        if let Some(mut notice) = self.draft_notice.clone() {
+            notice.write(content)?;
+            self.draft_notice = Some(notice);
+        }
+        Ok(())
     }
 }
 

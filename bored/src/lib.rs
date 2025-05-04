@@ -358,6 +358,10 @@ impl Bored {
         Ok(())
     }
 
+    fn get_dimensions(&self) -> Coordinate {
+        self.dimensions
+    }
+
     /// Get all the coordiantes to check going up from a notice
     fn get_up_coordinates(&self, notice: &Notice) -> [Vec<Coordinate>; 2] {
         let mut coordinate_sets: [Vec<Coordinate>; 2] = [vec![], vec![]];

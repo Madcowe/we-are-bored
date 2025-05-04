@@ -1,11 +1,11 @@
 use bored::bored_client::{BoredClient, ConnectionType};
-use bored::{Bored, BoredAddress, BoredError};
+use bored::{Bored, BoredAddress, BoredError, Coordinate};
 use ratatui::backend::ClearType;
 
 pub enum CurrentView {
     ErrorView(BoredError),
     BoredView(Option<BoredAddress>),
-    NoticeView,
+    NoticeView { hyperlinks_index: Option<usize> },
     DraftView(DraftMode),
     CreateView(CreateMode),
     GoToView(GoToMode),
@@ -18,7 +18,13 @@ pub enum CreateMode {
 
 pub enum DraftMode {
     Content,
-    Hyperlink,
+    Hyperlink(HyperlinkMode),
+    Position,
+}
+
+pub enum HyperlinkMode {
+    Text,
+    URL,
 }
 
 pub enum GoToMode {
@@ -50,13 +56,13 @@ impl Directory {
 
 /// History of boreds surfed in current session
 pub struct History {
-    bored_addresses: Vec<BoredAddress>,
+    boreds: Vec<Bored>,
     current_position: usize,
 }
 impl History {
     fn new() -> History {
         History {
-            bored_addresses: vec![],
+            boreds: vec![],
             current_position: 0,
         }
     }
@@ -68,6 +74,7 @@ pub struct App {
     pub directory: Directory,
     pub history: History,
     pub current_view: CurrentView,
+    pub selected_notice: Option<usize>,
 }
 impl App {
     pub async fn init() -> Result<App, BoredError> {
@@ -77,6 +84,7 @@ impl App {
             directory: Directory::new(),
             history: History::new(),
             current_view: CurrentView::BoredView(None),
+            selected_notice: None,
         })
     }
 
@@ -84,14 +92,77 @@ impl App {
         self.current_view = CurrentView::ErrorView(bored_error);
     }
 
-    pub fn goto(&mut self, bored_address: BoredAddress) {
+    pub fn goto(&mut self) {
+        self.current_view = CurrentView::GoToView(GoToMode::PasteAddress)
+    }
+
+    pub fn goto_view_toggle(&mut self) {
+        match &self.current_view {
+            CurrentView::GoToView(goto_mode) => {
+                self.current_view = CurrentView::GoToView(match goto_mode {
+                    GoToMode::Directory => GoToMode::PasteAddress,
+                    GoToMode::PasteAddress => GoToMode::PasteAddress,
+                })
+            }
+            _ => (),
+        }
+    }
+
+    pub fn goto_bored(&mut self, bored_address: BoredAddress) {
         self.current_view = CurrentView::BoredView(Some(bored_address));
     }
 
-    pub async fn create(&mut self, name: &str, private_key: &str) -> Result<Bored, BoredError> {
+    pub fn view_notice(&mut self) {
+        self.current_view = CurrentView::NoticeView {
+            hyperlinks_index: None,
+        };
+    }
+
+    pub fn create_bored(&mut self) {
+        self.current_view = CurrentView::CreateView(CreateMode::Name);
+    }
+
+    pub fn create_view_toggle(&mut self) {
+        match &self.current_view {
+            CurrentView::CreateView(create_mode) => {
+                self.current_view = CurrentView::CreateView(match create_mode {
+                    CreateMode::Name => CreateMode::PrivateKey,
+                    CreateMode::PrivateKey => CreateMode::Name,
+                })
+            }
+            _ => (),
+        }
+    }
+
+    pub async fn create_bored_on_network(
+        &mut self,
+        name: &str,
+        private_key: &str,
+    ) -> Result<Bored, BoredError> {
         self.client.create_bored(name, private_key).await?;
         let bored = self.client.get_current_bored()?;
         self.current_view = CurrentView::BoredView(Some(self.client.get_bored_address()?));
         Ok(bored)
+    }
+
+    pub fn create_draft(&mut self, dimensions: Coordinate) -> Result<(), BoredError> {
+        self.client.create_draft(dimensions)?;
+        self.current_view = CurrentView::DraftView(DraftMode::Content);
+        Ok(())
+    }
+
+    pub fn edit_draft(&mut self, content: &str) -> Result<(), BoredError> {
+        match self.client.edit_draft(content) {
+            Err(bored_error) => match bored_error {
+                // if to much text does nothing so user can't type more
+                BoredError::TooMuchText => return Ok(()),
+                _ => return Err(bored_error),
+            },
+            Ok(_) => Ok(()),
+        }
+    }
+
+    pub fn create_hyperlink(&mut self) {
+        self.current_view = CurrentView::DraftView(DraftMode::Hyperlink(HyperlinkMode::Text));
     }
 }
