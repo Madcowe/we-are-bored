@@ -41,6 +41,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
 async fn run_app<B: Backend>(termimal: &mut Terminal<B>, app: &mut App) -> io::Result<()> {
     loop {
+        app.create_bored_on_network("Testy bored", "")
+            .await
+            .unwrap();
         termimal.draw(|f| ui(f, app))?;
 
         if let Event::Key(key) = event::read()? {
@@ -49,7 +52,7 @@ async fn run_app<B: Backend>(termimal: &mut Terminal<B>, app: &mut App) -> io::R
                 continue;
             }
             if key.code == KeyCode::Char('q') {
-                return Ok(());
+                break;
             }
             match &app.current_view {
                 View::ErrorView(bored_error) => match key.code {

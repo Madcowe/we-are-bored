@@ -150,14 +150,14 @@ pub struct Coordinate {
 }
 impl Coordinate {
     /// returns true if self entirely contained between (0,0) and other
-    fn within(&self, other: &Self) -> bool {
+    pub fn within(&self, other: &Self) -> bool {
         if self.x <= other.x && self.y <= other.y {
             return true;
         }
         false
     }
 
-    fn add(&self, other: &Self) -> Coordinate {
+    pub fn add(&self, other: &Self) -> Coordinate {
         Coordinate {
             x: self.x + other.x,
             y: self.y + other.y,
@@ -307,6 +307,10 @@ impl Bored {
 
     pub fn get_notices(&self) -> Vec<Notice> {
         self.notices.clone()
+    }
+
+    pub fn get_name(&self) -> &str {
+        &self.name
     }
 
     /// create a draft notice that can be edited and added to the bored
