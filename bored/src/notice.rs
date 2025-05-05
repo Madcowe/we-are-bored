@@ -48,6 +48,10 @@ impl Display {
         }
     }
 
+    pub fn get_display_text(&self) -> String {
+        self.display_text.clone()
+    }
+
     /// Descrease every location value in hyperlinks verctor by
     /// This is so that they can be adjusted as the display string is being created
     pub fn decrement_hyperlink_locations(&mut self, decrease_by: usize) {
@@ -207,7 +211,7 @@ mod tests {
 
     #[test]
     fn test_notice_relocate() {
-        let bored = Bored::create("");
+        let bored = Bored::create("", Coordinate { x: 120, y: 40 });
         let mut notice = Notice::new();
         assert_eq!(notice.relocate(&bored, Coordinate { x: 10, y: 7 }), Ok(()));
         assert_eq!(notice.top_left, Coordinate { x: 10, y: 7 });

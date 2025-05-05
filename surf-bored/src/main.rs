@@ -48,13 +48,12 @@ async fn run_app<B: Backend>(termimal: &mut Terminal<B>, app: &mut App) -> io::R
                 // Skip events that are not KeyEvenKind::Press
                 continue;
             }
+            if key.code == KeyCode::Char('q') {
+                return Ok(());
+            }
             match &app.current_view {
-                View::ErrorView {
-                    bored_error,
-                    previous_view,
-                } => match key.code {
-                    KeyCode::Enter => app.current_view = *previous_view.clone(),
-                    KeyCode::Char('q') => app.current_view = View::Quitting,
+                View::ErrorView(bored_error) => match key.code {
+                    KeyCode::Enter => app.current_view = app.previous_view.clone(),
                     _ => {}
                 },
                 _ => {}

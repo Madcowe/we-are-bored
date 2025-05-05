@@ -22,8 +22,8 @@ pub struct BoredClient {
 }
 
 impl BoredClient {
-    pub async fn init() -> Result<BoredClient, BoredError> {
-        let connection_type = ConnectionType::Local;
+    pub async fn init(connection_type: ConnectionType) -> Result<BoredClient, BoredError> {
+        let connection_type = connection_type;
         let client = match Client::init_local().await {
             Err(_) => return Err(BoredError::ClientConnectionError),
             Ok(client) => client,
@@ -49,8 +49,13 @@ impl BoredClient {
 
     /// Creates a new instance of a board and places in current_bored and attempts to create
     /// a scratchpad containing it at the BoredAddress
-    pub async fn create_bored(&mut self, name: &str, private_key: &str) -> Result<(), BoredError> {
-        let bored = Bored::create(name);
+    pub async fn create_bored(
+        &mut self,
+        name: &str,
+        dimensions: Coordinate,
+        private_key: &str,
+    ) -> Result<(), BoredError> {
+        let bored = Bored::create(name, dimensions);
         self.bored_address = Some(BoredAddress::new());
         let serialized_bored = serde_json::to_vec(&bored)?;
         let content = Bytes::from(serialized_bored);
@@ -80,6 +85,14 @@ impl BoredClient {
             return Err(BoredError::NoBored);
         };
         Ok(bored_address.clone())
+    }
+
+    /// Get bored name if it exists
+    pub fn get_bored_name(&self) -> Result<&str, BoredError> {
+        let Some(bored) = &self.current_bored else {
+            return Err(BoredError::NoBored);
+        };
+        Ok(&bored.name)
     }
 
     /// Downloads an existing bored
@@ -202,10 +215,12 @@ mod tests {
 
     use super::*;
 
+    // Test marked with ignore require a local network to be running
+
     #[tokio::test]
     #[ignore]
     async fn text_get_cost() -> Result<(), BoredError> {
-        let bored_client = BoredClient::init().await?;
+        let bored_client = BoredClient::init(ConnectionType::Local).await?;
         assert!(bored_client.get_cost().await.is_ok());
         Ok(())
     }
@@ -213,8 +228,10 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn test_create_bored() -> Result<(), BoredError> {
-        let mut bored_client = BoredClient::init().await?;
-        bored_client.create_bored("", "").await?;
+        let mut bored_client = BoredClient::init(ConnectionType::Local).await?;
+        bored_client
+            .create_bored("", Coordinate { x: 120, y: 40 }, "")
+            .await?;
         let bored = bored_client.current_bored.as_ref().unwrap().clone();
         bored_client.refresh_bored().await?;
         assert_eq!(bored_client.current_bored.unwrap(), bored);
@@ -224,8 +241,10 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn test_update_bored() -> Result<(), BoredError> {
-        let mut bored_client = BoredClient::init().await?;
-        bored_client.create_bored("I am BORED", "").await?;
+        let mut bored_client = BoredClient::init(ConnectionType::Local).await?;
+        bored_client
+            .create_bored("I am BORED", Coordinate { x: 120, y: 40 }, "")
+            .await?;
         let scrachpad_counter = bored_client.scratchpad_counter.unwrap();
         let mut bored = bored_client.current_bored.as_ref().unwrap().clone();
         let mut notice = Notice::new();
