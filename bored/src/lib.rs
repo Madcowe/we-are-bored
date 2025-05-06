@@ -1,5 +1,7 @@
+use autonomi::SecretKey;
 use notice::{Display, Notice};
 use serde::{Deserialize, Serialize};
+use std::any::Any;
 use std::fmt::{self};
 use std::ops::Add;
 
@@ -78,6 +80,8 @@ pub enum BoredError {
     QuoteError(String),
     #[error("No bored has been set yet")]
     NoBored,
+    #[error("Cannot parse as bored URL")]
+    NotBoredURL,
 }
 
 impl From<serde_json::Error> for BoredError {
@@ -127,6 +131,20 @@ impl BoredAddress {
     /// Generates a new BoredAdress, ie a new autonomi secrkey encapsulated inside this enum
     pub fn new() -> BoredAddress {
         BoredAddress::ScratchpadKey(autonomi::SecretKey::random())
+    }
+
+    /// Tries to create bored URL from string, will remove protoocl part of URL if it exists
+    /// attempt to create with that text, fails if it doesn;t make valid secret key
+    /// this doesn't neccsiarily imply it is an exist bored address
+    pub fn from_string(s: String) -> Result<Self, BoredError> {
+        if &s[0..7] == "bored://" {
+            let s = &s[8..s.len()];
+        }
+        let key = match SecretKey::from_hex(&s) {
+            Ok(key) => key,
+            Err(_) => return Err(BoredError::NotBoredURL),
+        };
+        Ok(BoredAddress::ScratchpadKey(key))
     }
 
     pub fn get_key(&self) -> &autonomi::SecretKey {

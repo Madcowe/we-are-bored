@@ -7,3 +7,5 @@ edition = "2024"
 ratatui = "0.29.0"
 bored = { path = "../bored"}
 tokio = "1.44.2"
+serde = "1.0.219"
+toml = "0.8.22"

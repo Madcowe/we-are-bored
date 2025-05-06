@@ -1,5 +1,10 @@
 use bored::bored_client::{BoredClient, ConnectionType};
 use bored::{Bored, BoredAddress, BoredError, Coordinate};
+use serde::{Deserialize, Serialize};
+use std::fs;
+use std::fs::File;
+use std::io::Write;
+use std::path::{Path, PathBuf};
 
 #[derive(Clone)]
 pub enum View {
@@ -37,9 +42,16 @@ pub enum GoToMode {
     PasteAddress,
 }
 
+#[derive(Serialize, Deserialize)]
+pub struct Listing {
+    name: String,
+    bored_address: String,
+}
+
 /// The directory of boreds...list of bored the user has saved for future reference
+#[derive(Serialize, Deserialize)]
 pub struct Directory {
-    bored_addresses: Vec<BoredAddress>,
+    bored_addresses: Vec<Listing>,
     home_bored: usize, // indicates which bored is the home bored
 }
 impl Directory {
@@ -50,8 +62,12 @@ impl Directory {
         }
     }
 
-    fn add(&mut self, bored_address: BoredAddress) {
-        self.bored_addresses.push(bored_address);
+    fn load_file(&mut self) {}
+
+    // need to sort out error handling and remove unwraps
+    fn add(&mut self, listing: Listing) {
+        self.bored_addresses.push(listing);
+        fs::write("directory_of_boreds.toml", toml::to_string(&self).unwrap()).unwrap();
     }
 
     fn set_home(&mut self, home_bored: usize) {
@@ -82,15 +98,20 @@ pub struct App {
     pub selected_notice: Option<usize>,
 }
 impl App {
-    pub async fn init() -> Result<App, BoredError> {
-        Ok(App {
-            client: BoredClient::init(ConnectionType::Local).await.ok(),
+    pub fn new() -> App {
+        App {
+            client: None, //BoredClient::init(ConnectionType::Local).await.ok(),
             directory: Directory::new(),
             history: History::new(),
             current_view: View::BoredView(None),
             previous_view: View::BoredView(None),
             selected_notice: None,
-        })
+        }
+    }
+
+    pub async fn init_client(&mut self) -> Result<(), BoredError> {
+        self.client = Some(BoredClient::init(ConnectionType::Local).await?);
+        Ok(())
     }
 
     pub fn display_error(&mut self, bored_error: BoredError) {
@@ -162,6 +183,10 @@ impl App {
             .await?;
         let bored = client.get_current_bored()?;
         self.current_view = View::BoredView(Some(client.get_bored_address()?));
+        self.directory.add(Listing {
+            name: client.get_bored_name()?.to_string(),
+            bored_address: format!("{}", client.get_bored_address()?),
+        });
         Ok(bored)
     }
 

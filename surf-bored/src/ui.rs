@@ -95,9 +95,9 @@ impl BoredView {
 
 pub fn ui(frame: &mut Frame, app: &App) {
     let area = frame.area();
-    let bored = app.get_current_bored();
     let mut title_text = String::new();
-    let mut status_text = "Connected, bored not loaded";
+    let mut status_text = "Connected, no bored loded";
+    let bored = app.get_current_bored();
     if let Some(bored) = bored {
         let bored_name = format!(
             "{}",
