@@ -165,60 +165,40 @@ mod tests {
 
     #[test]
     fn test_display_bored_render() -> Result<(), BoredError> {
-        let mut bored = Bored::create("Hello", Coordinate { x: 120, y: 40 });
-        let mut notice = Notice::create(Coordinate { x: 60, y: 18 });
+        let mut bored = Bored::create("Hello", Coordinate { x: 60, y: 20 });
+        let mut notice = Notice::create(Coordinate { x: 30, y: 9 });
         notice.write("hello")?;
-        bored.add(notice, Coordinate { x: 10, y: 5 })?;
-        let mut notice = Notice::create(Coordinate { x: 60, y: 18 });
+        bored.add(notice, Coordinate { x: 5, y: 3 })?;
+        let mut notice = Notice::create(Coordinate { x: 30, y: 9 });
         notice.write("world")?;
-        bored.add(notice, Coordinate { x: 60, y: 20 })?;
+        bored.add(notice, Coordinate { x: 30, y: 10 })?;
         let bored_rect = Rect::new(0, 0, bored.get_dimensions().x, bored.get_dimensions().y);
         let mut buffer = Buffer::empty(bored_rect);
         let display_bored = DisplayBored::create(&bored);
         display_bored.render(bored_rect, &mut buffer);
         let expected_output = r#"Buffer {
-    area: Rect { x: 0, y: 0, width: 120, height: 40 },
+    area: Rect { x: 0, y: 0, width: 60, height: 20 },
     content: [
-        "                                                                                                                        ",
-        "                                                                                                                        ",
-        "                                                                                                                        ",
-        "                                                                                                                        ",
-        "                                                                                                                        ",
-        "          ┌──────────────────────────────────────────────────────────┐                                                  ",
-        "          │hello                                                     │                                                  ",
-        "          │                                                          │                                                  ",
-        "          │                                                          │                                                  ",
-        "          │                                                          │                                                  ",
-        "          │                                                          │                                                  ",
-        "          │                                                          │                                                  ",
-        "          │                                                          │                                                  ",
-        "          │                                                          │                                                  ",
-        "          │                                                          │                                                  ",
-        "          │                                                          │                                                  ",
-        "          │                                                          │                                                  ",
-        "          │                                                          │                                                  ",
-        "          │                                                          │                                                  ",
-        "          │                                                          │                                                  ",
-        "          │                                                 ┌──────────────────────────────────────────────────────────┐",
-        "          │                                                 │world                                                     │",
-        "          └─────────────────────────────────────────────────│                                                          │",
-        "                                                            │                                                          │",
-        "                                                            │                                                          │",
-        "                                                            │                                                          │",
-        "                                                            │                                                          │",
-        "                                                            │                                                          │",
-        "                                                            │                                                          │",
-        "                                                            │                                                          │",
-        "                                                            │                                                          │",
-        "                                                            │                                                          │",
-        "                                                            │                                                          │",
-        "                                                            │                                                          │",
-        "                                                            │                                                          │",
-        "                                                            │                                                          │",
-        "                                                            │                                                          │",
-        "                                                            └──────────────────────────────────────────────────────────┘",
-        "                                                                                                                        ",
-        "                                                                                                                        ",
+        "                                                            ",
+        "                                                            ",
+        "                                                            ",
+        "     ┌────────────────────────────┐                         ",
+        "     │hello                       │                         ",
+        "     │                            │                         ",
+        "     │                            │                         ",
+        "     │                            │                         ",
+        "     │                            │                         ",
+        "     │                            │                         ",
+        "     │                        ┌────────────────────────────┐",
+        "     └────────────────────────│world                       │",
+        "                              │                            │",
+        "                              │                            │",
+        "                              │                            │",
+        "                              │                            │",
+        "                              │                            │",
+        "                              │                            │",
+        "                              └────────────────────────────┘",
+        "                                                            ",
     ],
     styles: [
         x: 0, y: 0, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
