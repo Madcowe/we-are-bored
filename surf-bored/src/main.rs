@@ -10,6 +10,7 @@ use ratatui::{
 use std::{error::Error, io};
 
 mod app;
+mod display_bored;
 mod ui;
 use crate::app::{App, CreateMode, DraftMode, GoToMode, HyperlinkMode, View};
 use crate::ui::ui;
@@ -44,9 +45,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
 async fn run_app<B: Backend>(termimal: &mut Terminal<B>, app: &mut App) -> io::Result<()> {
     loop {
-        app.create_bored_on_network("Testy bored", "")
-            .await
-            .unwrap();
+        // app.create_bored_on_network("Testy bored", "")
+        //     .await
+        //     .unwrap();
         termimal.draw(|f| ui(f, app))?;
 
         if let Event::Key(key) = event::read()? {
