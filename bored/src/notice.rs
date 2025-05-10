@@ -52,6 +52,10 @@ impl Display {
         self.display_text.clone()
     }
 
+    pub fn get_hyperlink_locations(&self) -> Vec<(usize, usize)> {
+        self.hyperlink_locations.clone()
+    }
+
     /// Descrease every location value in hyperlinks verctor by
     /// This is so that they can be adjusted as the display string is being created
     pub fn decrement_hyperlink_locations(&mut self, decrease_by: usize) {
