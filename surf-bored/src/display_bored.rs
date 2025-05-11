@@ -2,23 +2,19 @@ use bored::notice::{Display, get_display, get_hyperlinks};
 use bored::{Bored, BoredAddress, BoredError, Coordinate};
 use ratatui::buffer::Buffer;
 use ratatui::style::{Styled, Stylize};
-use ratatui::widgets::Chart;
 use ratatui::{
-    Frame,
-    crossterm::style::StyledContent,
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Style},
     text::{Line, Span, Text},
     widgets::{Block, Borders, Clear, List, ListItem, Paragraph, Widget, Wrap},
 };
 use std::cmp::{max, min};
-use std::io::Lines;
 
 use crate::app::{App, CreateMode, DraftMode, GoToMode, HyperlinkMode, View};
 
 /// Represent the layout of the bored an it's notices in rects
 struct BoredOfRects {
-    bored: Rect,
+    // bored: Rect,
     notice_rects: Vec<Rect>,
 }
 
@@ -34,14 +30,14 @@ impl BoredOfRects {
             );
             notice_rects.push(notice_rect);
         }
-        let bored_rect = Rect::new(
-            0,
-            y_offset,
-            bored.get_dimensions().x,
-            bored.get_dimensions().y + y_offset,
-        );
+        // let bored_rect = Rect::new(
+        //     0,
+        //     y_offset,
+        //     bored.get_dimensions().x,
+        //     bored.get_dimensions().y + y_offset,
+        // );
         BoredOfRects {
-            bored: bored_rect,
+            // bored: bored_rect,
             notice_rects,
         }
     }
@@ -76,27 +72,21 @@ impl BoredOfRects {
                         if hyperlink_location.0 > end_of_previous_span {
                             let start = max(end_of_previous_span, chars_in_previous_lines);
                             let end = min(hyperlink_location.0, line_end);
-                            eprintln!("1: {start}:{end}");
                             let span_text = display_text[start..end].to_owned();
-                            eprintln!("{:?}", span_text);
                             let span = Span::styled(span_text, Style::default());
                             spans.push(span);
                         }
                         // set hyperlinked bit
                         let start = max(hyperlink_location.0, chars_in_previous_lines);
                         let end = min(hyperlink_location.1, line_end);
-                        eprintln!("2: {start}:{end}");
                         let span_text = display_text[start..end].to_owned();
-                        eprintln!("{:?}", span_text);
                         let span = Span::styled(span_text, hyperlink_style);
                         spans.push(span);
                         end_of_previous_span = end;
                         // set bit after final hyperlink if there is one
                         if end_of_previous_span < line_end {
                             let end = min(line_end, display_text.len());
-                            eprintln!("3: {end_of_previous_span}:{end}");
                             let span_text = display_text[end_of_previous_span..end].to_owned();
-                            eprintln!("{:?}", span_text);
                             let span = Span::styled(span_text, Style::default());
                             spans.push(span);
                         }
@@ -104,7 +94,6 @@ impl BoredOfRects {
                 }
                 chars_in_previous_lines += line.len() + 1;
                 let line = Line::from_iter(spans.to_owned());
-                eprintln!("{}", line);
                 lines.push(spans);
             }
             let mut text = Text::from(display_text);
@@ -121,7 +110,7 @@ impl BoredOfRects {
 /// widget that can render the entirety of a bored
 pub struct DisplayBored {
     bored: Bored,
-    bored_rect: Rect,
+    // bored_rect: Rect,
 }
 impl Widget for DisplayBored {
     fn render(self, _: Rect, buffer: &mut Buffer) {
@@ -137,10 +126,10 @@ impl Widget for DisplayBored {
 
 impl DisplayBored {
     pub fn create(bored: &Bored) -> DisplayBored {
-        let bored_rect = Rect::new(0, 0, bored.get_dimensions().x, bored.get_dimensions().y);
+        // let bored_rect = Rect::new(0, 0, bored.get_dimensions().x, bored.get_dimensions().y);
         DisplayBored {
             bored: bored.clone(),
-            bored_rect,
+            // bored_rect,
         }
     }
 }
@@ -154,6 +143,20 @@ pub struct BoredViewPort {
     view_top_left: Coordinate,
     view_dimensions: Coordinate,
     buffer: Buffer,
+}
+impl Widget for BoredViewPort {
+    fn render(mut self, _: Rect, buffer: &mut Buffer) {
+        let bored_rect = Rect::new(
+            0,
+            0,
+            self.bored.get_dimensions().x,
+            self.bored.get_dimensions().y,
+        );
+        // let mut buffer = Buffer::empty(bored_rect);
+        let display_bored = DisplayBored::create(&self.bored);
+        display_bored.render(bored_rect, &mut self.buffer);
+        *buffer = self.buffer;
+    }
 }
 
 impl BoredViewPort {
@@ -192,7 +195,7 @@ mod tests {
     fn test_bored_of_rects() -> Result<(), BoredError> {
         let mut bored = Bored::create("Hello", Coordinate { x: 120, y: 40 });
         let bored_of_rects = BoredOfRects::create(&bored, 0);
-        assert_eq!(bored_of_rects.bored, Rect::new(0, 0, 120, 40));
+        // assert_eq!(bored_of_rects.bored, Rect::new(0, 0, 120, 40));
         assert!(bored_of_rects.notice_rects.is_empty());
         let notice = Notice::create(Coordinate { x: 60, y: 18 });
         bored.add(notice, Coordinate { x: 10, y: 5 })?;
@@ -301,8 +304,13 @@ mod tests {
         x: 0, y: 19, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
     ]
 }"#;
-        eprintln!("{:?}", buffer);
         assert_eq!(expected_output, format!("{:?}", buffer));
+        // just test view port with 100% view so should be the same as above
+        let mut bored_view_port = BoredViewPort::create(&bored, bored.get_dimensions());
+        eprintln!("{:?}", &bored_view_port.bored);
+        let mut buffer = Buffer::empty(bored_rect);
+        bored_view_port.render(bored_rect, &mut buffer);
+        eprintln!("{:?}", buffer);
         Ok(())
     }
 }
