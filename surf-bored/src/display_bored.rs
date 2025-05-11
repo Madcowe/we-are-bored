@@ -2,6 +2,7 @@ use bored::notice::{Display, get_display, get_hyperlinks};
 use bored::{Bored, BoredAddress, BoredError, Coordinate};
 use ratatui::buffer::Buffer;
 use ratatui::style::{Styled, Stylize};
+use ratatui::widgets::Chart;
 use ratatui::{
     Frame,
     crossterm::style::StyledContent,
@@ -10,6 +11,8 @@ use ratatui::{
     text::{Line, Span, Text},
     widgets::{Block, Borders, Clear, List, ListItem, Paragraph, Widget, Wrap},
 };
+use std::cmp::{max, min};
+use std::io::Lines;
 
 use crate::app::{App, CreateMode, DraftMode, GoToMode, HyperlinkMode, View};
 
@@ -44,6 +47,7 @@ impl BoredOfRects {
     }
 
     /// returns a vector of blocks with the notice text attached to the rects
+    /// inluding underline for hyperlinks, hower new line sin the text will be lost
     fn get_display_notices(&self, bored: &Bored) -> Result<Vec<(Paragraph, Rect)>, BoredError> {
         let mut display_notices = vec![];
         let hyperlink_style = Style::new().underlined();
@@ -56,39 +60,58 @@ impl BoredOfRects {
             let block = Block::default()
                 .borders(Borders::ALL)
                 .style(Style::default());
-            // .bg(Color::Black);
             let display_text = display.get_display_text();
             let mut end_of_previous_span = 0;
-            let hyperlink_locations_len = display.get_hyperlink_locations().len();
-            let mut spans = vec![];
-            for (i, hyperlink_location) in display.get_hyperlink_locations().into_iter().enumerate()
-            {
-                if hyperlink_location.0 > end_of_previous_span {
-                    let span = Span::styled(
-                        display_text[end_of_previous_span..hyperlink_location.0 - 1].to_owned(),
-                        Style::default(),
-                    );
-                    spans.push(span);
+            let mut chars_in_previous_lines = 0;
+            let mut lines = vec![];
+            for line in display_text.lines() {
+                let mut spans = vec![];
+                for hyperlink_location in display.get_hyperlink_locations().into_iter() {
+                    // if hyperlinks is on that line...it may span several
+                    let line_end = chars_in_previous_lines + line.len();
+                    if hyperlink_location.1 > chars_in_previous_lines
+                        && hyperlink_location.0 < line_end
+                    {
+                        // set preceding non hyperlinked bit
+                        if hyperlink_location.0 > end_of_previous_span {
+                            let start = max(end_of_previous_span, chars_in_previous_lines);
+                            let end = min(hyperlink_location.0, line_end);
+                            eprintln!("1: {start}:{end}");
+                            let span_text = display_text[start..end].to_owned();
+                            eprintln!("{:?}", span_text);
+                            let span = Span::styled(span_text, Style::default());
+                            spans.push(span);
+                        }
+                        // set hyperlinked bit
+                        let start = max(hyperlink_location.0, chars_in_previous_lines);
+                        let end = min(hyperlink_location.1, line_end);
+                        eprintln!("2: {start}:{end}");
+                        let span_text = display_text[start..end].to_owned();
+                        eprintln!("{:?}", span_text);
+                        let span = Span::styled(span_text, hyperlink_style);
+                        spans.push(span);
+                        end_of_previous_span = end;
+                        // set bit after final hyperlink if there is one
+                        if end_of_previous_span < line_end {
+                            let end = min(line_end, display_text.len());
+                            eprintln!("3: {end_of_previous_span}:{end}");
+                            let span_text = display_text[end_of_previous_span..end].to_owned();
+                            eprintln!("{:?}", span_text);
+                            let span = Span::styled(span_text, Style::default());
+                            spans.push(span);
+                        }
+                    }
                 }
-                eprintln!("{:?}", spans);
-                let span = Span::styled(
-                    display_text[hyperlink_location.0..hyperlink_location.1].to_owned(),
-                    hyperlink_style,
-                );
-                spans.push(span);
-                eprintln!("{:?}", spans);
-                end_of_previous_span = hyperlink_location.1;
-                if i == hyperlink_locations_len - 1 && end_of_previous_span < display_text.len() {
-                    eprintln!("{} {}", end_of_previous_span, hyperlink_locations_len);
-                    let span = Span::styled(
-                        display_text[end_of_previous_span..display_text.len()].to_owned(),
-                        Style::default(),
-                    );
-                    spans.push(span);
-                }
+                chars_in_previous_lines += line.len() + 1;
+                let line = Line::from_iter(spans.to_owned());
+                eprintln!("{}", line);
+                lines.push(spans);
             }
-            let text = Text::from_iter(spans);
-            let paragraph = Paragraph::new(text).block(block.clone());
+            let mut text = Text::from(display_text);
+            if !display.get_hyperlink_locations().is_empty() {
+                text = Text::from_iter(lines);
+            }
+            let paragraph = Paragraph::new(text).block(block.clone()).white();
             display_notices.push((paragraph, notice_rect));
         }
         Ok(display_notices)
@@ -156,6 +179,7 @@ impl BoredViewPort {
         }
     }
 }
+
 #[cfg(test)]
 
 mod tests {
@@ -198,7 +222,9 @@ mod tests {
     fn test_display_bored_render() -> Result<(), BoredError> {
         let mut bored = Bored::create("Hello", Coordinate { x: 60, y: 20 });
         let mut notice = Notice::create(Coordinate { x: 30, y: 9 });
-        notice.write("hello [link](url) to the world.\ngoodbye [link](url) to the world.")?;
+        notice.write(
+            "We are [link](url) bored.\nYou are [link](url) bored.\nI am [boooo\nooored](url)",
+        )?;
         bored.add(notice, Coordinate { x: 5, y: 3 })?;
         let mut notice = Notice::create(Coordinate { x: 30, y: 9 });
         notice.write("world")?;
@@ -214,10 +240,10 @@ mod tests {
         "                                                            ",
         "                                                            ",
         "     ┌────────────────────────────┐                         ",
-        "     │hello                       │                         ",
-        "     │                            │                         ",
-        "     │                            │                         ",
-        "     │                            │                         ",
+        "     │We are link bored.          │                         ",
+        "     │You are link bored.         │                         ",
+        "     │I am boooo                  │                         ",
+        "     │ooored                      │                         ",
         "     │                            │                         ",
         "     │                            │                         ",
         "     │                        ┌────────────────────────────┐",
@@ -233,6 +259,46 @@ mod tests {
     ],
     styles: [
         x: 0, y: 0, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
+        x: 5, y: 3, fg: White, bg: Reset, underline: Reset, modifier: NONE,
+        x: 35, y: 3, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
+        x: 5, y: 4, fg: White, bg: Reset, underline: Reset, modifier: NONE,
+        x: 13, y: 4, fg: White, bg: Reset, underline: Reset, modifier: UNDERLINED,
+        x: 17, y: 4, fg: White, bg: Reset, underline: Reset, modifier: NONE,
+        x: 35, y: 4, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
+        x: 5, y: 5, fg: White, bg: Reset, underline: Reset, modifier: NONE,
+        x: 14, y: 5, fg: White, bg: Reset, underline: Reset, modifier: UNDERLINED,
+        x: 18, y: 5, fg: White, bg: Reset, underline: Reset, modifier: NONE,
+        x: 35, y: 5, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
+        x: 5, y: 6, fg: White, bg: Reset, underline: Reset, modifier: NONE,
+        x: 11, y: 6, fg: White, bg: Reset, underline: Reset, modifier: UNDERLINED,
+        x: 16, y: 6, fg: White, bg: Reset, underline: Reset, modifier: NONE,
+        x: 35, y: 6, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
+        x: 5, y: 7, fg: White, bg: Reset, underline: Reset, modifier: NONE,
+        x: 6, y: 7, fg: White, bg: Reset, underline: Reset, modifier: UNDERLINED,
+        x: 12, y: 7, fg: White, bg: Reset, underline: Reset, modifier: NONE,
+        x: 35, y: 7, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
+        x: 5, y: 8, fg: White, bg: Reset, underline: Reset, modifier: NONE,
+        x: 35, y: 8, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
+        x: 5, y: 9, fg: White, bg: Reset, underline: Reset, modifier: NONE,
+        x: 35, y: 9, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
+        x: 5, y: 10, fg: White, bg: Reset, underline: Reset, modifier: NONE,
+        x: 0, y: 11, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
+        x: 5, y: 11, fg: White, bg: Reset, underline: Reset, modifier: NONE,
+        x: 0, y: 12, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
+        x: 30, y: 12, fg: White, bg: Reset, underline: Reset, modifier: NONE,
+        x: 0, y: 13, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
+        x: 30, y: 13, fg: White, bg: Reset, underline: Reset, modifier: NONE,
+        x: 0, y: 14, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
+        x: 30, y: 14, fg: White, bg: Reset, underline: Reset, modifier: NONE,
+        x: 0, y: 15, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
+        x: 30, y: 15, fg: White, bg: Reset, underline: Reset, modifier: NONE,
+        x: 0, y: 16, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
+        x: 30, y: 16, fg: White, bg: Reset, underline: Reset, modifier: NONE,
+        x: 0, y: 17, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
+        x: 30, y: 17, fg: White, bg: Reset, underline: Reset, modifier: NONE,
+        x: 0, y: 18, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
+        x: 30, y: 18, fg: White, bg: Reset, underline: Reset, modifier: NONE,
+        x: 0, y: 19, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
     ]
 }"#;
         eprintln!("{:?}", buffer);

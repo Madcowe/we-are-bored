@@ -1,5 +1,5 @@
 use bored::bored_client::{BoredClient, ConnectionType};
-use bored::notice::{get_display, get_hyperlinks};
+use bored::notice::{Notice, get_display, get_hyperlinks};
 use bored::{Bored, BoredAddress, BoredError, Coordinate};
 use ratatui::buffer::Buffer;
 use ratatui::prelude::BlockExt;
@@ -17,6 +17,7 @@ use std::ops::Deref;
 use std::str::FromStr;
 
 use crate::app::{App, CreateMode, DraftMode, GoToMode, HyperlinkMode, View};
+use crate::display_bored::DisplayBored;
 
 pub fn ui(frame: &mut Frame, app: &App) {
     let area = frame.area();
