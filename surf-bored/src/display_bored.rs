@@ -155,7 +155,21 @@ impl Widget for BoredViewPort {
         // let mut buffer = Buffer::empty(bored_rect);
         let display_bored = DisplayBored::create(&self.bored);
         display_bored.render(bored_rect, &mut self.buffer);
-        *buffer = self.buffer;
+        let mut view_buffer = Buffer::empty(Rect::new(
+            0,
+            0,
+            self.view_dimensions.x,
+            self.view_dimensions.y,
+        ));
+        for x in self.view_top_left.x..self.view_dimensions.x {
+            for y in self.view_top_left.y..self.view_dimensions.y {
+                let bored_x = x + self.view_top_left.x;
+                let bored_y = y + self.view_top_left.y;
+                let mut cell = view_buffer.cell_mut((x, y));
+                cell = self.buffer.cell_mut((bored_x, bored_y));
+            }
+        }
+        *buffer = view_buffer;
     }
 }
 
