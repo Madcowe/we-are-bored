@@ -1,6 +1,7 @@
 use bored::notice::{Display, get_display, get_hyperlinks};
 use bored::{Bored, BoredAddress, BoredError, Coordinate};
 use ratatui::buffer::Buffer;
+use ratatui::layout::Position;
 use ratatui::style::{Styled, Stylize};
 use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
@@ -152,30 +153,46 @@ impl Widget for BoredViewPort {
             self.bored.get_dimensions().x,
             self.bored.get_dimensions().y,
         );
-        // let mut buffer = Buffer::empty(bored_rect);
         let display_bored = DisplayBored::create(&self.bored);
         display_bored.render(bored_rect, &mut self.buffer);
-        let mut view_buffer = Buffer::empty(Rect::new(
-            0,
-            0,
+        let view_rect = Rect::new(
+            self.view_top_left.x,
+            self.view_top_left.y,
             self.view_dimensions.x,
             self.view_dimensions.y,
-        ));
+        );
+        let visible_content = self.buffer.content;
+        // .into_iter()
+        // .take(view_rect.area() as usize);
         for x in self.view_top_left.x..self.view_dimensions.x {
             for y in self.view_top_left.y..self.view_dimensions.y {
                 let bored_x = x + self.view_top_left.x;
                 let bored_y = y + self.view_top_left.y;
-                let mut cell = view_buffer.cell_mut((x, y));
-                cell = self.buffer.cell_mut((bored_x, bored_y));
+                let bored_pos = bored_y * self.bored_rect.width + bored_x;
+                buffer[(x, y)] = visible_content[bored_pos as usize].clone();
+                // let mut cell = view_buffer.cell_mut((x, y));
+                // cell = self.buffer.cell_mut((bored_x, bored_y));
             }
         }
-        *buffer = view_buffer;
+        // for (i, cell) in visible_content.enumerate() {
+        //     let x = i as u16 % self.bored.get_dimensions().x;
+        //     let y = i as u16 / self.bored.get_dimensions().x;
+        //     if view_rect.contains(Position { x, y }) {
+        //         buffer[(x, y)] = cell;
+        //     }
+        // }
     }
 }
 
 impl BoredViewPort {
     pub fn create(bored: &Bored, view_dimensions: Coordinate) -> BoredViewPort {
         let bored_rect = Rect::new(0, 0, bored.get_dimensions().x, bored.get_dimensions().y);
+        // if view dimension is lerge then bored dimension user bored dimension
+        let view_dimensions = if view_dimensions.within(&bored.get_dimensions()) {
+            view_dimensions
+        } else {
+            bored.get_dimensions()
+        };
         BoredViewPort {
             bored: bored.clone(),
             bored_rect,
@@ -194,6 +211,11 @@ impl BoredViewPort {
         {
             self.view_top_left = view_top_left;
         }
+    }
+
+    /// Get rect that is the size of the view
+    pub fn get_view_rect(&self) -> Rect {
+        Rect::new(0, 0, self.view_dimensions.x, self.view_dimensions.y)
     }
 }
 
@@ -250,6 +272,7 @@ mod tests {
         let mut buffer = Buffer::empty(bored_rect);
         let display_bored = DisplayBored::create(&bored);
         display_bored.render(bored_rect, &mut buffer);
+        eprintln!("{:?}", buffer);
         let expected_output = r#"Buffer {
     area: Rect { x: 0, y: 0, width: 60, height: 20 },
     content: [
@@ -320,10 +343,10 @@ mod tests {
 }"#;
         assert_eq!(expected_output, format!("{:?}", buffer));
         // just test view port with 100% view so should be the same as above
-        let mut bored_view_port = BoredViewPort::create(&bored, bored.get_dimensions());
-        eprintln!("{:?}", &bored_view_port.bored);
-        let mut buffer = Buffer::empty(bored_rect);
-        bored_view_port.render(bored_rect, &mut buffer);
+        let mut bored_view_port = BoredViewPort::create(&bored, Coordinate { x: 40, y: 15 });
+        // bored_view_port.move_view(Coordinate { x: 5, y: 12 });
+        let mut buffer = Buffer::empty(bored_view_port.get_view_rect());
+        bored_view_port.render(Rect::default(), &mut buffer);
         eprintln!("{:?}", buffer);
         Ok(())
     }
