@@ -146,7 +146,7 @@ pub struct BoredViewPort {
     buffer: Buffer,
 }
 impl Widget for BoredViewPort {
-    fn render(mut self, _: Rect, buffer: &mut Buffer) {
+    fn render(mut self, view_rect: Rect, buffer: &mut Buffer) {
         let bored_rect = Rect::new(
             0,
             0,
@@ -155,32 +155,15 @@ impl Widget for BoredViewPort {
         );
         let display_bored = DisplayBored::create(&self.bored);
         display_bored.render(bored_rect, &mut self.buffer);
-        let view_rect = Rect::new(
-            self.view_top_left.x,
-            self.view_top_left.y,
-            self.view_dimensions.x,
-            self.view_dimensions.y,
-        );
         let visible_content = self.buffer.content;
-        // .into_iter()
-        // .take(view_rect.area() as usize);
-        for x in self.view_top_left.x..self.view_dimensions.x {
-            for y in self.view_top_left.y..self.view_dimensions.y {
-                let bored_x = x + self.view_top_left.x;
-                let bored_y = y + self.view_top_left.y;
+        for x in view_rect.x..view_rect.width {
+            for y in view_rect.y..view_rect.height {
+                let bored_x = x + view_rect.x;
+                let bored_y = y + view_rect.y;
                 let bored_pos = bored_y * self.bored_rect.width + bored_x;
                 buffer[(x, y)] = visible_content[bored_pos as usize].clone();
-                // let mut cell = view_buffer.cell_mut((x, y));
-                // cell = self.buffer.cell_mut((bored_x, bored_y));
             }
         }
-        // for (i, cell) in visible_content.enumerate() {
-        //     let x = i as u16 % self.bored.get_dimensions().x;
-        //     let y = i as u16 / self.bored.get_dimensions().x;
-        //     if view_rect.contains(Position { x, y }) {
-        //         buffer[(x, y)] = cell;
-        //     }
-        // }
     }
 }
 
@@ -345,8 +328,8 @@ mod tests {
         // just test view port with 100% view so should be the same as above
         let mut bored_view_port = BoredViewPort::create(&bored, Coordinate { x: 40, y: 15 });
         // bored_view_port.move_view(Coordinate { x: 5, y: 12 });
-        let mut buffer = Buffer::empty(bored_view_port.get_view_rect());
-        bored_view_port.render(Rect::default(), &mut buffer);
+        let mut buffer = Buffer::empty(bored_rect);
+        bored_view_port.render(bored_rect, &mut buffer);
         eprintln!("{:?}", buffer);
         Ok(())
     }
