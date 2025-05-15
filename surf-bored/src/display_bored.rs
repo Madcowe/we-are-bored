@@ -31,16 +31,7 @@ impl BoredOfRects {
             );
             notice_rects.push(notice_rect);
         }
-        // let bored_rect = Rect::new(
-        //     0,
-        //     y_offset,
-        //     bored.get_dimensions().x,
-        //     bored.get_dimensions().y + y_offset,
-        // );
-        BoredOfRects {
-            // bored: bored_rect,
-            notice_rects,
-        }
+        BoredOfRects { notice_rects }
     }
 
     /// returns a vector of blocks with the notice text attached to the rects
@@ -111,7 +102,6 @@ impl BoredOfRects {
 /// widget that can render the entirety of a bored
 pub struct DisplayBored {
     bored: Bored,
-    // bored_rect: Rect,
 }
 impl Widget for DisplayBored {
     fn render(self, _: Rect, buffer: &mut Buffer) {
@@ -127,10 +117,8 @@ impl Widget for DisplayBored {
 
 impl DisplayBored {
     pub fn create(bored: &Bored) -> DisplayBored {
-        // let bored_rect = Rect::new(0, 0, bored.get_dimensions().x, bored.get_dimensions().y);
         DisplayBored {
             bored: bored.clone(),
-            // bored_rect,
         }
     }
 }
@@ -144,27 +132,6 @@ pub struct BoredViewPort {
     view_top_left: Coordinate,
     view_dimensions: Coordinate,
     buffer: Buffer,
-}
-impl Widget for BoredViewPort {
-    fn render(mut self, view_rect: Rect, buffer: &mut Buffer) {
-        let bored_rect = Rect::new(
-            0,
-            0,
-            self.bored.get_dimensions().x,
-            self.bored.get_dimensions().y,
-        );
-        let display_bored = DisplayBored::create(&self.bored);
-        display_bored.render(bored_rect, &mut self.buffer);
-        let visible_content = self.buffer.content;
-        for x in view_rect.x..view_rect.width {
-            for y in view_rect.y..view_rect.height {
-                let bored_x = x + view_rect.x;
-                let bored_y = y + view_rect.y;
-                let bored_pos = bored_y * self.bored_rect.width + bored_x;
-                buffer[(x, y)] = visible_content[bored_pos as usize].clone();
-            }
-        }
-    }
 }
 
 impl BoredViewPort {
@@ -196,9 +163,29 @@ impl BoredViewPort {
         }
     }
 
-    /// Get rect that is the size of the view
-    pub fn get_view_rect(&self) -> Rect {
-        Rect::new(0, 0, self.view_dimensions.x, self.view_dimensions.y)
+    /// Get rect that is position and size of view
+    pub fn get_view(&self) -> Rect {
+        Rect::new(
+            self.view_top_left.x,
+            self.view_top_left.y,
+            self.view_dimensions.x,
+            self.view_dimensions.y,
+        )
+    }
+
+    /// render just what is in the view port
+    pub fn render_view(&mut self, buffer: &mut Buffer) {
+        let view_rect = self.get_view();
+        let display_bored = DisplayBored::create(&self.bored);
+        display_bored.render(self.bored_rect, &mut self.buffer);
+        let visible_content = self.buffer.content.clone();
+        eprintln!("{:?} x:{} y:{}", view_rect, view_rect.x, view_rect.y);
+        for x in view_rect.x..view_rect.x + view_rect.width {
+            for y in view_rect.y..view_rect.y + view_rect.height {
+                let bored_pos = y * self.bored_rect.width + x;
+                buffer[(x, y)] = visible_content[bored_pos as usize].clone();
+            }
+        }
     }
 }
 
@@ -326,10 +313,78 @@ mod tests {
 }"#;
         assert_eq!(expected_output, format!("{:?}", buffer));
         // just test view port with 100% view so should be the same as above
+        let mut bored_view_port = BoredViewPort::create(&bored, Coordinate { x: 60, y: 20 });
+        bored_view_port.render_view(&mut buffer);
+        assert_eq!(expected_output, format!("{:?}", buffer));
         let mut bored_view_port = BoredViewPort::create(&bored, Coordinate { x: 40, y: 15 });
-        // bored_view_port.move_view(Coordinate { x: 5, y: 12 });
-        let mut buffer = Buffer::empty(bored_rect);
-        bored_view_port.render(bored_rect, &mut buffer);
+        bored_view_port.move_view(Coordinate { x: 5, y: 5 });
+        let mut buffer = Buffer::empty(bored_view_port.get_view());
+        let expected_output = r#"Buffer {
+    area: Rect { x: 5, y: 5, width: 40, height: 15 },
+    content: [
+        "│You are link bored.         │          ",
+        "│I am boooo                  │          ",
+        "│ooored                      │          ",
+        "│                            │          ",
+        "│                            │          ",
+        "│                        ┌──────────────",
+        "└────────────────────────│world         ",
+        "                         │              ",
+        "                         │              ",
+        "                         │              ",
+        "                         │              ",
+        "                         │              ",
+        "                         │              ",
+        "                         └──────────────",
+        "                                        ",
+    ],
+    styles: [
+        x: 0, y: 0, fg: White, bg: Reset, underline: Reset, modifier: NONE,
+        x: 9, y: 0, fg: White, bg: Reset, underline: Reset, modifier: UNDERLINED,
+        x: 13, y: 0, fg: White, bg: Reset, underline: Reset, modifier: NONE,
+        x: 30, y: 0, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
+        x: 0, y: 1, fg: White, bg: Reset, underline: Reset, modifier: NONE,
+        x: 6, y: 1, fg: White, bg: Reset, underline: Reset, modifier: UNDERLINED,
+        x: 11, y: 1, fg: White, bg: Reset, underline: Reset, modifier: NONE,
+        x: 30, y: 1, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
+        x: 0, y: 2, fg: White, bg: Reset, underline: Reset, modifier: NONE,
+        x: 1, y: 2, fg: White, bg: Reset, underline: Reset, modifier: UNDERLINED,
+        x: 7, y: 2, fg: White, bg: Reset, underline: Reset, modifier: NONE,
+        x: 30, y: 2, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
+        x: 0, y: 3, fg: White, bg: Reset, underline: Reset, modifier: NONE,
+        x: 30, y: 3, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
+        x: 0, y: 4, fg: White, bg: Reset, underline: Reset, modifier: NONE,
+        x: 30, y: 4, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
+        x: 0, y: 5, fg: White, bg: Reset, underline: Reset, modifier: NONE,
+        x: 0, y: 7, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
+        x: 25, y: 7, fg: White, bg: Reset, underline: Reset, modifier: NONE,
+        x: 0, y: 8, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
+        x: 25, y: 8, fg: White, bg: Reset, underline: Reset, modifier: NONE,
+        x: 0, y: 9, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
+        x: 25, y: 9, fg: White, bg: Reset, underline: Reset, modifier: NONE,
+        x: 0, y: 10, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
+        x: 25, y: 10, fg: White, bg: Reset, underline: Reset, modifier: NONE,
+        x: 0, y: 11, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
+        x: 25, y: 11, fg: White, bg: Reset, underline: Reset, modifier: NONE,
+        x: 0, y: 12, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
+        x: 25, y: 12, fg: White, bg: Reset, underline: Reset, modifier: NONE,
+        x: 0, y: 13, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
+        x: 25, y: 13, fg: White, bg: Reset, underline: Reset, modifier: NONE,
+        x: 0, y: 14, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
+    ]
+}"#;
+        bored_view_port.render_view(&mut buffer);
+        assert_eq!(expected_output, format!("{:?}", buffer));
+        // outside of x bounds
+        bored_view_port.move_view(Coordinate { x: 21, y: 5 });
+        let mut buffer = Buffer::empty(bored_view_port.get_view());
+        bored_view_port.render_view(&mut buffer);
+        assert_eq!(expected_output, format!("{:?}", buffer));
+        // outside of y bounds
+        bored_view_port.move_view(Coordinate { x: 5, y: 6 });
+        let mut buffer = Buffer::empty(bored_view_port.get_view());
+        bored_view_port.render_view(&mut buffer);
+        assert_eq!(expected_output, format!("{:?}", buffer));
         eprintln!("{:?}", buffer);
         Ok(())
     }
