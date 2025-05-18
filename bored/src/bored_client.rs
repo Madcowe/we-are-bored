@@ -219,7 +219,7 @@ mod tests {
 
     #[tokio::test]
     #[ignore]
-    async fn text_get_cost() -> Result<(), BoredError> {
+    async fn test_get_cost() -> Result<(), BoredError> {
         let bored_client = BoredClient::init(ConnectionType::Local).await?;
         assert!(bored_client.get_cost().await.is_ok());
         Ok(())

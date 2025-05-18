@@ -543,7 +543,7 @@ mod tests {
 
     use super::*;
 
-    // #[test]
+    #[test]
     fn test_protcol_version() {
         let protocol_version = ProtocolVersion::check(CONTENT_TYPE_PROTOCOL_BASE);
         assert_eq!(protocol_version, Ok(ProtocolVersion(1)));

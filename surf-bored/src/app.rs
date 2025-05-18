@@ -1,10 +1,37 @@
 use bored::bored_client::{BoredClient, ConnectionType};
-use bored::{Bored, BoredAddress, BoredError, Coordinate};
+use bored::{Bored, BoredAddress, BoredError, Coordinate, Direction};
 use serde::{Deserialize, Serialize};
+use std::error::Error;
 use std::fs;
 use std::fs::File;
 use std::io::Write;
 use std::path::{Path, PathBuf};
+
+#[derive(Debug, thiserror::Error)]
+pub enum SurfBoredError {
+    #[error("{0}")]
+    BoredError(BoredError),
+    #[error("Could not read directory file so directory is empty")]
+    DirectoryFileReadError,
+    #[error("Directory not save to disk as could not write to file")]
+    DirectoryFileWriteError,
+    #[error("could not serialize directory file so directory is empty")]
+    DirectorySerialzationError,
+    #[error("could not derserialize directory file so directory is empty")]
+    DirectoryDeserialzationError,
+}
+
+impl From<BoredError> for SurfBoredError {
+    fn from(e: BoredError) -> Self {
+        Self::BoredError(e)
+    }
+}
+
+// impl<T: Error + 'static> From<T> for SurfBoredError {
+//     fn from(e: T) -> Self {
+//         Self::Other(Box::new(e))
+//     }
+// }
 
 #[derive(Clone)]
 pub enum View {
@@ -42,14 +69,14 @@ pub enum GoToMode {
     PasteAddress,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct Listing {
     name: String,
     bored_address: String,
 }
 
 /// The directory of boreds...list of bored the user has saved for future reference
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct Directory {
     bored_addresses: Vec<Listing>,
     home_bored: usize, // indicates which bored is the home bored
@@ -62,12 +89,30 @@ impl Directory {
         }
     }
 
-    fn load_file(&mut self) {}
+    fn load_file(path: &str) -> Result<Directory, SurfBoredError> {
+        if let Ok(directory_string) = fs::read_to_string(path) {
+            if let Ok(directory) = toml::from_str(&directory_string) {
+                return Ok(directory);
+            } else {
+                return Err(SurfBoredError::DirectoryDeserialzationError);
+            }
+        } else {
+            return Err(SurfBoredError::DirectoryFileWriteError);
+        }
+    }
 
     // need to sort out error handling and remove unwraps
-    fn add(&mut self, listing: Listing) {
+    fn add(&mut self, listing: Listing, path: &str) -> Result<(), SurfBoredError> {
         self.bored_addresses.push(listing);
-        fs::write("directory_of_boreds.toml", toml::to_string(&self).unwrap()).unwrap();
+        if let Ok(directory_string) = toml::to_string(&self) {
+            let Ok(()) = fs::write(path, &directory_string) else {
+                return Err(SurfBoredError::DirectoryFileWriteError);
+            };
+        } else {
+            return Err(SurfBoredError::DirectorySerialzationError);
+        }
+        Ok(())
+        // fs::write(path, toml::to_string(&self).unwrap()).unwrap();
     }
 
     fn set_home(&mut self, home_bored: usize) {
@@ -92,6 +137,7 @@ impl History {
 pub struct App {
     pub client: Option<BoredClient>,
     pub directory: Directory,
+    pub directory_path: String,
     pub history: History,
     pub current_view: View,
     pub previous_view: View,
@@ -102,6 +148,7 @@ impl App {
         App {
             client: None, //BoredClient::init(ConnectionType::Local).await.ok(),
             directory: Directory::new(),
+            directory_path: "directory_of_bored.toml".to_string(),
             history: History::new(),
             current_view: View::BoredView(None),
             previous_view: View::BoredView(None),
@@ -111,6 +158,11 @@ impl App {
 
     pub async fn init_client(&mut self) -> Result<(), BoredError> {
         self.client = Some(BoredClient::init(ConnectionType::Local).await?);
+        Ok(())
+    }
+
+    pub fn load_directory(&mut self) -> Result<(), SurfBoredError> {
+        self.directory = Directory::load_file(&self.directory_path)?;
         Ok(())
     }
 
@@ -174,19 +226,24 @@ impl App {
         &mut self,
         name: &str,
         private_key: &str,
-    ) -> Result<Bored, BoredError> {
+    ) -> Result<Bored, SurfBoredError> {
         let Some(ref mut client) = self.client else {
-            return Err(BoredError::ClientConnectionError);
+            return Err(SurfBoredError::BoredError(
+                BoredError::ClientConnectionError,
+            ));
         };
         client
             .create_bored(name, Coordinate { x: 120, y: 40 }, private_key)
             .await?;
         let bored = client.get_current_bored()?;
         self.current_view = View::BoredView(Some(client.get_bored_address()?));
-        self.directory.add(Listing {
-            name: client.get_bored_name()?.to_string(),
-            bored_address: format!("{}", client.get_bored_address()?),
-        });
+        self.directory.add(
+            Listing {
+                name: client.get_bored_name()?.to_string(),
+                bored_address: format!("{}", client.get_bored_address()?),
+            },
+            &self.directory_path,
+        )?;
         Ok(bored)
     }
 
@@ -215,5 +272,38 @@ impl App {
 
     pub fn create_hyperlink(&mut self) {
         self.current_view = View::DraftView(DraftMode::Hyperlink(HyperlinkMode::Text));
+    }
+}
+
+#[cfg(test)]
+
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_file_load() -> Result<(), SurfBoredError> {
+        let mut directory;
+        {
+            let mut app = App::new();
+            app.directory_path = "test_directory.toml".to_string();
+            app.init_client().await?;
+            app.create_bored_on_network("I am bored", "").await?;
+            directory = app.directory.clone();
+        }
+        {
+            let mut app = App::new();
+            app.directory_path = "test_directory.toml".to_string();
+            app.init_client().await?;
+            app.load_directory()?;
+            assert_eq!(directory, app.directory);
+            app.create_bored_on_network("We are bored", "").await?;
+            directory = app.directory.clone();
+        }
+        let mut app = App::new();
+        app.directory_path = "test_directory.toml".to_string();
+        app.init_client().await?;
+        app.load_directory()?;
+        assert_eq!(directory, app.directory);
+        Ok(())
     }
 }

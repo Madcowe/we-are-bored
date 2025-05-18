@@ -201,7 +201,6 @@ mod tests {
     fn test_bored_of_rects() -> Result<(), BoredError> {
         let mut bored = Bored::create("Hello", Coordinate { x: 120, y: 40 });
         let bored_of_rects = BoredOfRects::create(&bored, 0);
-        // assert_eq!(bored_of_rects.bored, Rect::new(0, 0, 120, 40));
         assert!(bored_of_rects.notice_rects.is_empty());
         let notice = Notice::create(Coordinate { x: 60, y: 18 });
         bored.add(notice, Coordinate { x: 10, y: 5 })?;
