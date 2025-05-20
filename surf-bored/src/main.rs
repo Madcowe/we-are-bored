@@ -44,10 +44,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
 }
 
 async fn run_app<B: Backend>(termimal: &mut Terminal<B>, app: &mut App) -> io::Result<()> {
+    if let Err(e) = app.load_directory() {
+        app.display_error(e);
+    }
     loop {
-        // app.create_bored_on_network("Testy bored", "")
-        //     .await
-        //     .unwrap();
         termimal.draw(|f| ui(f, app))?;
 
         if let Event::Key(key) = event::read()? {

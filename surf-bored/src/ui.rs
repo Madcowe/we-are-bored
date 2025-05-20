@@ -8,7 +8,7 @@ use ratatui::widgets::Widget;
 use ratatui::{
     Frame,
     crossterm::style::StyledContent,
-    layout::{Constraint, Direction, Layout, Rect},
+    layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Color, Style},
     text::{Line, Span, Text},
     widgets::{Block, Borders, Clear, List, ListItem, Paragraph, Wrap},
@@ -20,9 +20,10 @@ use crate::app::{App, CreateMode, DraftMode, GoToMode, HyperlinkMode, View};
 use crate::display_bored::DisplayBored;
 
 pub fn ui(frame: &mut Frame, app: &App) {
+    // setup base interfact
     let area = frame.area();
     let mut title_text = String::new();
-    let mut status_text = "Connected, no bored loded";
+    let mut status_text = "Connected, no bored loaded";
     let bored = app.get_current_bored();
     if let Some(bored) = bored {
         let bored_name = format!(
@@ -51,7 +52,44 @@ pub fn ui(frame: &mut Frame, app: &App) {
     let status_rect = Rect::new(0, area.height - 3, area.width, 3);
     let status = Paragraph::new(Text::styled(status_text, Style::default())).block(status_block);
     status.render(status_rect, frame.buffer_mut());
-    // frame.render_widget(status, status_rect);
+
+    // modify based on current_view
+    match &app.current_view {
+        View::ErrorView(e) => {
+            let pop_up_rect = centered_rect(60, 60, area);
+            create_pop_up(
+                frame,
+                pop_up_rect,
+                &format!("{e}"),
+                "Press (enter) to contiune or (q) to quit.",
+            );
+        }
+        _ => (),
+    }
+}
+
+/// function to generate pop ups windows
+fn create_pop_up(frame: &mut Frame, pop_up_rect: Rect, content: &str, navigation_text: &str) {
+    Clear.render(pop_up_rect, frame.buffer_mut());
+    let pop_up_block = Block::default()
+        .title("Error")
+        .borders(Borders::ALL)
+        .style(Style::default());
+    frame.render_widget(pop_up_block, pop_up_rect);
+    let pop_up_chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .margin(1)
+        .constraints([
+            Constraint::Percentage(100),
+            Constraint::Min(navigation_text.lines().count() as u16),
+        ])
+        .split(pop_up_rect);
+    let pop_up_text = Paragraph::new(Text::styled(format!("{content}"), Style::default()));
+    frame.render_widget(pop_up_text, pop_up_chunks[0]);
+    let navigation_text =
+        Paragraph::new(Text::styled(navigation_text, Style::default()).not_rapid_blink())
+            .alignment(Alignment::Center);
+    frame.render_widget(navigation_text, pop_up_chunks[1]);
 }
 
 /// helper function to create a centered rect using up certain percentage of the available rect `r`

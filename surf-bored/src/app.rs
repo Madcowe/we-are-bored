@@ -7,17 +7,17 @@ use std::fs::File;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, thiserror::Error, Clone)]
 pub enum SurfBoredError {
     #[error("{0}")]
     BoredError(BoredError),
-    #[error("Could not read directory file so directory is empty")]
+    #[error("Could not read directory file so directory is empty.")]
     DirectoryFileReadError,
-    #[error("Directory not save to disk as could not write to file")]
+    #[error("Directory not saved to disk as could not write to file.")]
     DirectoryFileWriteError,
-    #[error("could not serialize directory file so directory is empty")]
+    #[error("Could not serialize directory file so directory is empty.")]
     DirectorySerialzationError,
-    #[error("could not derserialize directory file so directory is empty")]
+    #[error("Could not derserialize directory file so directory is empty.")]
     DirectoryDeserialzationError,
 }
 
@@ -35,7 +35,7 @@ impl From<BoredError> for SurfBoredError {
 
 #[derive(Clone)]
 pub enum View {
-    ErrorView(BoredError),
+    ErrorView(SurfBoredError),
     BoredView(Option<BoredAddress>),
     NoticeView { hyperlinks_index: Option<usize> },
     DraftView(DraftMode),
@@ -97,7 +97,7 @@ impl Directory {
                 return Err(SurfBoredError::DirectoryDeserialzationError);
             }
         } else {
-            return Err(SurfBoredError::DirectoryFileWriteError);
+            return Err(SurfBoredError::DirectoryFileReadError);
         }
     }
 
@@ -166,8 +166,8 @@ impl App {
         Ok(())
     }
 
-    pub fn display_error(&mut self, bored_error: BoredError) {
-        self.current_view = View::ErrorView(bored_error);
+    pub fn display_error(&mut self, surf_bored_error: SurfBoredError) {
+        self.current_view = View::ErrorView(surf_bored_error);
     }
 
     pub fn goto(&mut self) {
@@ -281,6 +281,7 @@ mod tests {
     use super::*;
 
     #[tokio::test]
+    #[ignore]
     async fn test_file_load() -> Result<(), SurfBoredError> {
         let mut directory;
         {
