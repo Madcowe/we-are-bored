@@ -8,7 +8,7 @@ use ratatui::widgets::Widget;
 use ratatui::{
     Frame,
     crossterm::style::StyledContent,
-    layout::{Alignment, Constraint, Direction, Layout, Rect},
+    layout::{Alignment, Constraint, Direction, Layout, Margin, Rect},
     style::{Color, Style},
     text::{Line, Span, Text},
     widgets::{Block, Borders, Clear, List, ListItem, Paragraph, Wrap},
@@ -56,20 +56,21 @@ pub fn ui(frame: &mut Frame, app: &App) {
     // modify based on current_view
     match &app.current_view {
         View::ErrorView(e) => {
-            let pop_up_rect = centered_rect(60, 60, area);
-            create_pop_up(
+            let pop_up_rect = area.inner(Margin::new(area.width / 4, area.height / 4)); //centered_rect(60, 60, area);
+            create_error_pop_up(
                 frame,
                 pop_up_rect,
                 &format!("{e}"),
                 "Press (enter) to contiune or (q) to quit.",
             );
         }
+        // View::CreateView() =>
         _ => (),
     }
 }
 
-/// function to generate pop ups windows
-fn create_pop_up(frame: &mut Frame, pop_up_rect: Rect, content: &str, navigation_text: &str) {
+/// function to generate error pop ups windows
+fn create_error_pop_up(frame: &mut Frame, pop_up_rect: Rect, content: &str, navigation_text: &str) {
     Clear.render(pop_up_rect, frame.buffer_mut());
     let pop_up_block = Block::default()
         .title("Error")
@@ -91,6 +92,9 @@ fn create_pop_up(frame: &mut Frame, pop_up_rect: Rect, content: &str, navigation
             .alignment(Alignment::Center);
     frame.render_widget(navigation_text, pop_up_chunks[1]);
 }
+
+/// function to genrate create bored popup
+fn create_create_pop_up(frame: &mut Frame, pop_up_rect: Rect) {}
 
 /// helper function to create a centered rect using up certain percentage of the available rect `r`
 fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
