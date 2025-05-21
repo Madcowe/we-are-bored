@@ -56,16 +56,31 @@ pub fn ui(frame: &mut Frame, app: &App) {
     match &app.current_view {
         View::ErrorView(e) => {
             let pop_up_rect = area.inner(Margin::new(area.width / 4, area.height / 4)); //centered_rect(60, 60, area);
-            create_error_pop_up(
-                frame,
-                pop_up_rect,
-                &format!("{e}"),
-                "Press (enter) to contiune or (q) to quit.",
-            );
+            let navigation_text = "Press (enter) to contiune or (q) to quit.";
+            Clear.render(pop_up_rect, frame.buffer_mut());
+            let pop_up_block = Block::default()
+                .title("Error")
+                .borders(Borders::ALL)
+                .style(Style::default())
+                .bg(Color::Black);
+            frame.render_widget(pop_up_block, pop_up_rect);
+            let pop_up_chunks = Layout::default()
+                .direction(Direction::Vertical)
+                .margin(1)
+                .constraints([
+                    Constraint::Percentage(100),
+                    Constraint::Min(navigation_text.lines().count() as u16),
+                ])
+                .split(pop_up_rect);
+            let pop_up_text = Paragraph::new(Text::styled(format!("{e}"), Style::default()));
+            frame.render_widget(pop_up_text, pop_up_chunks[0]);
+            let navigation_text =
+                Paragraph::new(Text::styled(navigation_text, Style::default()).not_rapid_blink())
+                    .alignment(Alignment::Center);
+            frame.render_widget(navigation_text, pop_up_chunks[1]);
         }
         View::CreateView(create_mode) => {
             let pop_up_rect = area.inner(Margin::new(area.width / 8, area.height / 5));
-            // create_create_pop_up(frame, pop_up_rect, create_mode);
             let navigation_text =
                 "Press (tab) to toggle input, (Y) to paste from system clipboard (esc) to cancel";
             Clear.render(pop_up_rect, frame.buffer_mut());
@@ -107,39 +122,3 @@ pub fn ui(frame: &mut Frame, app: &App) {
         _ => (),
     }
 }
-
-/// function to invert fore and background colours for highlighting
-// problem style don't have fg and bg unless set???
-fn invert_colours(styled: &mut (impl Styled + Clone)) {
-    let fg = styled.style().bg.unwrap();
-    let bg = styled.style().fg.unwrap();
-    styled.clone().set_style(styled.style().fg(fg).bg(bg));
-}
-
-/// function to generate error pop ups windows
-fn create_error_pop_up(frame: &mut Frame, pop_up_rect: Rect, content: &str, navigation_text: &str) {
-    Clear.render(pop_up_rect, frame.buffer_mut());
-    let pop_up_block = Block::default()
-        .title("Error")
-        .borders(Borders::ALL)
-        .style(Style::default())
-        .bg(Color::Black);
-    frame.render_widget(pop_up_block, pop_up_rect);
-    let pop_up_chunks = Layout::default()
-        .direction(Direction::Vertical)
-        .margin(1)
-        .constraints([
-            Constraint::Percentage(100),
-            Constraint::Min(navigation_text.lines().count() as u16),
-        ])
-        .split(pop_up_rect);
-    let pop_up_text = Paragraph::new(Text::styled(format!("{content}"), Style::default()));
-    frame.render_widget(pop_up_text, pop_up_chunks[0]);
-    let navigation_text =
-        Paragraph::new(Text::styled(navigation_text, Style::default()).not_rapid_blink())
-            .alignment(Alignment::Center);
-    frame.render_widget(navigation_text, pop_up_chunks[1]);
-}
-
-/// function to genrate create bored popup
-fn create_create_pop_up(frame: &mut Frame, pop_up_rect: Rect, create_mode: &CreateMode) {}
