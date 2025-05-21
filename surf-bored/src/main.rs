@@ -24,7 +24,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // setup terminal
     enable_raw_mode()?;
     let mut stdout = io::stdout();
-    execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
+    execute!(stdout, EnterAlternateScreen)?;
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
 
@@ -61,6 +61,14 @@ async fn run_app<B: Backend>(termimal: &mut Terminal<B>, app: &mut App) -> io::R
             match &app.current_view {
                 View::ErrorView(_) => match key.code {
                     KeyCode::Enter => app.current_view = app.previous_view.clone(),
+                    _ => {}
+                },
+                View::BoredView(_) => match key.code {
+                    KeyCode::Char('c') => app.current_view = View::CreateView(CreateMode::Name),
+                    _ => {}
+                },
+                View::CreateView(create_view) => match key.code {
+                    KeyCode::Tab => app.current_view = View::CreateView(create_view.toggle()),
                     _ => {}
                 },
                 _ => {}

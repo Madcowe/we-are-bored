@@ -7,7 +7,6 @@ use ratatui::style::{Styled, Stylize};
 use ratatui::widgets::Widget;
 use ratatui::{
     Frame,
-    crossterm::style::StyledContent,
     layout::{Alignment, Constraint, Direction, Layout, Margin, Rect},
     style::{Color, Style},
     text::{Line, Span, Text},
@@ -23,7 +22,7 @@ pub fn ui(frame: &mut Frame, app: &App) {
     // setup base interfact
     let area = frame.area();
     let mut title_text = String::new();
-    let mut status_text = "Connected, no bored loaded";
+    let mut status_text = format!("{:?}", app.current_view); //"Connected, no bored loaded";
     let bored = app.get_current_bored();
     if let Some(bored) = bored {
         let bored_name = format!(
@@ -31,7 +30,7 @@ pub fn ui(frame: &mut Frame, app: &App) {
             app.client.as_ref().unwrap().get_bored_address().unwrap()
         );
         title_text = bored.get_name().to_owned() + "\n" + &bored_name;
-        status_text = "Connected, bored loded";
+        // status_text = "Connected, bored loded";
     }
     let title_block = Block::default()
         .borders(Borders::ALL)
@@ -64,9 +63,57 @@ pub fn ui(frame: &mut Frame, app: &App) {
                 "Press (enter) to contiune or (q) to quit.",
             );
         }
-        // View::CreateView() =>
+        View::CreateView(create_mode) => {
+            let pop_up_rect = area.inner(Margin::new(area.width / 8, area.height / 5));
+            // create_create_pop_up(frame, pop_up_rect, create_mode);
+            let navigation_text =
+                "Press (tab) to toggle input, (Y) to paste from system clipboard (esc) to cancel";
+            Clear.render(pop_up_rect, frame.buffer_mut());
+            let pop_up_block = Block::default()
+                .title("Enter bored name and private key of funding wallet*")
+                .borders(Borders::ALL)
+                .style(app.theme.style())
+                .bg(Color::Black);
+            frame.render_widget(pop_up_block, pop_up_rect);
+            let pop_up_chunks = Layout::default()
+                .direction(Direction::Vertical)
+                .margin(1)
+                .constraints([
+                    Constraint::Percentage(50),
+                    Constraint::Percentage(50),
+                    Constraint::Min(navigation_text.lines().count() as u16),
+                ])
+                .split(pop_up_rect);
+            let mut name_block = Block::default()
+                .title("Name")
+                .borders(Borders::ALL)
+                .style(app.theme.style());
+            let mut key_block = Block::default()
+                .title("Private key of funding wallet")
+                .borders(Borders::ALL)
+                .style(app.theme.style());
+            match create_mode {
+                CreateMode::Name => {
+                    name_block = name_block.clone().style(app.theme.inverted_text_style())
+                }
+                CreateMode::PrivateKey => {
+                    key_block = key_block.clone().style(app.theme.inverted_text_style())
+                }
+            };
+            frame.render_widget(name_block, pop_up_chunks[0]);
+            frame.render_widget(key_block, pop_up_chunks[1]);
+        }
+
         _ => (),
     }
+}
+
+/// function to invert fore and background colours for highlighting
+// problem style don't have fg and bg unless set???
+fn invert_colours(styled: &mut (impl Styled + Clone)) {
+    let fg = styled.style().bg.unwrap();
+    let bg = styled.style().fg.unwrap();
+    styled.clone().set_style(styled.style().fg(fg).bg(bg));
 }
 
 /// function to generate error pop ups windows
@@ -75,7 +122,8 @@ fn create_error_pop_up(frame: &mut Frame, pop_up_rect: Rect, content: &str, navi
     let pop_up_block = Block::default()
         .title("Error")
         .borders(Borders::ALL)
-        .style(Style::default());
+        .style(Style::default())
+        .bg(Color::Black);
     frame.render_widget(pop_up_block, pop_up_rect);
     let pop_up_chunks = Layout::default()
         .direction(Direction::Vertical)
@@ -94,27 +142,4 @@ fn create_error_pop_up(frame: &mut Frame, pop_up_rect: Rect, content: &str, navi
 }
 
 /// function to genrate create bored popup
-fn create_create_pop_up(frame: &mut Frame, pop_up_rect: Rect) {}
-
-/// helper function to create a centered rect using up certain percentage of the available rect `r`
-fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
-    // Cut the given rectangle into three vertical pieces
-    let popup_layout = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Percentage((100 - percent_y) / 2),
-            Constraint::Percentage(percent_y),
-            Constraint::Percentage((100 - percent_y) / 2),
-        ])
-        .split(r);
-
-    // Then cut the middle vertical piece into three width-wise pieces
-    Layout::default()
-        .direction(Direction::Horizontal)
-        .constraints([
-            Constraint::Percentage((100 - percent_x) / 2),
-            Constraint::Percentage(percent_x),
-            Constraint::Percentage((100 - percent_x) / 2),
-        ])
-        .split(popup_layout[1])[1] // Return the middle chunk
-}
+fn create_create_pop_up(frame: &mut Frame, pop_up_rect: Rect, create_mode: &CreateMode) {}

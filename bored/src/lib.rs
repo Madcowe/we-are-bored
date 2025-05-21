@@ -115,7 +115,7 @@ impl From<autonomi::client::quote::CostError> for BoredError {
 /// Hence this means anyone who has the address can update the board which probalby won't
 /// be sensible in a long term project but this is an experiment so starting with the
 /// most basic level of a human trust network seems appropriate, you share it you bare it!
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum BoredAddress {
     ScratchpadKey(autonomi::SecretKey),
 }

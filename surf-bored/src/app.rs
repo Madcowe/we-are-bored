@@ -1,11 +1,13 @@
 use bored::bored_client::{BoredClient, ConnectionType};
 use bored::{Bored, BoredAddress, BoredError, Coordinate, Direction};
+use ratatui::style::{Color, Style};
 use serde::{Deserialize, Serialize};
 use std::error::Error;
 use std::fs;
 use std::fs::File;
 use std::io::Write;
 use std::path::{Path, PathBuf};
+use std::str::FromStr;
 
 #[derive(Debug, thiserror::Error, Clone)]
 pub enum SurfBoredError {
@@ -33,7 +35,7 @@ impl From<BoredError> for SurfBoredError {
 //     }
 // }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum View {
     ErrorView(SurfBoredError),
     BoredView(Option<BoredAddress>),
@@ -44,26 +46,34 @@ pub enum View {
     Quitting,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum CreateMode {
     Name,
     PrivateKey,
 }
+impl CreateMode {
+    pub fn toggle(&self) -> CreateMode {
+        match self {
+            CreateMode::Name => CreateMode::PrivateKey,
+            CreateMode::PrivateKey => CreateMode::Name,
+        }
+    }
+}
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum DraftMode {
     Content,
     Hyperlink(HyperlinkMode),
     Position,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum HyperlinkMode {
     Text,
     URL,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum GoToMode {
     Directory,
     PasteAddress,
@@ -134,6 +144,38 @@ impl History {
     }
 }
 
+/// Represent colours in theme used by app
+pub struct Theme {
+    name: String,
+    text_fg: Color,
+    text_bg: Color,
+}
+
+impl Theme {
+    pub fn surf_bored_synth_wave() -> Theme {
+        Theme {
+            name: "Surf bored synth wave".to_string(),
+            text_fg: Color::Rgb(205, 152, 211),
+            text_bg: Color::Rgb(23, 21, 41),
+        }
+    }
+
+    pub fn style(&self) -> Style {
+        Style::new().fg(self.text_fg).bg(self.text_bg)
+    }
+
+    pub fn inverted_text_style(&self) -> Style {
+        Style::new().fg(self.text_bg).bg(self.text_fg)
+    }
+
+    // pub fn invert_text(&mut self) {
+    //     let new_fg = self.text_bg;
+    //     let new_bg = self.text_fg;
+    //     self.text_fg = new_fg;
+    //     self.text_bg = new_bg;
+    // }
+}
+
 pub struct App {
     pub client: Option<BoredClient>,
     pub directory: Directory,
@@ -142,6 +184,7 @@ pub struct App {
     pub current_view: View,
     pub previous_view: View,
     pub selected_notice: Option<usize>,
+    pub theme: Theme,
 }
 impl App {
     pub fn new() -> App {
@@ -153,6 +196,7 @@ impl App {
             current_view: View::BoredView(None),
             previous_view: View::BoredView(None),
             selected_notice: None,
+            theme: Theme::surf_bored_synth_wave(),
         }
     }
 
