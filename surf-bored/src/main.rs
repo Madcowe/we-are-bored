@@ -1,3 +1,4 @@
+use bored::notice::MAX_URL_LENGTH;
 use ratatui::{
     Terminal,
     backend::{Backend, CrosstermBackend},
@@ -6,6 +7,7 @@ use ratatui::{
         execute,
         terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
     },
+    layout::Margin,
 };
 use std::{error::Error, io};
 
@@ -56,6 +58,7 @@ async fn run_app<B: Backend>(termimal: &mut Terminal<B>, app: &mut App) -> io::R
                 continue;
             }
             if key.code == KeyCode::Char('q') {
+                // can't have this active while editing text
                 break;
             }
             match &app.current_view {
@@ -69,6 +72,33 @@ async fn run_app<B: Backend>(termimal: &mut Terminal<B>, app: &mut App) -> io::R
                 },
                 View::CreateView(create_view) => match key.code {
                     KeyCode::Tab => app.current_view = View::CreateView(create_view.toggle()),
+                    KeyCode::Esc => app.current_view = app.previous_view.clone(),
+                    KeyCode::Backspace => match create_view {
+                        CreateMode::Name => {
+                            app.input_1.pop();
+                        }
+                        CreateMode::PrivateKey => {
+                            app.input_2.pop();
+                        }
+                    },
+                    KeyCode::Char(value) => match create_view {
+                        CreateMode::Name => app.input_1.push(value),
+                        CreateMode::PrivateKey => app.input_2.push(value),
+                    },
+                    KeyCode::Enter => match create_view {
+                        CreateMode::Name => {
+                            app.current_view = View::CreateView(CreateMode::PrivateKey)
+                        }
+                        CreateMode::PrivateKey => {
+                            let new_bored = app
+                                .create_bored_on_network(&app.input_1.clone(), &app.input_2.clone())
+                                .await;
+                            match new_bored {
+                                Err(e) => app.display_error(e),
+                                _ => (),
+                            }
+                        }
+                    },
                     _ => {}
                 },
                 _ => {}

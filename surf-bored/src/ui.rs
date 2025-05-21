@@ -34,20 +34,17 @@ pub fn ui(frame: &mut Frame, app: &App) {
     }
     let title_block = Block::default()
         .borders(Borders::ALL)
-        .style(Style::default().bg(Color::Black));
+        .style(app.theme.header_style());
     let title_rect = Rect::new(0, 0, area.width, 4);
-    let title = Paragraph::new(Text::styled(
-        title_text,
-        Style::default(), //.fg(Color::from_str("#529B81").unwrap()),
-    ))
-    .block(title_block);
+    let title = Paragraph::new(Text::raw(title_text)).block(title_block);
     frame.render_widget(title, title_rect);
     let bored_view_block = Block::default().bg(Color::Black);
     let bored_view_rect = Rect::new(0, 4, area.width, area.height - 7);
     frame.render_widget(bored_view_block, bored_view_rect);
     let status_block = Block::default()
         .borders(Borders::ALL)
-        .style(Style::default().bg(Color::Black));
+        .bold()
+        .style(app.theme.header_style());
     let status_rect = Rect::new(0, area.height - 3, area.width, 3);
     let status = Paragraph::new(Text::styled(status_text, Style::default())).block(status_block);
     status.render(status_rect, frame.buffer_mut());
@@ -61,8 +58,7 @@ pub fn ui(frame: &mut Frame, app: &App) {
             let pop_up_block = Block::default()
                 .title("Error")
                 .borders(Borders::ALL)
-                .style(Style::default())
-                .bg(Color::Black);
+                .style(app.theme.text_style());
             frame.render_widget(pop_up_block, pop_up_rect);
             let pop_up_chunks = Layout::default()
                 .direction(Direction::Vertical)
@@ -87,7 +83,7 @@ pub fn ui(frame: &mut Frame, app: &App) {
             let pop_up_block = Block::default()
                 .title("Enter bored name and private key of funding wallet*")
                 .borders(Borders::ALL)
-                .style(app.theme.style())
+                .style(app.theme.text_style())
                 .bg(Color::Black);
             frame.render_widget(pop_up_block, pop_up_rect);
             let pop_up_chunks = Layout::default()
@@ -102,11 +98,11 @@ pub fn ui(frame: &mut Frame, app: &App) {
             let mut name_block = Block::default()
                 .title("Name")
                 .borders(Borders::ALL)
-                .style(app.theme.style());
+                .style(app.theme.text_style());
             let mut key_block = Block::default()
                 .title("Private key of funding wallet")
                 .borders(Borders::ALL)
-                .style(app.theme.style());
+                .style(app.theme.text_style());
             match create_mode {
                 CreateMode::Name => {
                     name_block = name_block.clone().style(app.theme.inverted_text_style())
@@ -115,8 +111,10 @@ pub fn ui(frame: &mut Frame, app: &App) {
                     key_block = key_block.clone().style(app.theme.inverted_text_style())
                 }
             };
-            frame.render_widget(name_block, pop_up_chunks[0]);
-            frame.render_widget(key_block, pop_up_chunks[1]);
+            let name_text = Paragraph::new(app.input_1.clone()).block(name_block);
+            let key_text = Paragraph::new(app.input_2.clone()).block(key_block);
+            frame.render_widget(name_text, pop_up_chunks[0]);
+            frame.render_widget(key_text, pop_up_chunks[1]);
         }
 
         _ => (),

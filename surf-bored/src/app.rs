@@ -149,6 +149,7 @@ pub struct Theme {
     name: String,
     text_fg: Color,
     text_bg: Color,
+    header_fg: Color,
 }
 
 impl Theme {
@@ -157,23 +158,22 @@ impl Theme {
             name: "Surf bored synth wave".to_string(),
             text_fg: Color::Rgb(205, 152, 211),
             text_bg: Color::Rgb(23, 21, 41),
+            header_fg: Color::Rgb(109, 228, 175), // bright green
+                                                  // header_bg: Color::Rgb(149, 232, 196), // pale green
         }
     }
 
-    pub fn style(&self) -> Style {
+    pub fn header_style(&self) -> Style {
+        Style::new().fg(self.header_fg).bg(self.text_bg)
+    }
+
+    pub fn text_style(&self) -> Style {
         Style::new().fg(self.text_fg).bg(self.text_bg)
     }
 
     pub fn inverted_text_style(&self) -> Style {
         Style::new().fg(self.text_bg).bg(self.text_fg)
     }
-
-    // pub fn invert_text(&mut self) {
-    //     let new_fg = self.text_bg;
-    //     let new_bg = self.text_fg;
-    //     self.text_fg = new_fg;
-    //     self.text_bg = new_bg;
-    // }
 }
 
 pub struct App {
@@ -185,6 +185,8 @@ pub struct App {
     pub previous_view: View,
     pub selected_notice: Option<usize>,
     pub theme: Theme,
+    pub input_1: String,
+    pub input_2: String,
 }
 impl App {
     pub fn new() -> App {
@@ -197,6 +199,8 @@ impl App {
             previous_view: View::BoredView(None),
             selected_notice: None,
             theme: Theme::surf_bored_synth_wave(),
+            input_1: String::new(),
+            input_2: String::new(),
         }
     }
 
@@ -211,10 +215,12 @@ impl App {
     }
 
     pub fn display_error(&mut self, surf_bored_error: SurfBoredError) {
+        self.previous_view = self.current_view.clone();
         self.current_view = View::ErrorView(surf_bored_error);
     }
 
     pub fn goto(&mut self) {
+        self.previous_view = self.current_view.clone();
         self.current_view = View::GoToView(GoToMode::PasteAddress)
     }
 
@@ -231,16 +237,19 @@ impl App {
     }
 
     pub fn goto_bored(&mut self, bored_address: BoredAddress) {
+        self.previous_view = self.current_view.clone();
         self.current_view = View::BoredView(Some(bored_address));
     }
 
     pub fn view_notice(&mut self) {
+        self.previous_view = self.current_view.clone();
         self.current_view = View::NoticeView {
             hyperlinks_index: None,
         };
     }
 
     pub fn create_bored(&mut self) {
+        self.previous_view = self.current_view.clone();
         self.current_view = View::CreateView(CreateMode::Name);
     }
 
@@ -296,6 +305,7 @@ impl App {
             return Err(BoredError::ClientConnectionError);
         };
         client.create_draft(dimensions)?;
+        self.previous_view = self.current_view.clone();
         self.current_view = View::DraftView(DraftMode::Content);
         Ok(())
     }
