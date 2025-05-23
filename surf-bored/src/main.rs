@@ -57,16 +57,17 @@ async fn run_app<B: Backend>(termimal: &mut Terminal<B>, app: &mut App) -> io::R
                 // Skip events that are not KeyEvenKind::Press
                 continue;
             }
-            if key.code == KeyCode::Char('q') {
-                // can't have this active while editing text
-                break;
-            }
+            // if key.code == KeyCode::Char('q') {
+            //     break;
+            // }
             match &app.current_view {
                 View::ErrorView(_) => match key.code {
                     KeyCode::Enter => app.current_view = app.previous_view.clone(),
+                    KeyCode::Char('q') => break,
                     _ => {}
                 },
-                View::BoredView(_) => match key.code {
+                View::BoredView => match key.code {
+                    KeyCode::Char('q') => break,
                     KeyCode::Char('c') => app.current_view = View::CreateView(CreateMode::Name),
                     _ => {}
                 },
@@ -101,6 +102,7 @@ async fn run_app<B: Backend>(termimal: &mut Terminal<B>, app: &mut App) -> io::R
                     },
                     _ => {}
                 },
+                // View::DraftView()
                 _ => {}
             }
         }

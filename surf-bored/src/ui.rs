@@ -4,7 +4,7 @@ use bored::{Bored, BoredAddress, BoredError, Coordinate};
 use ratatui::buffer::Buffer;
 use ratatui::prelude::BlockExt;
 use ratatui::style::{Styled, Stylize};
-use ratatui::widgets::Widget;
+use ratatui::widgets::{BorderType, Widget};
 use ratatui::{
     Frame,
     layout::{Alignment, Constraint, Direction, Layout, Margin, Rect},
@@ -34,7 +34,9 @@ pub fn ui(frame: &mut Frame, app: &App) {
     }
     let title_block = Block::default()
         .borders(Borders::ALL)
-        .style(app.theme.header_style());
+        .border_type(BorderType::QuadrantOutside)
+        .style(app.theme.header_style())
+        .bold();
     let title_rect = Rect::new(0, 0, area.width, 4);
     let title = Paragraph::new(Text::raw(title_text)).block(title_block);
     frame.render_widget(title, title_rect);
@@ -44,7 +46,9 @@ pub fn ui(frame: &mut Frame, app: &App) {
     let status_block = Block::default()
         .borders(Borders::ALL)
         .bold()
-        .style(app.theme.header_style());
+        .border_type(BorderType::QuadrantOutside)
+        .style(app.theme.header_style())
+        .bold();
     let status_rect = Rect::new(0, area.height - 3, area.width, 3);
     let status = Paragraph::new(Text::styled(status_text, Style::default())).block(status_block);
     status.render(status_rect, frame.buffer_mut());
@@ -58,6 +62,7 @@ pub fn ui(frame: &mut Frame, app: &App) {
             let pop_up_block = Block::default()
                 .title("Error")
                 .borders(Borders::ALL)
+                .border_type(BorderType::Rounded)
                 .style(app.theme.text_style());
             frame.render_widget(pop_up_block, pop_up_rect);
             let pop_up_chunks = Layout::default()
@@ -83,6 +88,7 @@ pub fn ui(frame: &mut Frame, app: &App) {
             let pop_up_block = Block::default()
                 .title("Enter bored name and private key of funding wallet*")
                 .borders(Borders::ALL)
+                .border_type(BorderType::Rounded)
                 .style(app.theme.text_style())
                 .bg(Color::Black);
             frame.render_widget(pop_up_block, pop_up_rect);
@@ -98,10 +104,12 @@ pub fn ui(frame: &mut Frame, app: &App) {
             let mut name_block = Block::default()
                 .title("Name")
                 .borders(Borders::ALL)
+                .border_type(BorderType::Rounded)
                 .style(app.theme.text_style());
             let mut key_block = Block::default()
                 .title("Private key of funding wallet")
                 .borders(Borders::ALL)
+                .border_type(BorderType::Rounded)
                 .style(app.theme.text_style());
             match create_mode {
                 CreateMode::Name => {

@@ -38,7 +38,7 @@ impl From<BoredError> for SurfBoredError {
 #[derive(Clone, Debug)]
 pub enum View {
     ErrorView(SurfBoredError),
-    BoredView(Option<BoredAddress>),
+    BoredView,
     NoticeView { hyperlinks_index: Option<usize> },
     DraftView(DraftMode),
     CreateView(CreateMode),
@@ -149,7 +149,7 @@ pub struct Theme {
     name: String,
     text_fg: Color,
     text_bg: Color,
-    header_fg: Color,
+    header_bg: Color,
 }
 
 impl Theme {
@@ -158,13 +158,13 @@ impl Theme {
             name: "Surf bored synth wave".to_string(),
             text_fg: Color::Rgb(205, 152, 211),
             text_bg: Color::Rgb(23, 21, 41),
-            header_fg: Color::Rgb(109, 228, 175), // bright green
+            header_bg: Color::Rgb(109, 228, 175), // bright green
                                                   // header_bg: Color::Rgb(149, 232, 196), // pale green
         }
     }
 
     pub fn header_style(&self) -> Style {
-        Style::new().fg(self.header_fg).bg(self.text_bg)
+        Style::new().fg(self.text_bg).bg(self.header_bg)
     }
 
     pub fn text_style(&self) -> Style {
@@ -193,10 +193,10 @@ impl App {
         App {
             client: None, //BoredClient::init(ConnectionType::Local).await.ok(),
             directory: Directory::new(),
-            directory_path: "directory_of_bored.toml".to_string(),
+            directory_path: "directory_of_boreds.toml".to_string(),
             history: History::new(),
-            current_view: View::BoredView(None),
-            previous_view: View::BoredView(None),
+            current_view: View::BoredView,
+            previous_view: View::BoredView,
             selected_notice: None,
             theme: Theme::surf_bored_synth_wave(),
             input_1: String::new(),
@@ -236,9 +236,16 @@ impl App {
         }
     }
 
-    pub fn goto_bored(&mut self, bored_address: BoredAddress) {
+    pub async fn goto_bored(&mut self, bored_address: BoredAddress) -> Result<(), SurfBoredError> {
+        let Some(ref mut client) = self.client else {
+            return Err(SurfBoredError::BoredError(
+                BoredError::ClientConnectionError,
+            ));
+        };
+        client.go_to_bored(&bored_address).await?;
         self.previous_view = self.current_view.clone();
-        self.current_view = View::BoredView(Some(bored_address));
+        self.current_view = View::BoredView;
+        Ok(())
     }
 
     pub fn view_notice(&mut self) {
@@ -289,7 +296,7 @@ impl App {
             .create_bored(name, Coordinate { x: 120, y: 40 }, private_key)
             .await?;
         let bored = client.get_current_bored()?;
-        self.current_view = View::BoredView(Some(client.get_bored_address()?));
+        self.current_view = View::BoredView;
         self.directory.add(
             Listing {
                 name: client.get_bored_name()?.to_string(),
@@ -326,6 +333,20 @@ impl App {
 
     pub fn create_hyperlink(&mut self) {
         self.current_view = View::DraftView(DraftMode::Hyperlink(HyperlinkMode::Text));
+    }
+
+    pub fn position_draft(&mut self, new_top_left: Coordinate) -> Result<(), BoredError> {
+        let Some(ref mut client) = self.client else {
+            return Err(BoredError::ClientConnectionError);
+        };
+        match client.position_draft(new_top_left) {
+            Err(bored_error) => match bored_error {
+                // if to much text does nothing so user can't type more
+                BoredError::NoticeOutOfBounds => return Ok(()),
+                _ => return Err(bored_error),
+            },
+            Ok(_) => Ok(()),
+        }
     }
 }
 

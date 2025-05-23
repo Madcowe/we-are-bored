@@ -95,6 +95,16 @@ impl BoredClient {
         Ok(&bored.name)
     }
 
+    /// Attempt to download a bored and set current_bored to it if succesfful
+    pub async fn go_to_bored(&mut self, bored_address: &BoredAddress) -> Result<(), BoredError> {
+        let bored_address = bored_address.clone();
+        let (bored, scratchpad_counter) = self.retrieve_bored(&bored_address).await?;
+        self.current_bored = Some(bored);
+        self.bored_address = Some(bored_address);
+        self.scratchpad_counter = Some(scratchpad_counter);
+        Ok(())
+    }
+
     /// Downloads an existing bored
     pub async fn retrieve_bored(
         &mut self,
@@ -188,6 +198,18 @@ impl BoredClient {
         };
         if let Some(mut notice) = self.draft_notice.clone() {
             notice.write(content)?;
+            self.draft_notice = Some(notice);
+        }
+        Ok(())
+    }
+
+    /// Position draft on bored
+    pub fn position_draft(&mut self, new_top_left: Coordinate) -> Result<(), BoredError> {
+        let Some(bored) = &self.current_bored else {
+            return Err(BoredError::NoBored);
+        };
+        if let Some(mut notice) = self.draft_notice.clone() {
+            notice.relocate(&bored, new_top_left)?;
             self.draft_notice = Some(notice);
         }
         Ok(())
