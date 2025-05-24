@@ -132,29 +132,23 @@ async fn run_app<B: Backend>(termimal: &mut Terminal<B>, app: &mut App) -> io::R
                     _ => {}
                 },
                 View::DraftView(draft_mode) => match draft_mode {
-                    DraftMode::Content => {
-                        match key.code {
-                            KeyCode::Esc => app.revert_view(),
-                            KeyCode::Backspace => {
-                                app.content_input.pop();
-                                app.edit_draft(&app.content_input.clone())
-                                    .expect("Shoud never be more text as deleting")
-                            }
-                            KeyCode::Char(value) => {
-                                app.content_input.push(value);
-                                if let Err(e) = app.edit_draft(&app.content_input.clone()) {
-                                    match e {
-                                        // if to much text don't let user type any more
-                                        BoredError::TooMuchText => {
-                                            app.content_input.pop();
-                                        }
-                                        _ => (),
-                                    };
-                                }
-                            }
-                            _ => {}
+                    DraftMode::Content => match key.code {
+                        KeyCode::Esc => app.revert_view(),
+                        KeyCode::Backspace => {
+                            app.content_input.pop();
+                            app.edit_draft(&app.content_input.clone())
+                                .expect("Shoud never be more text as deleting")
                         }
-                    }
+                        KeyCode::Enter => {
+                            app.content_input.push('\n');
+                            try_edit(app);
+                        }
+                        KeyCode::Char(value) => {
+                            app.content_input.push(value);
+                            try_edit(app);
+                        }
+                        _ => {}
+                    },
                     _ => {}
                 },
                 _ => {}
@@ -163,11 +157,24 @@ async fn run_app<B: Backend>(termimal: &mut Terminal<B>, app: &mut App) -> io::R
     }
     Ok(())
 }
+
+fn try_edit(app: &mut App) {
+    if let Err(e) = app.edit_draft(&app.content_input.clone()) {
+        match e {
+            // if to much text don't let user type any more
+            BoredError::TooMuchText => {
+                app.content_input.pop();
+            }
+            _ => (),
+        };
+    }
+}
+
 fn generate_notice_size(terminal_size: Size, bored_size: Coordinate) -> Coordinate {
     let max_x = min(terminal_size.width, bored_size.x);
     let max_y = min(terminal_size.height, bored_size.y);
-    let x = max(9, max_x / 2);
-    let y = max(3, max_y / 2);
+    let x = max(9, max_x / 4);
+    let y = max(3, max_y / 4);
     Coordinate { x, y }
 
     // // portrait or landscape

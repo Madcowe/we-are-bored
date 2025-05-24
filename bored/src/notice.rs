@@ -157,8 +157,12 @@ impl Notice {
     /// Add textual content to the notice, will only allow as much text and lines as will fit in
     pub fn write(&mut self, content: &str) -> Result<(), BoredError> {
         let display_text = get_display(&content, get_hyperlinks(content)?).display_text;
+        let display_lines = display_text.lines().count();
+        let last_line = display_text.lines().last().unwrap_or_default();
         if display_text.chars().count() > self.get_max_chars()
-            || display_text.lines().count() > self.get_max_lines()
+            || display_lines > self.get_max_lines()
+            || (display_lines == self.get_max_lines()
+                && last_line.chars().count() > (self.dimensions.x - 2) as usize)
         {
             return Err(BoredError::TooMuchText);
         }
