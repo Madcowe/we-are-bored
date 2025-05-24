@@ -24,8 +24,11 @@ pub fn ui(frame: &mut Frame, app: &App) {
     // setup base interfact
     let area = frame.area();
     let mut title_text = String::new();
-    // let mut status_text = format!("{:?}", app.current_view); //"Connected, no bored loaded";
-    let mut status_text = "Connected, no bored loaded";
+    let mut status_text = format!(
+        "Current: {:?} previous: {:?}",
+        app.current_view, app.previous_view
+    ); //"Connected, no bored loaded";
+    // let mut status_text = "Connected, no bored loaded";
     let bored = app.get_current_bored();
     if let Some(bored) = bored {
         let bored_name = format!(
@@ -33,7 +36,7 @@ pub fn ui(frame: &mut Frame, app: &App) {
             app.client.as_ref().unwrap().get_bored_address().unwrap()
         );
         title_text = bored.get_name().to_owned() + "\n" + &bored_name;
-        status_text = "Connected, bored loded";
+        // status_text = "Connected, bored loded";
     }
     let title_block = Block::default()
         .borders(Borders::ALL)
@@ -76,7 +79,8 @@ pub fn ui(frame: &mut Frame, app: &App) {
                     Constraint::Min(navigation_text.lines().count() as u16),
                 ])
                 .split(pop_up_rect);
-            let pop_up_text = Paragraph::new(Text::styled(format!("{e}"), Style::default()));
+            let pop_up_text = Paragraph::new(Text::styled(format!("{e}"), Style::default()))
+                .wrap(Wrap { trim: false });
             frame.render_widget(pop_up_text, pop_up_chunks[0]);
             let navigation_text =
                 Paragraph::new(Text::styled(navigation_text, Style::default()).not_rapid_blink())
@@ -130,6 +134,7 @@ pub fn ui(frame: &mut Frame, app: &App) {
         View::DraftView(draft_mode) => {
             if let Some(draft) = app.get_draft() {
                 let draft_dimension = draft.get_dimensions();
+                let display_text = draft.get_display_text().unwrap_or_default();
                 // postion so aprox in cnetere of frame
                 let x = (area.width - draft_dimension.x) / 2;
                 let y = (area.height - draft_dimension.y) / 2;
@@ -138,7 +143,9 @@ pub fn ui(frame: &mut Frame, app: &App) {
                     .borders(Borders::ALL)
                     .border_type(BorderType::Thick)
                     .style(app.theme.text_style());
-                let draft_text = Paragraph::new(draft.get_content()).block(draft_block);
+                let draft_text = Paragraph::new(display_text)
+                    .wrap(Wrap { trim: false })
+                    .block(draft_block);
                 frame.render_widget(draft_text, draft_rect);
             }
         }

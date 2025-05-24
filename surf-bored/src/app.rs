@@ -369,8 +369,8 @@ impl App {
         };
         match client.position_draft(new_top_left) {
             Err(bored_error) => match bored_error {
-                // if to much text does nothing so user can't type more
-                BoredError::NoticeOutOfBounds => return Ok(()),
+                // if new position is out of bound do nothing so user can't move it there
+                BoredError::NoticeOutOfBounds(..) => return Ok(()),
                 _ => return Err(bored_error),
             },
             Ok(_) => Ok(()),

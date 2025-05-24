@@ -114,6 +114,10 @@ impl Notice {
         &self.content
     }
 
+    pub fn get_display_text(&self) -> Result<String, BoredError> {
+        Ok(get_display(self.get_content(), get_hyperlinks(self.get_content())?).display_text)
+    }
+
     /// moves notices position on board, both prior to placing and is called by Bored.add()
     pub fn relocate(&mut self, bored: &Bored, new_top_left: Coordinate) -> Result<(), BoredError> {
         let new_bottom_right = new_top_left.add(&self.dimensions);
@@ -121,7 +125,10 @@ impl Notice {
             self.top_left = new_top_left;
             return Ok(());
         }
-        Err(BoredError::NoticeOutOfBounds)
+        Err(BoredError::NoticeOutOfBounds(
+            bored.dimensions,
+            new_bottom_right,
+        ))
     }
 
     /// Get maximun nubmer of unicode scarlar value that can be written on the notice
@@ -221,7 +228,10 @@ mod tests {
         assert_eq!(notice.top_left, Coordinate { x: 10, y: 7 });
         assert_eq!(
             notice.relocate(&bored, Coordinate { x: 999, y: 999 }),
-            Err(BoredError::NoticeOutOfBounds)
+            Err(BoredError::NoticeOutOfBounds(
+                bored.get_dimensions(),
+                Coordinate { x: 1059, y: 1017 }
+            ))
         );
     }
 

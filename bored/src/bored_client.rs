@@ -188,7 +188,10 @@ impl BoredClient {
             self.draft_notice = Some(Notice::create(dimensions));
             return Ok(());
         }
-        Err(BoredError::NoticeOutOfBounds)
+        Err(BoredError::NoticeOutOfBounds(
+            bored.get_dimensions(),
+            dimensions,
+        ))
     }
 
     /// get the draft notice as an option

@@ -1,4 +1,4 @@
-use bored::{Bored, BoredAddress, BoredError, Coordinate, notice::MAX_URL_LENGTH};
+use bored::{Bored, BoredAddress, BoredError, Coordinate, bored_client, notice::MAX_URL_LENGTH};
 use rand::Rng;
 use ratatui::{
     Terminal,
@@ -8,7 +8,7 @@ use ratatui::{
         execute,
         terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
     },
-    layout::Margin,
+    layout::{Margin, Size},
 };
 use std::{char::MAX, cmp::max, cmp::min, error::Error, io};
 
@@ -77,66 +77,17 @@ async fn run_app<B: Backend>(termimal: &mut Terminal<B>, app: &mut App) -> io::R
                     KeyCode::Char('q') => break,
                     KeyCode::Char('c') => app.change_view(View::CreateView(CreateMode::Name)),
                     KeyCode::Char('n') => {
-                        app.change_view(View::DraftView(DraftMode::Content));
                         if let Some(bored) = app.get_current_bored() {
                             let terminal_size = termimal.size()?;
                             let bored_dimensions = bored.get_dimensions();
-                            let (length, width);
-                            // portrait or landscape
-                            if rand::rng().random_range(0..1) == 0 {
-                                // neet to take into account bored size as well
-                                width = rand::rng().random_range(
-                                    max(9, terminal_size.width / 6)
-                                        ..min(60, min(terminal_size.width, bored_dimensions.x) / 2),
-                                );
-                                length = rand::rng().random_range(
-                                    max(6, terminal_size.height / 3)
-                                        ..min(
-                                            40,
-                                            min(terminal_size.height, bored_dimensions.y) / 2,
-                                        ),
-                                );
-                            } else {
-                                width = rand::rng().random_range(
-                                    max(12, terminal_size.width / 4)
-                                        ..min(90, min(terminal_size.width, bored_dimensions.x) / 2),
-                                );
-                                length = rand::rng().random_range(
-                                    max(4, terminal_size.height / 5)
-                                        ..min(
-                                            30,
-                                            min(terminal_size.height, bored_dimensions.y) / 2,
-                                        ),
-                                );
-                            }
-                            match app.create_draft(Coordinate {
-                                x: length,
-                                y: width,
-                            }) {
+                            let draft_dimensions =
+                                generate_notice_size(terminal_size, bored_dimensions);
+                            match app.create_draft(draft_dimensions) {
                                 Err(e) => {
                                     app.current_view =
                                         View::ErrorView(app::SurfBoredError::BoredError(e))
                                 }
                                 _ => (),
-                            }
-                            match key.code {
-                                KeyCode::Esc => app.current_view = app.previous_view.clone(),
-                                KeyCode::Backspace => {
-                                    app.content_input.pop();
-                                }
-                                KeyCode::Char(value) => {
-                                    app.content_input.push(value);
-                                    if let Err(e) = app.edit_draft(&app.content_input.clone()) {
-                                        match e {
-                                            // if to much text don;t let user type any more
-                                            BoredError::TooMuchText => {
-                                                app.content_input.pop();
-                                            }
-                                            _ => (),
-                                        };
-                                    }
-                                }
-                                _ => {}
                             }
                         } else {
                             // if bored doesn't exist go back to previous view
@@ -181,7 +132,29 @@ async fn run_app<B: Backend>(termimal: &mut Terminal<B>, app: &mut App) -> io::R
                     _ => {}
                 },
                 View::DraftView(draft_mode) => match draft_mode {
-                    DraftMode::Content => {}
+                    DraftMode::Content => {
+                        match key.code {
+                            KeyCode::Esc => app.revert_view(),
+                            KeyCode::Backspace => {
+                                app.content_input.pop();
+                                app.edit_draft(&app.content_input.clone())
+                                    .expect("Shoud never be more text as deleting")
+                            }
+                            KeyCode::Char(value) => {
+                                app.content_input.push(value);
+                                if let Err(e) = app.edit_draft(&app.content_input.clone()) {
+                                    match e {
+                                        // if to much text don't let user type any more
+                                        BoredError::TooMuchText => {
+                                            app.content_input.pop();
+                                        }
+                                        _ => (),
+                                    };
+                                }
+                            }
+                            _ => {}
+                        }
+                    }
                     _ => {}
                 },
                 _ => {}
@@ -189,4 +162,39 @@ async fn run_app<B: Backend>(termimal: &mut Terminal<B>, app: &mut App) -> io::R
         }
     }
     Ok(())
+}
+fn generate_notice_size(terminal_size: Size, bored_size: Coordinate) -> Coordinate {
+    let max_x = min(terminal_size.width, bored_size.x);
+    let max_y = min(terminal_size.height, bored_size.y);
+    let x = max(9, max_x / 2);
+    let y = max(3, max_y / 2);
+    Coordinate { x, y }
+
+    // // portrait or landscape
+    // if rand::rng().random_range(0..1) == 0 {
+    //     // neet to take into account bored size as well
+    //     width = rand::rng().random_range(
+    //         max(9, terminal_size.width / 6)
+    //             ..min(60, min(terminal_size.width, bored_dimensions.x) / 2),
+    //     );
+    //     height = rand::rng().random_range(
+    //         max(6, terminal_size.height / 3)
+    //             ..min(
+    //                 18,
+    //                 min(terminal_size.height, bored_dimensions.y) / 2,
+    //             ),
+    //     );
+    // } else {
+    //     width = rand::rng().random_range(
+    //         max(12, terminal_size.width / 4)
+    //             ..min(90, min(terminal_size.width, bored_dimensions.x) / 2),
+    //     );
+    //     height = rand::rng().random_range(
+    //         max(4, terminal_size.height / 5)
+    //             ..min(
+    //                 12,
+    //                 min(terminal_size.height, bored_dimensions.y) / 2,
+    //             ),
+    //     );
+    // }
 }

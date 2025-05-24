@@ -50,8 +50,10 @@ pub enum BoredError {
     InvalidProtocolVersion(u64),
     #[error("Method is not in this version of the protocol")]
     MethodNotInProtocol,
-    #[error("Cannot place notice outside of board")]
-    NoticeOutOfBounds,
+    #[error(
+        "Cannot place notice outside of board, attempted to place notice with max bounds of {1} in bored with max bounds of {0}"
+    )]
+    NoticeOutOfBounds(Coordinate, Coordinate),
     #[error("Too much text for notice size")]
     TooMuchText,
     #[error("Could initiate autonomi client")]
@@ -168,6 +170,12 @@ pub struct Coordinate {
     pub x: u16,
     pub y: u16,
 }
+impl fmt::Display for Coordinate {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "x: {} y: {}", self.x, self.y)
+    }
+}
+
 impl Coordinate {
     /// returns true if self entirely contained between (0,0) and other
     pub fn within(&self, other: &Self) -> bool {
@@ -339,7 +347,7 @@ impl Bored {
             self.draft_notice = Some(Notice::create(dimensions));
             return Ok(());
         }
-        Err(BoredError::NoticeOutOfBounds)
+        Err(BoredError::NoticeOutOfBounds(self.dimensions, dimensions))
     }
 
     /// check the content will fit in the notice and update content if so
