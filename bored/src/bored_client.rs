@@ -191,6 +191,11 @@ impl BoredClient {
         Err(BoredError::NoticeOutOfBounds)
     }
 
+    /// get the draft notice as an option
+    pub fn get_draft(&self) -> Option<Notice> {
+        self.draft_notice.clone()
+    }
+
     /// check the content will fit in the notice and update content if so
     pub fn edit_draft(&mut self, content: &str) -> Result<(), BoredError> {
         let Some(bored) = &self.current_bored else {

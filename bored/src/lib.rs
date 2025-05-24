@@ -115,7 +115,7 @@ impl From<autonomi::client::quote::CostError> for BoredError {
 /// Hence this means anyone who has the address can update the board which probalby won't
 /// be sensible in a long term project but this is an experiment so starting with the
 /// most basic level of a human trust network seems appropriate, you share it you bare it!
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum BoredAddress {
     ScratchpadKey(autonomi::SecretKey),
 }
@@ -133,12 +133,14 @@ impl BoredAddress {
         BoredAddress::ScratchpadKey(autonomi::SecretKey::random())
     }
 
-    /// Tries to create bored URL from string, will remove protoocl part of URL if it exists
+    /// Tries to create bored URL from string, will remove protocol part of URL if it exists
     /// attempt to create with that text, fails if it doesn;t make valid secret key
     /// this doesn't neccsiarily imply it is an exist bored address
-    pub fn from_string(s: String) -> Result<Self, BoredError> {
-        if &s[0..7] == "bored://" {
-            let s = &s[8..s.len()];
+    pub fn from_string(mut s: String) -> Result<Self, BoredError> {
+        if s.len() == 72 {
+            if &s[0..8] == "bored://" {
+                s = s[8..s.len()].to_string();
+            }
         }
         let key = match SecretKey::from_hex(&s) {
             Ok(key) => key,
@@ -541,6 +543,8 @@ impl Bored {
 #[cfg(test)]
 mod tests {
 
+    use std::error::Error;
+
     use super::*;
 
     #[test]
@@ -685,5 +689,24 @@ mod tests {
         let visible = WhatsOnTheBored::create(&bored);
         eprintln!("{}", visible);
         Ok(())
+    }
+
+    #[test]
+    fn test_bored_address_from_string() {
+        let bored_address = BoredAddress::from_string("".to_string());
+        assert_eq!(bored_address, Err(BoredError::NotBoredURL));
+        let string =
+            "bored://2f67b46da5e6d62c07fb97889c7e7155ca7e1fd3efb711a5468eeda8e1501330".to_string();
+        let bored_address = BoredAddress::from_string(string);
+        assert_eq!(
+            bored_address.unwrap().get_key().to_hex(),
+            "2f67b46da5e6d62c07fb97889c7e7155ca7e1fd3efb711a5468eeda8e1501330"
+        );
+        let string = "2f67b46da5e6d62c07fb97889c7e7155ca7e1fd3efb711a5468eeda8e1501330".to_string();
+        let bored_address = BoredAddress::from_string(string);
+        assert_eq!(
+            bored_address.unwrap().get_key().to_hex(),
+            "2f67b46da5e6d62c07fb97889c7e7155ca7e1fd3efb711a5468eeda8e1501330"
+        );
     }
 }

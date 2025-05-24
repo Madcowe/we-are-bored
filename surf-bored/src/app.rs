@@ -1,5 +1,7 @@
 use bored::bored_client::{BoredClient, ConnectionType};
+use bored::notice::Notice;
 use bored::{Bored, BoredAddress, BoredError, Coordinate, Direction};
+use rand::seq::IndexedRandom;
 use ratatui::style::{Color, Style};
 use serde::{Deserialize, Serialize};
 use std::error::Error;
@@ -111,7 +113,6 @@ impl Directory {
         }
     }
 
-    // need to sort out error handling and remove unwraps
     fn add(&mut self, listing: Listing, path: &str) -> Result<(), SurfBoredError> {
         self.bored_addresses.push(listing);
         if let Ok(directory_string) = toml::to_string(&self) {
@@ -122,11 +123,18 @@ impl Directory {
             return Err(SurfBoredError::DirectorySerialzationError);
         }
         Ok(())
-        // fs::write(path, toml::to_string(&self).unwrap()).unwrap();
     }
 
-    fn set_home(&mut self, home_bored: usize) {
+    pub fn set_home(&mut self, home_bored: usize) {
         self.home_bored = home_bored
+    }
+
+    pub fn get_home(&self) -> Option<&str> {
+        if self.home_bored < self.bored_addresses.len() {
+            return Some(&self.bored_addresses[self.home_bored].bored_address);
+        } else {
+            None
+        }
     }
 }
 
@@ -185,8 +193,11 @@ pub struct App {
     pub previous_view: View,
     pub selected_notice: Option<usize>,
     pub theme: Theme,
-    pub input_1: String,
-    pub input_2: String,
+    pub name_input: String,
+    pub key_input: String,
+    pub content_input: String,
+    pub link_text_input: String,
+    pub link_url_input: String,
 }
 impl App {
     pub fn new() -> App {
@@ -199,8 +210,11 @@ impl App {
             previous_view: View::BoredView,
             selected_notice: None,
             theme: Theme::surf_bored_synth_wave(),
-            input_1: String::new(),
-            input_2: String::new(),
+            name_input: String::new(),
+            key_input: String::new(),
+            content_input: String::new(),
+            link_text_input: String::new(),
+            link_url_input: String::new(),
         }
     }
 
@@ -217,6 +231,17 @@ impl App {
     pub fn display_error(&mut self, surf_bored_error: SurfBoredError) {
         self.previous_view = self.current_view.clone();
         self.current_view = View::ErrorView(surf_bored_error);
+    }
+
+    /// set previous view so can allways go back
+    pub fn change_view(&mut self, view: View) {
+        self.previous_view = self.current_view.clone();
+        self.current_view = view;
+    }
+
+    /// go back to previous view
+    pub fn revert_view(&mut self) {
+        self.current_view = self.previous_view.clone();
     }
 
     pub fn goto(&mut self) {
@@ -304,6 +329,8 @@ impl App {
             },
             &self.directory_path,
         )?;
+        // this is only for convience in testing remove once working
+        self.directory.home_bored = self.directory.bored_addresses.len();
         Ok(bored)
     }
 
@@ -317,18 +344,19 @@ impl App {
         Ok(())
     }
 
+    pub fn get_draft(&self) -> Option<Notice> {
+        let Some(ref client) = self.client else {
+            return None;
+        };
+        client.get_draft()
+    }
+
     pub fn edit_draft(&mut self, content: &str) -> Result<(), BoredError> {
         let Some(ref mut client) = self.client else {
             return Err(BoredError::ClientConnectionError);
         };
-        match client.edit_draft(content) {
-            Err(bored_error) => match bored_error {
-                // if to much text does nothing so user can't type more
-                BoredError::TooMuchText => return Ok(()),
-                _ => return Err(bored_error),
-            },
-            Ok(_) => Ok(()),
-        }
+        client.edit_draft(content)?;
+        Ok(())
     }
 
     pub fn create_hyperlink(&mut self) {

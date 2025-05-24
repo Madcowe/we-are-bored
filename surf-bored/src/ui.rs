@@ -1,6 +1,7 @@
 use bored::bored_client::{BoredClient, ConnectionType};
 use bored::notice::{Notice, get_display, get_hyperlinks};
 use bored::{Bored, BoredAddress, BoredError, Coordinate};
+use rand::rand_core::block::BlockRng;
 use ratatui::buffer::Buffer;
 use ratatui::prelude::BlockExt;
 use ratatui::style::{Styled, Stylize};
@@ -12,6 +13,7 @@ use ratatui::{
     text::{Line, Span, Text},
     widgets::{Block, Borders, Clear, List, ListItem, Paragraph, Wrap},
 };
+use std::fmt::Pointer;
 use std::ops::Deref;
 use std::str::FromStr;
 
@@ -22,7 +24,8 @@ pub fn ui(frame: &mut Frame, app: &App) {
     // setup base interfact
     let area = frame.area();
     let mut title_text = String::new();
-    let mut status_text = format!("{:?}", app.current_view); //"Connected, no bored loaded";
+    // let mut status_text = format!("{:?}", app.current_view); //"Connected, no bored loaded";
+    let mut status_text = "Connected, no bored loaded";
     let bored = app.get_current_bored();
     if let Some(bored) = bored {
         let bored_name = format!(
@@ -30,7 +33,7 @@ pub fn ui(frame: &mut Frame, app: &App) {
             app.client.as_ref().unwrap().get_bored_address().unwrap()
         );
         title_text = bored.get_name().to_owned() + "\n" + &bored_name;
-        // status_text = "Connected, bored loded";
+        status_text = "Connected, bored loded";
     }
     let title_block = Block::default()
         .borders(Borders::ALL)
@@ -62,7 +65,7 @@ pub fn ui(frame: &mut Frame, app: &App) {
             let pop_up_block = Block::default()
                 .title("Error")
                 .borders(Borders::ALL)
-                .border_type(BorderType::Rounded)
+                .border_type(BorderType::Thick)
                 .style(app.theme.text_style());
             frame.render_widget(pop_up_block, pop_up_rect);
             let pop_up_chunks = Layout::default()
@@ -88,9 +91,9 @@ pub fn ui(frame: &mut Frame, app: &App) {
             let pop_up_block = Block::default()
                 .title("Enter bored name and private key of funding wallet*")
                 .borders(Borders::ALL)
-                .border_type(BorderType::Rounded)
-                .style(app.theme.text_style())
-                .bg(Color::Black);
+                .border_type(BorderType::Thick)
+                .style(app.theme.text_style());
+            // .bg(Color::Black);
             frame.render_widget(pop_up_block, pop_up_rect);
             let pop_up_chunks = Layout::default()
                 .direction(Direction::Vertical)
@@ -103,13 +106,13 @@ pub fn ui(frame: &mut Frame, app: &App) {
                 .split(pop_up_rect);
             let mut name_block = Block::default()
                 .title("Name")
-                .borders(Borders::ALL)
-                .border_type(BorderType::Rounded)
+                // .borders(Borders::ALL)
+                // .border_type(BorderType::Thick)
                 .style(app.theme.text_style());
             let mut key_block = Block::default()
                 .title("Private key of funding wallet")
-                .borders(Borders::ALL)
-                .border_type(BorderType::Rounded)
+                // .borders(Borders::ALL)
+                // .border_type(BorderType::Thick)
                 .style(app.theme.text_style());
             match create_mode {
                 CreateMode::Name => {
@@ -119,10 +122,25 @@ pub fn ui(frame: &mut Frame, app: &App) {
                     key_block = key_block.clone().style(app.theme.inverted_text_style())
                 }
             };
-            let name_text = Paragraph::new(app.input_1.clone()).block(name_block);
-            let key_text = Paragraph::new(app.input_2.clone()).block(key_block);
+            let name_text = Paragraph::new(app.name_input.clone()).block(name_block);
+            let key_text = Paragraph::new(app.key_input.clone()).block(key_block);
             frame.render_widget(name_text, pop_up_chunks[0]);
             frame.render_widget(key_text, pop_up_chunks[1]);
+        }
+        View::DraftView(draft_mode) => {
+            if let Some(draft) = app.get_draft() {
+                let draft_dimension = draft.get_dimensions();
+                // postion so aprox in cnetere of frame
+                let x = (area.width - draft_dimension.x) / 2;
+                let y = (area.height - draft_dimension.y) / 2;
+                let draft_rect = Rect::new(x, y, draft_dimension.x, draft_dimension.y);
+                let mut draft_block = Block::default()
+                    .borders(Borders::ALL)
+                    .border_type(BorderType::Thick)
+                    .style(app.theme.text_style());
+                let draft_text = Paragraph::new(draft.get_content()).block(draft_block);
+                frame.render_widget(draft_text, draft_rect);
+            }
         }
 
         _ => (),
