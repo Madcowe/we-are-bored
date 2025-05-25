@@ -4,11 +4,16 @@ use ratatui::{
     Terminal,
     backend::{Backend, CrosstermBackend},
     crossterm::{
-        event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEventKind},
+        event::{
+            self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEventKind,
+            KeyModifiers, KeyboardEnhancementFlags, PopKeyboardEnhancementFlags,
+            PushKeyboardEnhancementFlags,
+        },
         execute,
         terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
     },
     layout::{Margin, Size},
+    style::Modifier,
 };
 use std::{char::MAX, cmp::max, cmp::min, error::Error, io};
 
@@ -27,7 +32,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // setup terminal
     enable_raw_mode()?;
     let mut stdout = io::stdout();
-    execute!(stdout, EnterAlternateScreen)?;
+    execute!(
+        stdout,
+        EnterAlternateScreen,
+        PushKeyboardEnhancementFlags(KeyboardEnhancementFlags::DISAMBIGUATE_ESCAPE_CODES)
+    )?;
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
 
@@ -40,6 +49,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         terminal.backend_mut(),
         LeaveAlternateScreen,
         DisableMouseCapture,
+        PopKeyboardEnhancementFlags
     )?;
     terminal.show_cursor()?;
 
@@ -63,95 +73,114 @@ async fn run_app<B: Backend>(termimal: &mut Terminal<B>, app: &mut App) -> io::R
     loop {
         termimal.draw(|f| ui(f, app))?;
         if let Event::Key(key) = event::read()? {
+            // app.status = format!("{:?}", key);
             if key.kind == event::KeyEventKind::Release {
                 // Skip events that are not KeyEvenKind::Press
                 continue;
             }
-            match &app.current_view {
-                View::ErrorView(_) => match key.code {
-                    KeyCode::Enter => app.revert_view(),
-                    KeyCode::Char('q') => break,
-                    _ => {}
-                },
-                View::BoredView => match key.code {
-                    KeyCode::Char('q') => break,
-                    KeyCode::Char('c') => app.change_view(View::CreateView(CreateMode::Name)),
-                    KeyCode::Char('n') => {
-                        if let Some(bored) = app.get_current_bored() {
-                            let terminal_size = termimal.size()?;
-                            let bored_dimensions = bored.get_dimensions();
-                            let draft_dimensions =
-                                generate_notice_size(terminal_size, bored_dimensions);
-                            match app.create_draft(draft_dimensions) {
-                                Err(e) => {
-                                    app.current_view =
-                                        View::ErrorView(app::SurfBoredError::BoredError(e))
+            if key.code == KeyCode::Char('c') && key.modifiers == KeyModifiers::CONTROL {
+                break;
+            } else {
+                match &app.current_view {
+                    View::ErrorView(_) => match key.code {
+                        KeyCode::Enter => app.revert_view(),
+                        KeyCode::Char('q') => break,
+                        _ => {}
+                    },
+                    View::BoredView => match key.code {
+                        KeyCode::Char('q') => break,
+                        KeyCode::Char('c') => app.change_view(View::CreateView(CreateMode::Name)),
+                        KeyCode::Char('n') => {
+                            if let Some(bored) = app.get_current_bored() {
+                                let terminal_size = termimal.size()?;
+                                let bored_dimensions = bored.get_dimensions();
+                                let draft_dimensions =
+                                    generate_notice_size(terminal_size, bored_dimensions);
+                                match app.create_draft(draft_dimensions) {
+                                    Err(e) => {
+                                        app.current_view =
+                                            View::ErrorView(app::SurfBoredError::BoredError(e))
+                                    }
+                                    _ => (),
                                 }
-                                _ => (),
+                            } else {
+                                // if bored doesn't exist go back to previous view
+                                app.revert_view();
                             }
-                        } else {
-                            // if bored doesn't exist go back to previous view
-                            app.revert_view();
-                        }
-                    }
-                    _ => {}
-                },
-                View::CreateView(create_view) => match key.code {
-                    // not using change_view() becase don;t wnat to change previous view for sub enum change
-                    KeyCode::Tab => app.current_view = View::CreateView(create_view.toggle()),
-                    KeyCode::Esc => app.revert_view(),
-                    KeyCode::Backspace => match create_view {
-                        CreateMode::Name => {
-                            app.name_input.pop();
-                        }
-                        CreateMode::PrivateKey => {
-                            app.key_input.pop();
-                        }
-                    },
-                    KeyCode::Char(value) => match create_view {
-                        CreateMode::Name => app.name_input.push(value),
-                        CreateMode::PrivateKey => app.key_input.push(value),
-                    },
-                    KeyCode::Enter => match create_view {
-                        CreateMode::Name => {
-                            app.current_view = View::CreateView(CreateMode::PrivateKey)
-                        }
-                        CreateMode::PrivateKey => {
-                            let new_bored = app
-                                .create_bored_on_network(
-                                    &app.name_input.clone(),
-                                    &app.key_input.clone(),
-                                )
-                                .await;
-                            match new_bored {
-                                Err(e) => app.display_error(e),
-                                _ => (),
-                            }
-                        }
-                    },
-                    _ => {}
-                },
-                View::DraftView(draft_mode) => match draft_mode {
-                    DraftMode::Content => match key.code {
-                        KeyCode::Esc => app.revert_view(),
-                        KeyCode::Backspace => {
-                            app.content_input.pop();
-                            app.edit_draft(&app.content_input.clone())
-                                .expect("Shoud never be more text as deleting")
-                        }
-                        KeyCode::Enter => {
-                            app.content_input.push('\n');
-                            try_edit(app);
-                        }
-                        KeyCode::Char(value) => {
-                            app.content_input.push(value);
-                            try_edit(app);
                         }
                         _ => {}
                     },
+                    View::CreateView(create_view) => match key.code {
+                        // not using change_view() becase don;t wnat to change previous view for sub enum change
+                        KeyCode::Tab => app.current_view = View::CreateView(create_view.toggle()),
+                        KeyCode::Esc => app.revert_view(),
+                        KeyCode::Backspace => match create_view {
+                            CreateMode::Name => {
+                                app.name_input.pop();
+                            }
+                            CreateMode::PrivateKey => {
+                                app.key_input.pop();
+                            }
+                        },
+                        KeyCode::Char(value) => match create_view {
+                            CreateMode::Name => app.name_input.push(value),
+                            CreateMode::PrivateKey => app.key_input.push(value),
+                        },
+                        KeyCode::Enter => match create_view {
+                            CreateMode::Name => {
+                                app.current_view = View::CreateView(CreateMode::PrivateKey)
+                            }
+                            CreateMode::PrivateKey => {
+                                let new_bored = app
+                                    .create_bored_on_network(
+                                        &app.name_input.clone(),
+                                        &app.key_input.clone(),
+                                    )
+                                    .await;
+                                match new_bored {
+                                    Err(e) => app.display_error(e),
+                                    _ => (),
+                                }
+                            }
+                        },
+                        _ => {}
+                    },
+                    // due to wrapping it may still allow some non visible text to be typed
+                    // it would still be within the specfication just not visible in this app
+                    View::DraftView(draft_mode) => match draft_mode {
+                        DraftMode::Content => match key.code {
+                            KeyCode::Esc => app.revert_view(),
+                            KeyCode::Backspace => {
+                                app.content_input.pop();
+                                app.edit_draft(&app.content_input.clone())
+                                    .expect("Shoud never be more text as deleting")
+                            }
+                            KeyCode::Enter => {
+                                app.content_input.push('\n');
+                                // this doesn't seem to remove the first newline that is not visible
+                                try_edit(app);
+                            }
+                            KeyCode::Char(value) => {
+                                if key.modifiers == KeyModifiers::CONTROL {
+                                    if value == 'h' {
+                                        app.current_view = View::DraftView(DraftMode::Hyperlink(
+                                            HyperlinkMode::Text,
+                                        ));
+                                    }
+                                    if value == 'a' {
+                                        app.current_view = View::DraftView(DraftMode::Position);
+                                    }
+                                }
+                                app.content_input.push(value);
+                                try_edit(app);
+                            }
+
+                            _ => {}
+                        },
+                        _ => {}
+                    },
                     _ => {}
-                },
-                _ => {}
+                }
             }
         }
     }

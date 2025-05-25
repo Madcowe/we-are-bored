@@ -31,12 +31,6 @@ impl From<BoredError> for SurfBoredError {
     }
 }
 
-// impl<T: Error + 'static> From<T> for SurfBoredError {
-//     fn from(e: T) -> Self {
-//         Self::Other(Box::new(e))
-//     }
-// }
-
 #[derive(Clone, Debug)]
 pub enum View {
     ErrorView(SurfBoredError),
@@ -115,6 +109,8 @@ impl Directory {
 
     fn add(&mut self, listing: Listing, path: &str) -> Result<(), SurfBoredError> {
         self.bored_addresses.push(listing);
+        // this is only for convience in testing remove once working
+        self.home_bored = self.bored_addresses.len() - 1;
         if let Ok(directory_string) = toml::to_string(&self) {
             let Ok(()) = fs::write(path, &directory_string) else {
                 return Err(SurfBoredError::DirectoryFileWriteError);
@@ -193,6 +189,7 @@ pub struct App {
     pub previous_view: View,
     pub selected_notice: Option<usize>,
     pub theme: Theme,
+    pub status: String,
     pub name_input: String,
     pub key_input: String,
     pub content_input: String,
@@ -210,6 +207,7 @@ impl App {
             previous_view: View::BoredView,
             selected_notice: None,
             theme: Theme::surf_bored_synth_wave(),
+            status: String::new(),
             name_input: String::new(),
             key_input: String::new(),
             content_input: String::new(),
@@ -329,8 +327,6 @@ impl App {
             },
             &self.directory_path,
         )?;
-        // this is only for convience in testing remove once working
-        self.directory.home_bored = self.directory.bored_addresses.len();
         Ok(bored)
     }
 
@@ -339,8 +335,7 @@ impl App {
             return Err(BoredError::ClientConnectionError);
         };
         client.create_draft(dimensions)?;
-        self.previous_view = self.current_view.clone();
-        self.current_view = View::DraftView(DraftMode::Content);
+        self.change_view(View::DraftView(DraftMode::Content));
         Ok(())
     }
 

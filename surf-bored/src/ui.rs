@@ -25,8 +25,8 @@ pub fn ui(frame: &mut Frame, app: &App) {
     let area = frame.area();
     let mut title_text = String::new();
     let mut status_text = format!(
-        "Current: {:?} previous: {:?}",
-        app.current_view, app.previous_view
+        "Current: {:?} previous: {:?} key: {}",
+        app.current_view, app.previous_view, app.status
     ); //"Connected, no bored loaded";
     // let mut status_text = "Connected, no bored loaded";
     let bored = app.get_current_bored();
@@ -108,15 +108,9 @@ pub fn ui(frame: &mut Frame, app: &App) {
                     Constraint::Min(navigation_text.lines().count() as u16),
                 ])
                 .split(pop_up_rect);
-            let mut name_block = Block::default()
-                .title("Name")
-                // .borders(Borders::ALL)
-                // .border_type(BorderType::Thick)
-                .style(app.theme.text_style());
+            let mut name_block = Block::default().title("Name").style(app.theme.text_style());
             let mut key_block = Block::default()
                 .title("Private key of funding wallet")
-                // .borders(Borders::ALL)
-                // .border_type(BorderType::Thick)
                 .style(app.theme.text_style());
             match create_mode {
                 CreateMode::Name => {
@@ -133,20 +127,25 @@ pub fn ui(frame: &mut Frame, app: &App) {
         }
         View::DraftView(draft_mode) => {
             if let Some(draft) = app.get_draft() {
-                let draft_dimension = draft.get_dimensions();
-                let display_text = draft.get_display_text().unwrap_or_default();
-                // postion so aprox in cnetere of frame
-                let x = (area.width - draft_dimension.x) / 2;
-                let y = (area.height - draft_dimension.y) / 2;
-                let draft_rect = Rect::new(x, y, draft_dimension.x, draft_dimension.y);
-                let mut draft_block = Block::default()
-                    .borders(Borders::ALL)
-                    .border_type(BorderType::Thick)
-                    .style(app.theme.text_style());
-                let draft_text = Paragraph::new(display_text)
-                    .wrap(Wrap { trim: false })
-                    .block(draft_block);
-                frame.render_widget(draft_text, draft_rect);
+                match draft_mode {
+                    DraftMode::Content => {
+                        let draft_dimension = draft.get_dimensions();
+                        let display = draft.get_display().unwrap_or_default();
+                        // postion so aprox in cnetere of frame
+                        let x = (area.width - draft_dimension.x) / 2;
+                        let y = (area.height - draft_dimension.y) / 2;
+                        let draft_rect = Rect::new(x, y, draft_dimension.x, draft_dimension.y);
+                        let mut draft_block = Block::default()
+                            .borders(Borders::ALL)
+                            .border_type(BorderType::Thick)
+                            .style(app.theme.text_style());
+                        let draft_text = Paragraph::new(display.get_display_text())
+                            .wrap(Wrap { trim: false })
+                            .block(draft_block);
+                        frame.render_widget(draft_text, draft_rect);
+                    }
+                    _ => (),
+                }
             }
         }
 

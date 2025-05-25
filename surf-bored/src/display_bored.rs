@@ -35,7 +35,7 @@ impl BoredOfRects {
     }
 
     /// returns a vector of blocks with the notice text attached to the rects
-    /// inluding underline for hyperlinks, hower new line sin the text will be lost
+    /// inluding underline for hyperlinks, however new lines in the text will be lost
     fn get_display_notices(&self, bored: &Bored) -> Result<Vec<(Paragraph, Rect)>, BoredError> {
         let mut display_notices = vec![];
         let hyperlink_style = Style::new().underlined();

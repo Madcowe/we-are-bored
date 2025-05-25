@@ -35,6 +35,7 @@ impl Hyperlink {
 
 /// Display contains the text to display plus a collections of the hyperlinks locations from left
 /// to right
+#[derive(Default)]
 pub struct Display {
     display_text: String,
     hyperlink_locations: Vec<(usize, usize)>,
@@ -114,8 +115,11 @@ impl Notice {
         &self.content
     }
 
-    pub fn get_display_text(&self) -> Result<String, BoredError> {
-        Ok(get_display(self.get_content(), get_hyperlinks(self.get_content())?).display_text)
+    pub fn get_display(&self) -> Result<Display, BoredError> {
+        Ok(get_display(
+            self.get_content(),
+            get_hyperlinks(self.get_content())?,
+        ))
     }
 
     /// moves notices position on board, both prior to placing and is called by Bored.add()
