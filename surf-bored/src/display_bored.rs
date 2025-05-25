@@ -48,50 +48,7 @@ impl BoredOfRects {
             let block = Block::default()
                 .borders(Borders::ALL)
                 .style(Style::default());
-            let display_text = display.get_display_text();
-            let mut end_of_previous_span = 0;
-            let mut chars_in_previous_lines = 0;
-            let mut lines = vec![];
-            for line in display_text.lines() {
-                let mut spans = vec![];
-                for hyperlink_location in display.get_hyperlink_locations().into_iter() {
-                    // if hyperlinks is on that line...it may span several
-                    let line_end = chars_in_previous_lines + line.len();
-                    if hyperlink_location.1 > chars_in_previous_lines
-                        && hyperlink_location.0 < line_end
-                    {
-                        // set preceding non hyperlinked bit
-                        if hyperlink_location.0 > end_of_previous_span {
-                            let start = max(end_of_previous_span, chars_in_previous_lines);
-                            let end = min(hyperlink_location.0, line_end);
-                            let span_text = display_text[start..end].to_owned();
-                            let span = Span::styled(span_text, Style::default());
-                            spans.push(span);
-                        }
-                        // set hyperlinked bit
-                        let start = max(hyperlink_location.0, chars_in_previous_lines);
-                        let end = min(hyperlink_location.1, line_end);
-                        let span_text = display_text[start..end].to_owned();
-                        let span = Span::styled(span_text, hyperlink_style);
-                        spans.push(span);
-                        end_of_previous_span = end;
-                        // set bit after final hyperlink if there is one
-                        if end_of_previous_span < line_end {
-                            let end = min(line_end, display_text.len());
-                            let span_text = display_text[end_of_previous_span..end].to_owned();
-                            let span = Span::styled(span_text, Style::default());
-                            spans.push(span);
-                        }
-                    }
-                }
-                chars_in_previous_lines += line.len() + 1;
-                let line = Line::from_iter(spans.to_owned());
-                lines.push(spans);
-            }
-            let mut text = Text::from(display_text);
-            if !display.get_hyperlink_locations().is_empty() {
-                text = Text::from_iter(lines);
-            }
+            let text = render_hyperlinks(display, hyperlink_style);
             let paragraph = Paragraph::new(text).block(block.clone()).white();
             display_notices.push((paragraph, notice_rect));
         }
@@ -187,6 +144,53 @@ impl BoredViewPort {
             }
         }
     }
+}
+
+/// Return display text with hyperlinks rendered
+pub fn render_hyperlinks(display: Display, hyperlink_style: Style) -> Text<'static> {
+    let display_text = display.get_display_text();
+    let mut end_of_previous_span = 0;
+    let mut chars_in_previous_lines = 0;
+    let mut lines = vec![];
+    for line in display_text.lines() {
+        let mut spans = vec![];
+        for hyperlink_location in display.get_hyperlink_locations().into_iter() {
+            // if hyperlinks is on that line...it may span several
+            let line_end = chars_in_previous_lines + line.len();
+            if hyperlink_location.1 > chars_in_previous_lines && hyperlink_location.0 < line_end {
+                // set preceding non hyperlinked bit
+                if hyperlink_location.0 > end_of_previous_span {
+                    let start = max(end_of_previous_span, chars_in_previous_lines);
+                    let end = min(hyperlink_location.0, line_end);
+                    let span_text = display_text[start..end].to_owned();
+                    let span = Span::styled(span_text, Style::default());
+                    spans.push(span);
+                }
+                // set hyperlinked bit
+                let start = max(hyperlink_location.0, chars_in_previous_lines);
+                let end = min(hyperlink_location.1, line_end);
+                let span_text = display_text[start..end].to_owned();
+                let span = Span::styled(span_text, hyperlink_style);
+                spans.push(span);
+                end_of_previous_span = end;
+                // set bit after final hyperlink if there is one
+                if end_of_previous_span < line_end {
+                    let end = min(line_end, display_text.len());
+                    let span_text = display_text[end_of_previous_span..end].to_owned();
+                    let span = Span::styled(span_text, Style::default());
+                    spans.push(span);
+                }
+            }
+        }
+        chars_in_previous_lines += line.len() + 1;
+        // let line = Line::from_iter(spans.to_owned());
+        lines.push(spans);
+    }
+    let mut text = Text::from(display_text);
+    if !display.get_hyperlink_locations().is_empty() {
+        text = Text::from_iter(lines);
+    }
+    text.clone()
 }
 
 #[cfg(test)]
