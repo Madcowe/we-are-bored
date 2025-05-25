@@ -1,5 +1,5 @@
 use bored::bored_client::{BoredClient, ConnectionType};
-use bored::notice::{Notice, get_display, get_hyperlinks};
+use bored::notice::{Display, Notice, get_display, get_hyperlinks};
 use bored::{Bored, BoredAddress, BoredError, Coordinate};
 use rand::rand_core::block::BlockRng;
 use ratatui::buffer::Buffer;
@@ -19,8 +19,9 @@ use std::str::FromStr;
 
 use crate::app::{App, CreateMode, DraftMode, GoToMode, HyperlinkMode, View};
 use crate::display_bored::DisplayBored;
+use crate::display_bored::render_hyperlinks;
 
-pub fn ui(frame: &mut Frame, app: &App) {
+pub fn ui(frame: &mut Frame, app: &mut App) {
     // setup base interfact
     let area = frame.area();
     let mut title_text = String::new();
@@ -55,8 +56,10 @@ pub fn ui(frame: &mut Frame, app: &App) {
         .border_type(BorderType::QuadrantOutside)
         .style(app.theme.header_style())
         .bold();
-    let status_rect = Rect::new(0, area.height - 3, area.width, 3);
-    let status = Paragraph::new(Text::styled(status_text, Style::default())).block(status_block);
+    let status_rect = Rect::new(0, area.height - 10, area.width, 10);
+    let status = Paragraph::new(Text::styled(status_text, Style::default()))
+        .wrap(Wrap { trim: false })
+        .block(status_block);
     status.render(status_rect, frame.buffer_mut());
 
     // modify based on current_view
@@ -130,7 +133,9 @@ pub fn ui(frame: &mut Frame, app: &App) {
                 match draft_mode {
                     DraftMode::Content => {
                         let draft_dimension = draft.get_dimensions();
-                        let display = draft.get_display().unwrap_or_default();
+                        let display = draft.get_display().unwrap();
+                        let display_text = render_hyperlinks(display, app.theme.hyperlink_style());
+                        app.status = format!("{:?}", display_text);
                         // postion so aprox in cnetere of frame
                         let x = (area.width - draft_dimension.x) / 2;
                         let y = (area.height - draft_dimension.y) / 2;
@@ -139,7 +144,9 @@ pub fn ui(frame: &mut Frame, app: &App) {
                             .borders(Borders::ALL)
                             .border_type(BorderType::Thick)
                             .style(app.theme.text_style());
-                        let draft_text = Paragraph::new(display.get_display_text())
+                        let draft_text = Paragraph::new(display_text)
+                            // probaly should implement own wrapping method so it matches protocol speification
+                            // but works more or less for now
                             .wrap(Wrap { trim: false })
                             .block(draft_block);
                         frame.render_widget(draft_text, draft_rect);

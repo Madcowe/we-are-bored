@@ -2,7 +2,7 @@ use bored::bored_client::{BoredClient, ConnectionType};
 use bored::notice::Notice;
 use bored::{Bored, BoredAddress, BoredError, Coordinate, Direction};
 use rand::seq::IndexedRandom;
-use ratatui::style::{Color, Style};
+use ratatui::style::{Color, Style, Stylize};
 use serde::{Deserialize, Serialize};
 use std::error::Error;
 use std::fs;
@@ -154,6 +154,7 @@ pub struct Theme {
     text_fg: Color,
     text_bg: Color,
     header_bg: Color,
+    hyperlink_style: Style,
 }
 
 impl Theme {
@@ -162,8 +163,8 @@ impl Theme {
             name: "Surf bored synth wave".to_string(),
             text_fg: Color::Rgb(205, 152, 211),
             text_bg: Color::Rgb(23, 21, 41),
-            header_bg: Color::Rgb(109, 228, 175), // bright green
-                                                  // header_bg: Color::Rgb(149, 232, 196), // pale green
+            header_bg: Color::Rgb(109, 228, 175), // bright green header_bg: Color::Rgb(149, 232, 196), // pale green
+            hyperlink_style: Style::new().underlined(),
         }
     }
 
@@ -177,6 +178,10 @@ impl Theme {
 
     pub fn inverted_text_style(&self) -> Style {
         Style::new().fg(self.text_bg).bg(self.text_fg)
+    }
+
+    pub fn hyperlink_style(&self) -> Style {
+        self.hyperlink_style
     }
 }
 

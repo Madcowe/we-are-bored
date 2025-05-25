@@ -1,7 +1,7 @@
 use bored::{Bored, BoredAddress, BoredError, Coordinate, bored_client, notice::MAX_URL_LENGTH};
 use rand::Rng;
 use ratatui::{
-    Terminal,
+    Terminal, Viewport,
     backend::{Backend, CrosstermBackend},
     crossterm::{
         event::{
@@ -175,6 +175,10 @@ async fn run_app<B: Backend>(termimal: &mut Terminal<B>, app: &mut App) -> io::R
                                 try_edit(app);
                             }
 
+                            _ => {}
+                        },
+                        DraftMode::Hyperlink(hyperlink_mode) => match key.code {
+                            KeyCode::Esc => app.current_view = View::DraftView(DraftMode::Content),
                             _ => {}
                         },
                         _ => {}

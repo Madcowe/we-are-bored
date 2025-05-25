@@ -35,7 +35,7 @@ impl Hyperlink {
 
 /// Display contains the text to display plus a collections of the hyperlinks locations from left
 /// to right
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Display {
     display_text: String,
     hyperlink_locations: Vec<(usize, usize)>,
