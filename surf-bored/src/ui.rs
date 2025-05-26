@@ -1,5 +1,5 @@
 use bored::bored_client::{BoredClient, ConnectionType};
-use bored::notice::{Display, Notice, get_display, get_hyperlinks};
+use bored::notice::{Display, Notice, NoticeHyperlinkMap, get_display, get_hyperlinks};
 use bored::{Bored, BoredAddress, BoredError, Coordinate};
 use rand::rand_core::block::BlockRng;
 use ratatui::buffer::Buffer;
@@ -150,7 +150,13 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
                             // but works more or less for now
                             .wrap(Wrap { trim: false })
                             .block(draft_block);
-                        frame.render_widget(draft_text, draft_rect);
+                        // frame.render_widget(draft_text, draft_rect);
+                        let mut draft_buffer = Buffer::empty(draft_rect);
+                        draft_text.render(draft_rect, &mut draft_buffer);
+                        // render hyperlinks
+                        // let notice_hyperlink_map =
+                        //     NoticeHyperlinkMap::create(&draft).unwrap_or_default();
+                        frame.buffer_mut().merge(&draft_buffer);
                     }
                     _ => (),
                 }

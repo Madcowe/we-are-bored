@@ -37,7 +37,7 @@ impl Hyperlink {
 /// a 2d vector of option<uszie> representing the location of hyperlinks
 /// if the coordinate is empty it will be none otherwise it will be the
 /// hindex of the hyperlink in Display.hyperlink_locations
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct NoticeHyperlinkMap {
     visible: Vec<Vec<Option<usize>>>,
 }
@@ -69,7 +69,7 @@ impl NoticeHyperlinkMap {
     pub fn create(notice: &Notice) -> Result<NoticeHyperlinkMap, BoredError> {
         let content = notice.get_content();
         let display = get_display(content, get_hyperlinks(content)?);
-        eprintln!("{:?}", display);
+        // eprintln!("{:?}", display);
         let mut visible =
             vec![vec![None; notice.dimensions.x as usize - 2]; notice.dimensions.y as usize - 2];
         let (mut x, mut y) = (0, 0);
@@ -78,12 +78,12 @@ impl NoticeHyperlinkMap {
                 display.hyperlink_locations.iter().enumerate()
             {
                 for i in hyperlink_location.0..hyperlink_location.1 {
-                    if char_index == i {
+                    if char_index == i && char != '\n' {
                         visible[y][x] = Some(hyperlink_index);
                     }
                 }
             }
-            if char == '\n' || (char_index % notice.dimensions.x as usize == 0 && char_index > 0) {
+            if char == '\n' {
                 y += 1;
                 x = 0;
             } else {
@@ -91,6 +91,10 @@ impl NoticeHyperlinkMap {
             }
         }
         Ok(NoticeHyperlinkMap { visible })
+    }
+
+    pub fn get_map(&self) -> Vec<Vec<Option<usize>>> {
+        self.visible.clone()
     }
 }
 
@@ -239,16 +243,6 @@ impl Notice {
             0
         } * self.get_text_width() as usize
             + last_line.chars().count();
-        // eprintln!(
-        //     "Max lines: {} actual lines: {} max chars: {} used chars: {} text_width: {} last line chars: {} Display_text: {}",
-        //     self.get_max_lines(),
-        //     display_lines,
-        //     self.get_max_chars(),
-        //     used_chars,
-        //     self.get_text_width(),
-        //     last_line.chars().count(),
-        //     display_text
-        // );
         if used_chars > self.get_max_chars()
             || display_lines > self.get_max_lines()
             || (display_lines == self.get_max_lines()
@@ -268,8 +262,8 @@ pub fn get_hyperlinks(content: &str) -> Result<Vec<Hyperlink>, BoredError> {
     let re = Regex::new(r"\[(?<text>[^\]]*)\]\((?<url>[^)]*)\)")?;
     let mut results = vec![];
     for captures in re.captures_iter(&content) {
-        let text_match = captures.get(1).unwrap(); //.ok_or(BoredError::RegexError)?;
-        let url_match = captures.get(2).unwrap(); //.ok_or(BoredError::RegexError)?;
+        let text_match = captures.get(1).ok_or(BoredError::RegexError)?;
+        let url_match = captures.get(2).ok_or(BoredError::RegexError)?;
         if let Ok(hyperlink) = Hyperlink::create(
             &captures["text"],
             (text_match.start(), text_match.end()),
@@ -452,6 +446,17 @@ mod tests {
             display.hyperlink_locations,
             test_display.hyperlink_locations
         );
+        // Test links split over lines
+        notice.write("The [auto\nnomi](https://autonomi.com/) website")?;
+        hyperlinks = get_hyperlinks(&notice.content).unwrap();
+        let mut links = vec![];
+        let link =
+            Hyperlink::create("auto\nnomi", (5, 14), "https://autonomi.com/", (16, 37)).unwrap();
+        links.push(link);
+        assert_eq!(hyperlinks, links);
+        let display_text = "The auto\nnomi website";
+        let display = get_display(&notice.get_content(), hyperlinks);
+        assert_eq!(display.display_text, display_text);
         Ok(())
     }
 
@@ -464,9 +469,9 @@ mod tests {
         let notice_hyperlink_map = NoticeHyperlinkMap::create(&notice)?;
         let expected_output = r#"*******0000*11111***********
 ********2222****************
-****************************
-*****333333*****************
+*****33333******************
 333333**********************
+****************************
 ****************************
 ****************************
 "#;

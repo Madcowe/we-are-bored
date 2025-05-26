@@ -1,7 +1,7 @@
-use bored::notice::{Display, get_display, get_hyperlinks};
+use bored::notice::{Display, Notice, NoticeHyperlinkMap, get_display, get_hyperlinks};
 use bored::{Bored, BoredAddress, BoredError, Coordinate};
 use rand::seq::IndexedRandom;
-use ratatui::buffer::Buffer;
+use ratatui::buffer::{Buffer, Cell};
 use ratatui::layout::Position;
 use ratatui::style::{Styled, Stylize};
 use ratatui::text::ToSpan;
@@ -181,6 +181,23 @@ pub fn character_wrap(display_text: &str, line_width: u16) -> Text {
     Text::from_iter(lines)
 }
 
+/// Add hyperlink format to the buffer of notice
+pub fn style_notice_hyperlinks(notice: &Notice, buffer: &mut Buffer, hyperlink_style: Style) {
+    if let Ok(notice_hyperlink_map) = NoticeHyperlinkMap::create(&notice) {
+        for (mut y, row) in notice_hyperlink_map.get_map().iter().enumerate() {
+            y += 1; // as the buffer will have a border
+            for (mut x, char) in row.iter().enumerate() {
+                x += 1; // as the buffer will have a border
+                if char.is_some() {
+                    if let Some(cell) = buffer.cell_mut((x as u16, y as u16)) {
+                        cell.set_style(hyperlink_style);
+                    }
+                }
+            }
+        }
+    }
+}
+
 /// Return display text with hyperlinks rendered
 pub fn render_hyperlinks(display: Display, hyperlink_style: Style) -> Text<'static> {
     let display_text = display.get_display_text();
@@ -242,6 +259,8 @@ pub fn render_hyperlinks(display: Display, hyperlink_style: Style) -> Text<'stat
 mod tests {
 
     use bored::notice::Notice;
+
+    use crate::app::SurfBoredError;
 
     use super::*;
 
@@ -453,5 +472,28 @@ g
 line"#;
         assert_eq!(expected_output, format!("{}", text));
         eprintln!("\n{}", text);
+    }
+
+    #[test]
+    fn test_style_notice_hyperlinks() -> Result<(), SurfBoredError> {
+        let hyperlink_style = Style::new().underlined();
+        let mut notice = Notice::create(Coordinate { x: 30, y: 9 });
+        notice.write(
+            "We are [link](url) [bored](url).\nYou are [link](url) bored.\nI am [boooo\nooored](url).\nHello\nWorld",
+        )?;
+        let notice_dimension = notice.get_dimensions();
+        let display = notice.get_display().unwrap();
+        let display_text = display.get_display_text();
+        let display_text = character_wrap(&display_text, notice.get_text_width());
+        let notice_rect = Rect::new(0, 0, notice_dimension.x, notice_dimension.y);
+        let notice_block = Block::default().borders(Borders::ALL);
+        let notice_text = Paragraph::new(display_text)
+            // .wrap(Wrap { trim: false })
+            .block(notice_block);
+        let mut notice_buffer = Buffer::empty(notice_rect);
+        notice_text.render(notice_rect, &mut notice_buffer);
+        style_notice_hyperlinks(&notice, &mut notice_buffer, hyperlink_style);
+        eprintln!("{:?}", notice_buffer);
+        Ok(())
     }
 }
