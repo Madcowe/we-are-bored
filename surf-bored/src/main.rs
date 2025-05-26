@@ -209,8 +209,8 @@ fn try_edit(app: &mut App) {
 fn generate_notice_size(terminal_size: Size, bored_size: Coordinate) -> Coordinate {
     let max_x = min(terminal_size.width, bored_size.x);
     let max_y = min(terminal_size.height, bored_size.y);
-    let x = max(9, max_x / 4);
-    let y = max(3, max_y / 4);
+    let x = max(9, max_x / 7);
+    let y = max(3, max_y / 7);
     Coordinate { x, y }
 
     // // portrait or landscape

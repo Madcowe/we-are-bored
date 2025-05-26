@@ -69,7 +69,6 @@ impl NoticeHyperlinkMap {
     pub fn create(notice: &Notice) -> Result<NoticeHyperlinkMap, BoredError> {
         let content = notice.get_content();
         let display = get_display(content, get_hyperlinks(content)?);
-        // eprintln!("{:?}", display);
         let mut visible =
             vec![vec![None; notice.dimensions.x as usize - 2]; notice.dimensions.y as usize - 2];
         let (mut x, mut y) = (0, 0);
@@ -86,8 +85,11 @@ impl NoticeHyperlinkMap {
             if char == '\n' {
                 y += 1;
                 x = 0;
-            } else {
+            } else if x < notice.get_text_width() as usize - 1 {
                 x += 1;
+            } else {
+                y += 1;
+                x = 0;
             }
         }
         Ok(NoticeHyperlinkMap { visible })
@@ -182,6 +184,15 @@ impl Notice {
             0
         } else {
             self.dimensions.x - 2
+        }
+    }
+
+    /// Height of visible text, ie width of notice minus two for the borders
+    pub fn get_text_height(&self) -> u16 {
+        if self.dimensions.y < 3 {
+            0
+        } else {
+            self.dimensions.y - 2
         }
     }
 
@@ -462,18 +473,22 @@ mod tests {
 
     #[test]
     fn test_notice_hyperlink_map() -> Result<(), BoredError> {
-        let mut notice = Notice::create(Coordinate { x: 30, y: 9 });
+        let mut notice = Notice::create(Coordinate { x: 10, y: 13 });
         notice.write(
             "We are [link](url) [bored](url).\nYou are [link](url) bored.\nI am [boooo\nooored](url).\nHello\nWorld",
         )?;
         let notice_hyperlink_map = NoticeHyperlinkMap::create(&notice)?;
-        let expected_output = r#"*******0000*11111***********
-********2222****************
-*****33333******************
-333333**********************
-****************************
-****************************
-****************************
+        let expected_output = r#"*******0
+000*1111
+1*******
+********
+2222****
+********
+*****333
+33******
+333333**
+********
+********
 "#;
         assert_eq!(expected_output, format!("{}", notice_hyperlink_map));
         eprintln!("{}", notice_hyperlink_map);

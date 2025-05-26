@@ -19,7 +19,7 @@ use std::str::FromStr;
 
 use crate::app::{App, CreateMode, DraftMode, GoToMode, HyperlinkMode, View};
 use crate::display_bored::DisplayBored;
-use crate::display_bored::{character_wrap, render_hyperlinks};
+use crate::display_bored::{character_wrap, render_hyperlinks, style_notice_hyperlinks};
 
 pub fn ui(frame: &mut Frame, app: &mut App) {
     // setup base interfact
@@ -56,7 +56,7 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
         .border_type(BorderType::QuadrantOutside)
         .style(app.theme.header_style())
         .bold();
-    let status_rect = Rect::new(0, area.height - 10, area.width, 10);
+    let status_rect = Rect::new(0, area.height - 27, area.width, 27);
     let status = Paragraph::new(Text::styled(status_text, Style::default()))
         .wrap(Wrap { trim: false })
         .block(status_block);
@@ -136,8 +136,8 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
                         let display = draft.get_display().unwrap();
                         let display_text = display.get_display_text();
                         let display_text = character_wrap(&display_text, draft.get_text_width());
-                        app.status = format!("{:?}", display_text);
-                        // postion so aprox in cnetere of frame
+                        // app.status = format!("{:?}", display_text);
+                        // position so aprox in center of frame
                         let x = (area.width - draft_dimension.x) / 2;
                         let y = (area.height - draft_dimension.y) / 2;
                         let draft_rect = Rect::new(x, y, draft_dimension.x, draft_dimension.y);
@@ -145,17 +145,18 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
                             .borders(Borders::ALL)
                             .border_type(BorderType::Thick)
                             .style(app.theme.text_style());
-                        let draft_text = Paragraph::new(display_text)
-                            // probaly should implement own wrapping method so it matches protocol speification
-                            // but works more or less for now
-                            .wrap(Wrap { trim: false })
-                            .block(draft_block);
-                        // frame.render_widget(draft_text, draft_rect);
+                        let draft_text = Paragraph::new(display_text).block(draft_block);
                         let mut draft_buffer = Buffer::empty(draft_rect);
                         draft_text.render(draft_rect, &mut draft_buffer);
+                        app.status = format!("{:?}", draft_buffer);
                         // render hyperlinks
-                        // let notice_hyperlink_map =
-                        //     NoticeHyperlinkMap::create(&draft).unwrap_or_default();
+                        style_notice_hyperlinks(
+                            &draft,
+                            &mut draft_buffer,
+                            Coordinate { x, y },
+                            app.theme.hyperlink_style(),
+                        );
+                        app.status = app.status.clone() + &format!("{:?}", draft_buffer);
                         frame.buffer_mut().merge(&draft_buffer);
                     }
                     _ => (),

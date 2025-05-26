@@ -182,12 +182,17 @@ pub fn character_wrap(display_text: &str, line_width: u16) -> Text {
 }
 
 /// Add hyperlink format to the buffer of notice
-pub fn style_notice_hyperlinks(notice: &Notice, buffer: &mut Buffer, hyperlink_style: Style) {
+pub fn style_notice_hyperlinks(
+    notice: &Notice,
+    buffer: &mut Buffer,
+    offset: Coordinate,
+    hyperlink_style: Style,
+) {
     if let Ok(notice_hyperlink_map) = NoticeHyperlinkMap::create(&notice) {
         for (mut y, row) in notice_hyperlink_map.get_map().iter().enumerate() {
-            y += 1; // as the buffer will have a border
+            y = y + offset.y as usize + 1; // + 1 as the buffer will have a border
             for (mut x, char) in row.iter().enumerate() {
-                x += 1; // as the buffer will have a border
+                x = x + offset.x as usize + 1; // as the buffer will have a border
                 if char.is_some() {
                     if let Some(cell) = buffer.cell_mut((x as u16, y as u16)) {
                         cell.set_style(hyperlink_style);
@@ -487,12 +492,43 @@ line"#;
         let display_text = character_wrap(&display_text, notice.get_text_width());
         let notice_rect = Rect::new(0, 0, notice_dimension.x, notice_dimension.y);
         let notice_block = Block::default().borders(Borders::ALL);
-        let notice_text = Paragraph::new(display_text)
-            // .wrap(Wrap { trim: false })
-            .block(notice_block);
+        let notice_text = Paragraph::new(display_text).block(notice_block);
         let mut notice_buffer = Buffer::empty(notice_rect);
         notice_text.render(notice_rect, &mut notice_buffer);
-        style_notice_hyperlinks(&notice, &mut notice_buffer, hyperlink_style);
+        style_notice_hyperlinks(
+            &notice,
+            &mut notice_buffer,
+            Coordinate { x: 0, y: 0 },
+            hyperlink_style,
+        );
+        let expected_output = r#"Buffer {
+    area: Rect { x: 0, y: 0, width: 30, height: 9 },
+    content: [
+        "┌────────────────────────────┐",
+        "│We are link bored.          │",
+        "│You are link bored.         │",
+        "│I am boooo                  │",
+        "│ooored.                     │",
+        "│Hello                       │",
+        "│World                       │",
+        "│                            │",
+        "└────────────────────────────┘",
+    ],
+    styles: [
+        x: 0, y: 0, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
+        x: 8, y: 1, fg: Reset, bg: Reset, underline: Reset, modifier: UNDERLINED,
+        x: 12, y: 1, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
+        x: 13, y: 1, fg: Reset, bg: Reset, underline: Reset, modifier: UNDERLINED,
+        x: 18, y: 1, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
+        x: 9, y: 2, fg: Reset, bg: Reset, underline: Reset, modifier: UNDERLINED,
+        x: 13, y: 2, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
+        x: 6, y: 3, fg: Reset, bg: Reset, underline: Reset, modifier: UNDERLINED,
+        x: 11, y: 3, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
+        x: 1, y: 4, fg: Reset, bg: Reset, underline: Reset, modifier: UNDERLINED,
+        x: 7, y: 4, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
+    ]
+}"#;
+        assert_eq!(expected_output, format!("{:?}", notice_buffer));
         eprintln!("{:?}", notice_buffer);
         Ok(())
     }
