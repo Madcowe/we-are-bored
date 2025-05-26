@@ -1,6 +1,7 @@
 use crate::{Bored, BoredAddress, BoredError, Coordinate};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
+use std::fmt::{self};
 
 /// Limit to avoid massive amount of text being accidentally put into hyperlink and making
 /// bored to big to fit in scratchpadlonges
@@ -30,6 +31,66 @@ impl Hyperlink {
             link: link.to_string(),
             link_location,
         })
+    }
+}
+
+/// a 2d vector of option<uszie> representing the location of hyperlinks
+/// if the coordinate is empty it will be none otherwise it will be the
+/// hindex of the hyperlink in Display.hyperlink_locations
+#[derive(Debug, Clone)]
+pub struct NoticeHyperlinkMap {
+    visible: Vec<Vec<Option<usize>>>,
+}
+impl Iterator for NoticeHyperlinkMap {
+    type Item = Vec<Option<usize>>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.visible.iter().next().cloned()
+    }
+}
+impl fmt::Display for NoticeHyperlinkMap {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut display = String::new();
+        for row in &self.visible {
+            for coordinate in row {
+                let text = match coordinate {
+                    None => "*",
+                    Some(notice_index) => &notice_index.to_string(),
+                };
+                display.push_str(text);
+            }
+            display.push_str("\n");
+        }
+        write!(f, "{}", display)
+    }
+}
+
+impl NoticeHyperlinkMap {
+    pub fn create(notice: &Notice) -> Result<NoticeHyperlinkMap, BoredError> {
+        let content = notice.get_content();
+        let display = get_display(content, get_hyperlinks(content)?);
+        eprintln!("{:?}", display);
+        let mut visible =
+            vec![vec![None; notice.dimensions.x as usize - 2]; notice.dimensions.y as usize - 2];
+        let (mut x, mut y) = (0, 0);
+        for (char_index, char) in display.display_text.chars().enumerate() {
+            for (hyperlink_index, hyperlink_location) in
+                display.hyperlink_locations.iter().enumerate()
+            {
+                for i in hyperlink_location.0..hyperlink_location.1 {
+                    if char_index == i {
+                        visible[y][x] = Some(hyperlink_index);
+                    }
+                }
+            }
+            if char == '\n' || (char_index % notice.dimensions.x as usize == 0 && char_index > 0) {
+                y += 1;
+                x = 0;
+            } else {
+                x += 1;
+            }
+        }
+        Ok(NoticeHyperlinkMap { visible })
     }
 }
 
@@ -364,6 +425,26 @@ mod tests {
             display.hyperlink_locations,
             test_display.hyperlink_locations
         );
+        Ok(())
+    }
+
+    #[test]
+    fn test_notice_hyperlink_map() -> Result<(), BoredError> {
+        let mut notice = Notice::create(Coordinate { x: 30, y: 9 });
+        notice.write(
+            "We are [link](url) [bored](url).\nYou are [link](url) bored.\nI am [boooo\nooored](url).\nHello\nWorld",
+        )?;
+        let notice_hyperlink_map = NoticeHyperlinkMap::create(&notice)?;
+        let expected_output = r#"*******0000*11111***********
+********2222****************
+****************************
+*****333333*****************
+333333**********************
+****************************
+****************************
+"#;
+        assert_eq!(expected_output, format!("{}", notice_hyperlink_map));
+        eprintln!("{}", notice_hyperlink_map);
         Ok(())
     }
 }

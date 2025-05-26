@@ -181,6 +181,9 @@ async fn run_app<B: Backend>(termimal: &mut Terminal<B>, app: &mut App) -> io::R
                             KeyCode::Esc => app.current_view = View::DraftView(DraftMode::Content),
                             _ => {}
                         },
+                        // DraftMode::Position => {
+
+                        // }
                         _ => {}
                     },
                     _ => {}
