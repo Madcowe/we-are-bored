@@ -4,6 +4,7 @@ use rand::seq::IndexedRandom;
 use ratatui::buffer::Buffer;
 use ratatui::layout::Position;
 use ratatui::style::{Styled, Stylize};
+use ratatui::text::ToSpan;
 use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Style},
@@ -154,6 +155,32 @@ impl BoredViewPort {
     }
 }
 
+/// Wrap text on a character basis so word can be on mutiple lines using ratatui text hierachy
+pub fn character_wrap(display_text: &str, line_width: u16) -> Text {
+    let mut lines = vec![];
+    let mut line = Line::raw("");
+    let mut line_char_index = 0;
+    for char in display_text.chars() {
+        // if line_char % line_width as usize == 0 && char_index > 0 {
+        if char == '\n' {
+            lines.push(line);
+            line = Line::raw("");
+            line_char_index = 0;
+        } else if line_char_index < line_width {
+            line.push_span(Span::raw(char.to_string()));
+            line_char_index += 1;
+        } else {
+            lines.push(line);
+            line = Line::raw("");
+            line_char_index = 0;
+            line.push_span(Span::raw(char.to_string()));
+            line_char_index += 1;
+        }
+    }
+    lines.push(line);
+    Text::from_iter(lines)
+}
+
 /// Return display text with hyperlinks rendered
 pub fn render_hyperlinks(display: Display, hyperlink_style: Style) -> Text<'static> {
     let display_text = display.get_display_text();
@@ -254,7 +281,7 @@ mod tests {
         let mut bored = Bored::create("Hello", Coordinate { x: 60, y: 20 });
         let mut notice = Notice::create(Coordinate { x: 30, y: 9 });
         notice.write(
-            "We are [link](url) [bored](url).\nYou are [link](url) bored.\nI am [boooo\nooored](url).\nHello",
+            "We are [link](url) [bored](url).\nYou are [link](url) bored.\nI am [boooo\nooored](url).\nHello\nWorld",
         )?;
         bored.add(notice, Coordinate { x: 5, y: 3 })?;
         let mut notice = Notice::create(Coordinate { x: 30, y: 9 });
@@ -409,5 +436,22 @@ mod tests {
         // assert_eq!(expected_output, format!("{:?}", buffer));
         // eprintln!("{:?}", buffer);
         Ok(())
+    }
+
+    #[test]
+    fn text_charcter_wrap() {
+        let display_text = "I am so boored\nof\nthis really long \nline";
+        let text = character_wrap(&display_text, 5);
+        let expected_output = r#"I am 
+so bo
+ored
+of
+this 
+reall
+y lon
+g 
+line"#;
+        assert_eq!(expected_output, format!("{}", text));
+        eprintln!("\n{}", text);
     }
 }
