@@ -19,7 +19,7 @@ use std::str::FromStr;
 
 use crate::app::{App, CreateMode, DraftMode, GoToMode, HyperlinkMode, View};
 use crate::display_bored::DisplayBored;
-use crate::display_bored::render_hyperlinks;
+use crate::display_bored::{character_wrap, render_hyperlinks};
 
 pub fn ui(frame: &mut Frame, app: &mut App) {
     // setup base interfact
@@ -134,7 +134,8 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
                     DraftMode::Content => {
                         let draft_dimension = draft.get_dimensions();
                         let display = draft.get_display().unwrap();
-                        let display_text = render_hyperlinks(display, app.theme.hyperlink_style());
+                        let display_text = display.get_display_text();
+                        let display_text = character_wrap(&display_text, draft.get_text_width());
                         app.status = format!("{:?}", display_text);
                         // postion so aprox in cnetere of frame
                         let x = (area.width - draft_dimension.x) / 2;

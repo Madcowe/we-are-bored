@@ -5,7 +5,7 @@ use std::fmt::{self};
 
 /// Limit to avoid massive amount of text being accidentally put into hyperlink and making
 /// bored to big to fit in scratchpadlonges
-pub const MAX_URL_LENGTH: usize = 1024;
+pub const MAX_URL_LENGTH: usize = 2048;
 
 /// Hyperlinks with maximum url length
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
@@ -172,6 +172,15 @@ impl Notice {
         self.dimensions
     }
 
+    /// Width of visible text, ie width of notice minus two for the borders
+    pub fn get_text_width(&self) -> u16 {
+        if self.dimensions.x < 3 {
+            0
+        } else {
+            self.dimensions.x - 2
+        }
+    }
+
     pub fn get_content(&self) -> &str {
         &self.content
     }
@@ -224,10 +233,28 @@ impl Notice {
         let display_text = get_display(&content, get_hyperlinks(content)?).display_text;
         let display_lines = display_text.lines().count();
         let last_line = display_text.lines().last().unwrap_or_default();
-        if display_text.chars().count() > self.get_max_chars()
+        let used_chars = if display_lines > 0 {
+            display_lines - 1
+        } else {
+            0
+        } * self.get_text_width() as usize
+            + last_line.chars().count();
+        // eprintln!(
+        //     "Max lines: {} actual lines: {} max chars: {} used chars: {} text_width: {} last line chars: {} Display_text: {}",
+        //     self.get_max_lines(),
+        //     display_lines,
+        //     self.get_max_chars(),
+        //     used_chars,
+        //     self.get_text_width(),
+        //     last_line.chars().count(),
+        //     display_text
+        // );
+        if used_chars > self.get_max_chars()
             || display_lines > self.get_max_lines()
             || (display_lines == self.get_max_lines()
-                && last_line.chars().count() > (self.dimensions.x - 2) as usize)
+                && last_line.chars().last().unwrap_or_default() == '\n')
+            || (display_lines == self.get_max_lines()
+                && last_line.chars().count() > self.get_text_width() as usize)
         {
             return Err(BoredError::TooMuchText);
         }
@@ -350,17 +377,17 @@ mod tests {
         let mut notice = Notice::new();
         notice.dimensions = Coordinate { x: 0, y: 0 };
         assert_eq!(notice.write("I am BORED"), Err(BoredError::TooMuchText));
-        notice.dimensions = Coordinate { x: 7, y: 4 };
+        notice.dimensions = Coordinate { x: 12, y: 3 };
         assert_eq!(notice.write("I am BORED!"), Err(BoredError::TooMuchText));
-        notice.dimensions = Coordinate { x: 7, y: 4 };
+        notice.dimensions = Coordinate { x: 12, y: 3 };
         assert_eq!(notice.write("I am BORED"), Ok(()));
         assert_eq!(notice.content, "I am BORED");
-        notice.dimensions = Coordinate { x: 7, y: 4 };
+        notice.dimensions = Coordinate { x: 12, y: 4 };
         assert_eq!(notice.write("I\nam\nBORED"), Err(BoredError::TooMuchText));
-        notice.dimensions = Coordinate { x: 7, y: 6 };
+        notice.dimensions = Coordinate { x: 12, y: 5 };
         assert_eq!(notice.write("I\nam\nBORED"), Ok(()));
         assert_eq!(notice.content, "I\nam\nBORED");
-        notice.dimensions = Coordinate { x: 7, y: 4 };
+        notice.dimensions = Coordinate { x: 12, y: 3 };
         assert_eq!(
             notice.write("I am [BORED](NOT)!"),
             Err(BoredError::TooMuchText)
