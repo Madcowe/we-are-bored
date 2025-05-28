@@ -232,51 +232,52 @@ impl fmt::Display for BoredHyperlinkMap {
 }
 
 impl BoredHyperlinkMap {
-    pub fn create(bored: &Bored) -> BoredHyperlinkMap {
+    pub fn create(bored: &Bored) -> Result<BoredHyperlinkMap, BoredError> {
         let mut visible = vec![vec![None; bored.dimensions.x.into()]; bored.dimensions.y.into()];
         for (notices_index, notice) in bored.notices.iter().enumerate() {
-            if let Ok(notice_hyperlink_map) = NoticeHyperlinkMap::create(&notice) {
-                eprintln!("{notice_hyperlink_map}");
-                // set all charter in notice none so as to occlude any previous notices hyperlinks
-                for y in
-                    notice.get_top_left().y..notice.get_top_left().y.add(notice.get_dimensions().y)
+            let notice_hyperlink_map = NoticeHyperlinkMap::create(&notice)?;
+            eprintln!("{notice_hyperlink_map}");
+            // set all charter in notice none so as to occlude any previous notices hyperlinks
+            for y in notice.get_top_left().y..notice.get_top_left().y.add(notice.get_dimensions().y)
+            {
+                for x in
+                    notice.get_top_left().x..notice.get_top_left().x.add(notice.get_dimensions().x)
                 {
-                    for x in notice.get_top_left().x
-                        ..notice.get_top_left().x.add(notice.get_dimensions().x)
-                    {
-                        visible[y as usize][x as usize] = None;
-                    }
-                }
-                let notice_hyperlink_map = notice_hyperlink_map.get_map();
-                let (mut map_x, mut map_y) = (0, 0);
-                // +/- 1 to account for border
-                for y in notice.get_top_left().y + 1
-                    ..(notice.get_top_left().y.add(notice.get_dimensions().y)) - 1
-                {
-                    for x in notice.get_top_left().x + 1
-                        ..(notice.get_top_left().x.add(notice.get_dimensions().x)) - 1
-                    {
-                        // eprintln!(
-                        //     "x: {x} y: {y} map_x: {map_x} map_y: {map_y} map width: {} map height: {} max_x: {} max_y: {} top_left_y {} dimension_y {}",
-                        //     notice_hyperlink_map[0].len(),
-                        //     notice_hyperlink_map.len(),
-                        //     (notice.get_top_left().x.add(notice.get_dimensions().x)) - 1,
-                        //     (notice.get_top_left().y.add(notice.get_dimensions().y)) - 1,
-                        //     notice.get_top_left().y,
-                        //     notice.get_dimensions().y
-                        // );
-                        if let Some(hyperlink_index) = notice_hyperlink_map[map_y][map_x] {
-                            visible[y as usize][x as usize] =
-                                Some((notices_index, hyperlink_index));
-                        }
-                        map_x += 1;
-                    }
-                    map_x = 0;
-                    map_y += 1;
+                    visible[y as usize][x as usize] = None;
                 }
             }
+            let notice_hyperlink_map = notice_hyperlink_map.get_map();
+            let (mut map_x, mut map_y) = (0, 0);
+            // +/- 1 to account for border
+            for y in notice.get_top_left().y + 1
+                ..(notice.get_top_left().y.add(notice.get_dimensions().y)) - 1
+            {
+                for x in notice.get_top_left().x + 1
+                    ..(notice.get_top_left().x.add(notice.get_dimensions().x)) - 1
+                {
+                    // eprintln!(
+                    //     "x: {x} y: {y} map_x: {map_x} map_y: {map_y} map width: {} map height: {} max_x: {} max_y: {} top_left_y {} dimension_y {}",
+                    //     notice_hyperlink_map[0].len(),
+                    //     notice_hyperlink_map.len(),
+                    //     (notice.get_top_left().x.add(notice.get_dimensions().x)) - 1,
+                    //     (notice.get_top_left().y.add(notice.get_dimensions().y)) - 1,
+                    //     notice.get_top_left().y,
+                    //     notice.get_dimensions().y
+                    // );
+                    if let Some(hyperlink_index) = notice_hyperlink_map[map_y][map_x] {
+                        visible[y as usize][x as usize] = Some((notices_index, hyperlink_index));
+                    }
+                    map_x += 1;
+                }
+                map_x = 0;
+                map_y += 1;
+            }
         }
-        BoredHyperlinkMap { visible }
+        Ok(BoredHyperlinkMap { visible })
+    }
+
+    pub fn get_map(&self) -> Vec<Vec<Option<(usize, usize)>>> {
+        self.visible.clone()
     }
 }
 
@@ -809,7 +810,7 @@ mod tests {
             "We are [link](url) [bored](url).\nYou are [link](url) bored.\nI am [boooo\nooored](url).\nHello\nWorld",
         )?;
         bored.add(notice, Coordinate { x: 14, y: 7 })?;
-        let bored_hyperlink_map = BoredHyperlinkMap::create(&bored);
+        let bored_hyperlink_map = BoredHyperlinkMap::create(&bored)?;
         eprintln!("{bored_hyperlink_map}");
         let expected_output = r#"****************************************
 ****************************************

@@ -135,7 +135,7 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
                         let draft_dimension = draft.get_dimensions();
                         let display = draft.get_display().unwrap();
                         let display_text = display.get_display_text();
-                        let display_text = character_wrap(&display_text, draft.get_text_width());
+                        let display_text = character_wrap(display_text, draft.get_text_width());
                         // app.status = format!("{:?}", display_text);
                         // position so aprox in center of frame
                         let x = (area.width - draft_dimension.x) / 2;

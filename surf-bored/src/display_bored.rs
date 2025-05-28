@@ -1,5 +1,5 @@
 use bored::notice::{Display, Notice, NoticeHyperlinkMap, get_display, get_hyperlinks};
-use bored::{Bored, BoredAddress, BoredError, Coordinate};
+use bored::{Bored, BoredAddress, BoredError, BoredHyperlinkMap, Coordinate};
 use rand::seq::IndexedRandom;
 use ratatui::buffer::{Buffer, Cell};
 use ratatui::layout::Position;
@@ -41,7 +41,7 @@ impl BoredOfRects {
     fn get_display_notices(
         &self,
         bored: &Bored,
-        hyperlink_style: Style,
+        // hyperlink_style: Style,
     ) -> Result<Vec<(Paragraph, Rect)>, BoredError> {
         let mut display_notices = vec![];
         let notices = bored
@@ -53,7 +53,8 @@ impl BoredOfRects {
             let block = Block::default()
                 .borders(Borders::ALL)
                 .style(Style::default());
-            let text = render_hyperlinks(display, hyperlink_style);
+            // let text = render_hyperlinks(display, hyperlink_style);
+            let text = character_wrap(display.get_display_text(), notice.get_text_width());
             let paragraph = Paragraph::new(text).block(block.clone()).white();
             display_notices.push((paragraph, notice_rect));
         }
@@ -69,13 +70,13 @@ pub struct DisplayBored {
 impl Widget for DisplayBored {
     fn render(self, _: Rect, buffer: &mut Buffer) {
         let bored_of_rects = BoredOfRects::create(&self.bored, 0);
-        if let Ok(display_notices) =
-            bored_of_rects.get_display_notices(&self.bored, self.hyperlink_style)
-        {
+        if let Ok(display_notices) = bored_of_rects.get_display_notices(&self.bored) {
             for (display_notice, notice_rect) in display_notices {
                 Clear.render(notice_rect, buffer);
                 display_notice.render(notice_rect, buffer);
             }
+            // style hyperlinks
+            style_bored_hyperlinks(&self.bored, buffer, self.hyperlink_style);
         }
     }
 }
@@ -156,7 +157,7 @@ impl BoredViewPort {
 }
 
 /// Wrap text on a character basis so word can be on mutiple lines using ratatui text hierachy
-pub fn character_wrap(display_text: &str, line_width: u16) -> Text {
+pub fn character_wrap(display_text: String, line_width: u16) -> Text<'static> {
     let mut lines = vec![];
     let mut line = Line::raw("");
     let mut line_char_index = 0;
@@ -193,6 +194,23 @@ pub fn style_notice_hyperlinks(
             y = y + offset.y as usize + 1; // + 1 as the buffer will have a border
             for (mut x, char) in row.iter().enumerate() {
                 x = x + offset.x as usize + 1; // as the buffer will have a border
+                if char.is_some() {
+                    if let Some(cell) = buffer.cell_mut((x as u16, y as u16)) {
+                        cell.set_style(hyperlink_style);
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// Add hyperlink notice to buffer of bored
+pub fn style_bored_hyperlinks(bored: &Bored, buffer: &mut Buffer, hyperlink_style: Style) {
+    if let Ok(bored_hyperlink_map) = BoredHyperlinkMap::create(&bored) {
+        for (mut y, row) in bored_hyperlink_map.get_map().iter().enumerate() {
+            y += 1;
+            for (mut x, char) in row.iter().enumerate() {
+                x += 1;
                 if char.is_some() {
                     if let Some(cell) = buffer.cell_mut((x as u16, y as u16)) {
                         cell.set_style(hyperlink_style);
@@ -286,15 +304,15 @@ mod tests {
 
     #[test]
     fn test_get_display_notices() -> Result<(), BoredError> {
-        let hyperlink_style = Style::new().underlined();
+        // let hyperlink_style = Style::new().underlined();
         let mut bored = Bored::create("Hello", Coordinate { x: 120, y: 40 });
         let bored_of_rects = BoredOfRects::create(&bored, 0);
-        let display_notices = bored_of_rects.get_display_notices(&bored, hyperlink_style)?;
+        let display_notices = bored_of_rects.get_display_notices(&bored)?;
         assert!(display_notices.is_empty());
         let notice = Notice::create(Coordinate { x: 60, y: 18 });
         bored.add(notice, Coordinate { x: 10, y: 5 })?;
         let bored_of_rects = BoredOfRects::create(&bored, 0);
-        let display_notices = bored_of_rects.get_display_notices(&bored, hyperlink_style)?;
+        let display_notices = bored_of_rects.get_display_notices(&bored)?;
         assert_eq!(display_notices.len(), 1);
         Ok(())
     }
@@ -326,9 +344,9 @@ mod tests {
         "     │We are link bored.          │                         ",
         "     │You are link bored.         │                         ",
         "     │I am boooo                  │                         ",
-        "     │ooored                      │                         ",
-        "     │                            │                         ",
-        "     │                            │                         ",
+        "     │ooored.                     │                         ",
+        "     │Hello                       │                         ",
+        "     │World                       │                         ",
         "     │                        ┌────────────────────────────┐",
         "     └────────────────────────│world                       │",
         "                              │                            │",
@@ -345,22 +363,24 @@ mod tests {
         x: 5, y: 3, fg: White, bg: Reset, underline: Reset, modifier: NONE,
         x: 35, y: 3, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
         x: 5, y: 4, fg: White, bg: Reset, underline: Reset, modifier: NONE,
-        x: 13, y: 4, fg: White, bg: Reset, underline: Reset, modifier: UNDERLINED,
-        x: 17, y: 4, fg: White, bg: Reset, underline: Reset, modifier: NONE,
         x: 35, y: 4, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
         x: 5, y: 5, fg: White, bg: Reset, underline: Reset, modifier: NONE,
         x: 14, y: 5, fg: White, bg: Reset, underline: Reset, modifier: UNDERLINED,
         x: 18, y: 5, fg: White, bg: Reset, underline: Reset, modifier: NONE,
+        x: 19, y: 5, fg: White, bg: Reset, underline: Reset, modifier: UNDERLINED,
+        x: 24, y: 5, fg: White, bg: Reset, underline: Reset, modifier: NONE,
         x: 35, y: 5, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
         x: 5, y: 6, fg: White, bg: Reset, underline: Reset, modifier: NONE,
-        x: 11, y: 6, fg: White, bg: Reset, underline: Reset, modifier: UNDERLINED,
-        x: 16, y: 6, fg: White, bg: Reset, underline: Reset, modifier: NONE,
+        x: 15, y: 6, fg: White, bg: Reset, underline: Reset, modifier: UNDERLINED,
+        x: 19, y: 6, fg: White, bg: Reset, underline: Reset, modifier: NONE,
         x: 35, y: 6, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
         x: 5, y: 7, fg: White, bg: Reset, underline: Reset, modifier: NONE,
-        x: 6, y: 7, fg: White, bg: Reset, underline: Reset, modifier: UNDERLINED,
-        x: 12, y: 7, fg: White, bg: Reset, underline: Reset, modifier: NONE,
+        x: 12, y: 7, fg: White, bg: Reset, underline: Reset, modifier: UNDERLINED,
+        x: 17, y: 7, fg: White, bg: Reset, underline: Reset, modifier: NONE,
         x: 35, y: 7, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
         x: 5, y: 8, fg: White, bg: Reset, underline: Reset, modifier: NONE,
+        x: 7, y: 8, fg: White, bg: Reset, underline: Reset, modifier: UNDERLINED,
+        x: 13, y: 8, fg: White, bg: Reset, underline: Reset, modifier: NONE,
         x: 35, y: 8, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
         x: 5, y: 9, fg: White, bg: Reset, underline: Reset, modifier: NONE,
         x: 35, y: 9, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
@@ -465,7 +485,7 @@ mod tests {
     #[test]
     fn text_charcter_wrap() {
         let display_text = "I am so boored\nof\nthis really long \nline";
-        let text = character_wrap(&display_text, 5);
+        let text = character_wrap(display_text.to_string(), 5);
         let expected_output = r#"I am 
 so bo
 ored
@@ -489,7 +509,7 @@ line"#;
         let notice_dimension = notice.get_dimensions();
         let display = notice.get_display().unwrap();
         let display_text = display.get_display_text();
-        let display_text = character_wrap(&display_text, notice.get_text_width());
+        let display_text = character_wrap(display_text, notice.get_text_width());
         let notice_rect = Rect::new(0, 0, notice_dimension.x, notice_dimension.y);
         let notice_block = Block::default().borders(Borders::ALL);
         let notice_text = Paragraph::new(display_text).block(notice_block);
@@ -530,6 +550,129 @@ line"#;
 }"#;
         assert_eq!(expected_output, format!("{:?}", notice_buffer));
         eprintln!("{:?}", notice_buffer);
+        Ok(())
+    }
+
+    #[test]
+    fn test_style_bored_hyperlinks() -> Result<(), SurfBoredError> {
+        let hyperlink_style = Style::new().underlined();
+        let mut bored = Bored::create("Hello", Coordinate { x: 40, y: 20 });
+        let bored_rect = Rect::new(0, 0, bored.get_dimensions().x, bored.get_dimensions().y);
+        let mut notice = Notice::create(Coordinate { x: 30, y: 9 });
+        notice.write(
+            "We are [link](url) [bored](url).\nYou are [link](url) bored.\nI am [boooo\nooored](url).\nHello\nWorld",
+        )?;
+        bored.add(notice, Coordinate { x: 5, y: 3 })?;
+        let mut notice = Notice::create(Coordinate { x: 10, y: 13 });
+        notice.write(
+            "We are [link](url) [bored](url).\nYou are [link](url) bored.\nI am [boooo\nooored](url).\nHello\nWorld",
+        )?;
+        bored.add(notice, Coordinate { x: 10, y: 5 })?;
+        let mut notice = Notice::create(Coordinate { x: 10, y: 13 });
+        notice.write(
+            "We are [link](url) [bored](url).\nYou are [link](url) bored.\nI am [boooo\nooored](url).\nHello\nWorld",
+        )?;
+        bored.add(notice, Coordinate { x: 14, y: 7 })?;
+        let mut bored_buffer = Buffer::empty(bored_rect);
+        let display_bored = DisplayBored::create(&bored, hyperlink_style);
+        display_bored.render(bored_rect, &mut bored_buffer);
+        eprintln!("{}", format!("{:?}", bored_buffer));
+        let expected_output = r#"Buffer {
+    area: Rect { x: 0, y: 0, width: 40, height: 20 },
+    content: [
+        "                                        ",
+        "                                        ",
+        "                                        ",
+        "     ┌────────────────────────────┐     ",
+        "     │We are link bored.          │     ",
+        "     │You ┌────────┐ored.         │     ",
+        "     │I am│We are l│              │     ",
+        "     │ooor│ink┌────────┐          │     ",
+        "     │Hell│d. │We are l│          │     ",
+        "     │Worl│You│ink bore│          │     ",
+        "     │    │lin│d.      │          │     ",
+        "     └────│ed.│You are │──────────┘     ",
+        "          │I a│link bor│                ",
+        "          │oo │ed.     │                ",
+        "          │ooo│I am boo│                ",
+        "          │Hel│oo      │                ",
+        "          │Wor│ooored. │                ",
+        "          └───│Hello   │                ",
+        "              │World   │                ",
+        "              └────────┘                ",
+    ],
+    styles: [
+        x: 0, y: 0, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
+        x: 5, y: 3, fg: White, bg: Reset, underline: Reset, modifier: NONE,
+        x: 35, y: 3, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
+        x: 5, y: 4, fg: White, bg: Reset, underline: Reset, modifier: NONE,
+        x: 35, y: 4, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
+        x: 5, y: 5, fg: White, bg: Reset, underline: Reset, modifier: NONE,
+        x: 14, y: 5, fg: White, bg: Reset, underline: Reset, modifier: UNDERLINED,
+        x: 18, y: 5, fg: White, bg: Reset, underline: Reset, modifier: NONE,
+        x: 19, y: 5, fg: White, bg: Reset, underline: Reset, modifier: UNDERLINED,
+        x: 24, y: 5, fg: White, bg: Reset, underline: Reset, modifier: NONE,
+        x: 35, y: 5, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
+        x: 5, y: 6, fg: White, bg: Reset, underline: Reset, modifier: NONE,
+        x: 35, y: 6, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
+        x: 5, y: 7, fg: White, bg: Reset, underline: Reset, modifier: NONE,
+        x: 19, y: 7, fg: White, bg: Reset, underline: Reset, modifier: UNDERLINED,
+        x: 20, y: 7, fg: White, bg: Reset, underline: Reset, modifier: NONE,
+        x: 35, y: 7, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
+        x: 5, y: 8, fg: White, bg: Reset, underline: Reset, modifier: NONE,
+        x: 7, y: 8, fg: White, bg: Reset, underline: Reset, modifier: UNDERLINED,
+        x: 11, y: 8, fg: White, bg: Reset, underline: Reset, modifier: NONE,
+        x: 12, y: 8, fg: White, bg: Reset, underline: Reset, modifier: UNDERLINED,
+        x: 15, y: 8, fg: White, bg: Reset, underline: Reset, modifier: NONE,
+        x: 35, y: 8, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
+        x: 5, y: 9, fg: White, bg: Reset, underline: Reset, modifier: NONE,
+        x: 12, y: 9, fg: White, bg: Reset, underline: Reset, modifier: UNDERLINED,
+        x: 13, y: 9, fg: White, bg: Reset, underline: Reset, modifier: NONE,
+        x: 23, y: 9, fg: White, bg: Reset, underline: Reset, modifier: UNDERLINED,
+        x: 24, y: 9, fg: White, bg: Reset, underline: Reset, modifier: NONE,
+        x: 35, y: 9, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
+        x: 5, y: 10, fg: White, bg: Reset, underline: Reset, modifier: NONE,
+        x: 16, y: 10, fg: White, bg: Reset, underline: Reset, modifier: UNDERLINED,
+        x: 19, y: 10, fg: White, bg: Reset, underline: Reset, modifier: NONE,
+        x: 20, y: 10, fg: White, bg: Reset, underline: Reset, modifier: UNDERLINED,
+        x: 24, y: 10, fg: White, bg: Reset, underline: Reset, modifier: NONE,
+        x: 35, y: 10, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
+        x: 5, y: 11, fg: White, bg: Reset, underline: Reset, modifier: NONE,
+        x: 12, y: 11, fg: White, bg: Reset, underline: Reset, modifier: UNDERLINED,
+        x: 15, y: 11, fg: White, bg: Reset, underline: Reset, modifier: NONE,
+        x: 16, y: 11, fg: White, bg: Reset, underline: Reset, modifier: UNDERLINED,
+        x: 17, y: 11, fg: White, bg: Reset, underline: Reset, modifier: NONE,
+        x: 35, y: 11, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
+        x: 10, y: 12, fg: White, bg: Reset, underline: Reset, modifier: NONE,
+        x: 24, y: 12, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
+        x: 10, y: 13, fg: White, bg: Reset, underline: Reset, modifier: NONE,
+        x: 16, y: 13, fg: White, bg: Reset, underline: Reset, modifier: UNDERLINED,
+        x: 20, y: 13, fg: White, bg: Reset, underline: Reset, modifier: NONE,
+        x: 24, y: 13, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
+        x: 10, y: 14, fg: White, bg: Reset, underline: Reset, modifier: NONE,
+        x: 12, y: 14, fg: White, bg: Reset, underline: Reset, modifier: UNDERLINED,
+        x: 14, y: 14, fg: White, bg: Reset, underline: Reset, modifier: NONE,
+        x: 24, y: 14, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
+        x: 10, y: 15, fg: White, bg: Reset, underline: Reset, modifier: NONE,
+        x: 12, y: 15, fg: White, bg: Reset, underline: Reset, modifier: UNDERLINED,
+        x: 15, y: 15, fg: White, bg: Reset, underline: Reset, modifier: NONE,
+        x: 21, y: 15, fg: White, bg: Reset, underline: Reset, modifier: UNDERLINED,
+        x: 24, y: 15, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
+        x: 10, y: 16, fg: White, bg: Reset, underline: Reset, modifier: NONE,
+        x: 16, y: 16, fg: White, bg: Reset, underline: Reset, modifier: UNDERLINED,
+        x: 18, y: 16, fg: White, bg: Reset, underline: Reset, modifier: NONE,
+        x: 24, y: 16, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
+        x: 10, y: 17, fg: White, bg: Reset, underline: Reset, modifier: NONE,
+        x: 16, y: 17, fg: White, bg: Reset, underline: Reset, modifier: UNDERLINED,
+        x: 22, y: 17, fg: White, bg: Reset, underline: Reset, modifier: NONE,
+        x: 24, y: 17, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
+        x: 14, y: 18, fg: White, bg: Reset, underline: Reset, modifier: NONE,
+        x: 24, y: 18, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
+        x: 14, y: 19, fg: White, bg: Reset, underline: Reset, modifier: NONE,
+        x: 24, y: 19, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
+    ]
+}"#;
+        assert_eq!(expected_output, format!("{:?}", bored_buffer));
         Ok(())
     }
 }
