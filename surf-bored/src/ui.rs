@@ -13,16 +13,16 @@ use ratatui::{
     text::{Line, Span, Text},
     widgets::{Block, Borders, Clear, List, ListItem, Paragraph, Wrap},
 };
+use std::cmp::{max, min};
 use std::fmt::Pointer;
 use std::ops::Deref;
-use std::str::FromStr;
 
 use crate::app::{App, CreateMode, DraftMode, GoToMode, HyperlinkMode, View};
 use crate::display_bored::DisplayBored;
 use crate::display_bored::{character_wrap, render_hyperlinks, style_notice_hyperlinks};
 
 pub fn ui(frame: &mut Frame, app: &mut App) {
-    // setup base interfact
+    // setup base interface
     let area = frame.area();
     let mut title_text = String::new();
     let mut status_text = format!(
@@ -39,28 +39,44 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
         title_text = bored.get_name().to_owned() + "\n" + &bored_name;
         // status_text = "Connected, bored loded";
     }
+    let ui_chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Length(4),
+            Constraint::Fill(1),
+            Constraint::Length(5),
+        ])
+        .split(area);
     let title_block = Block::default()
         .borders(Borders::ALL)
         .border_type(BorderType::QuadrantOutside)
         .style(app.theme.header_style())
         .bold();
-    let title_rect = Rect::new(0, 0, area.width, 4);
+    // let title_rect = Rect::new(0, 0, area.width, 4);
     let title = Paragraph::new(Text::raw(title_text)).block(title_block);
-    frame.render_widget(title, title_rect);
+    frame.render_widget(title, ui_chunks[0]);
     let bored_view_block = Block::default().bg(Color::Black);
-    let bored_view_rect = Rect::new(0, 4, area.width, area.height - 7);
-    frame.render_widget(bored_view_block, bored_view_rect);
+    // let bored_view_rect = Rect::new(0, 4, area.width, area.height - 7);
+    frame.render_widget(bored_view_block, ui_chunks[1]);
+    // Set bored view port to availabe area of ui
+    if let Some(bored_view_port) = &mut app.bored_view_port {
+        bored_view_port.set_view_dimensions(Coordinate {
+            x: ui_chunks[1].width,
+            y: ui_chunks[1].height,
+        });
+    }
     let status_block = Block::default()
         .borders(Borders::ALL)
         .bold()
         .border_type(BorderType::QuadrantOutside)
         .style(app.theme.header_style())
         .bold();
-    let status_rect = Rect::new(0, area.height - 27, area.width, 27);
+    // let status_rect = Rect::new(0, area.height - 5, area.width, 5);
     let status = Paragraph::new(Text::styled(status_text, Style::default()))
         .wrap(Wrap { trim: false })
         .block(status_block);
-    status.render(status_rect, frame.buffer_mut());
+    frame.render_widget(status, ui_chunks[2]);
+    // status.render(status_rect, frame.buffer_mut());
 
     // modify based on current_view
     match &app.current_view {
@@ -130,17 +146,20 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
         }
         View::DraftView(draft_mode) => {
             if let Some(draft) = app.get_draft() {
+                let bored = app
+                    .get_current_bored()
+                    .expect("There should not be a draft without a bored");
                 match draft_mode {
                     DraftMode::Content => {
-                        let draft_dimension = draft.get_dimensions();
+                        let draft_dimensions = draft.get_dimensions();
                         let display = draft.get_display().unwrap();
                         let display_text = display.get_display_text();
                         let display_text = character_wrap(display_text, draft.get_text_width());
-                        // app.status = format!("{:?}", display_text);
                         // position so aprox in center of frame
-                        let x = (area.width - draft_dimension.x) / 2;
-                        let y = (area.height - draft_dimension.y) / 2;
-                        let draft_rect = Rect::new(x, y, draft_dimension.x, draft_dimension.y);
+                        let draft_position = bored.get_dimensions().subtact(&draft_dimensions);
+                        let x = min(draft_position.x, (area.width - draft_dimensions.x) / 2);
+                        let y = min(draft_position.y, (area.height - draft_dimensions.y) / 2);
+                        let draft_rect = Rect::new(x, y, draft_dimensions.x, draft_dimensions.y);
                         let mut draft_block = Block::default()
                             .borders(Borders::ALL)
                             .border_type(BorderType::Thick)
@@ -156,11 +175,15 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
                             Coordinate { x, y },
                             app.theme.hyperlink_style(),
                         );
-                        app.status = app.status.clone() + &format!("{:?}", draft_buffer);
                         frame.buffer_mut().merge(&draft_buffer);
                     }
                     _ => (),
                 }
+            }
+        }
+        View::BoredView => {
+            if let Some(bored_view_port) = &mut app.bored_view_port {
+                bored_view_port.render_view(&mut frame.buffer_mut(), app.theme.hyperlink_style());
             }
         }
 

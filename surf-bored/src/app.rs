@@ -11,6 +11,8 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
+use crate::display_bored::BoredViewPort;
+
 #[derive(Debug, thiserror::Error, Clone)]
 pub enum SurfBoredError {
     #[error("{0}")]
@@ -194,6 +196,7 @@ pub struct App {
     pub previous_view: View,
     pub selected_notice: Option<usize>,
     pub theme: Theme,
+    pub bored_view_port: Option<BoredViewPort>,
     pub status: String,
     pub name_input: String,
     pub key_input: String,
@@ -212,6 +215,7 @@ impl App {
             previous_view: View::BoredView,
             selected_notice: None,
             theme: Theme::surf_bored_synth_wave(),
+            bored_view_port: None,
             status: String::new(),
             name_input: String::new(),
             key_input: String::new(),
@@ -314,17 +318,17 @@ impl App {
         &mut self,
         name: &str,
         private_key: &str,
+        dimensions: Coordinate,
     ) -> Result<Bored, SurfBoredError> {
         let Some(ref mut client) = self.client else {
             return Err(SurfBoredError::BoredError(
                 BoredError::ClientConnectionError,
             ));
         };
-        client
-            .create_bored(name, Coordinate { x: 120, y: 40 }, private_key)
-            .await?;
+        client.create_bored(name, dimensions, private_key).await?;
         let bored = client.get_current_bored()?;
         self.current_view = View::BoredView;
+        self.bored_view_port = Some(BoredViewPort::create(&bored, bored.get_dimensions()));
         self.directory.add(
             Listing {
                 name: client.get_bored_name()?.to_string(),

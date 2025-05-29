@@ -140,6 +140,13 @@ impl BoredViewPort {
         )
     }
 
+    /// Change size of view port
+    pub fn set_view_dimensions(&mut self, view_dimensions: Coordinate) {
+        if view_dimensions.within(&self.bored_dimensions) {
+            self.view_dimensions = view_dimensions;
+        }
+    }
+
     /// render just what is in the view port
     pub fn render_view(&mut self, buffer: &mut Buffer, hyperlink_style: Style) {
         let view_rect = self.get_view();

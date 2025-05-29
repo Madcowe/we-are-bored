@@ -191,6 +191,13 @@ impl Coordinate {
             y: self.y + other.y,
         }
     }
+
+    pub fn subtact(&self, other: &Self) -> Coordinate {
+        Coordinate {
+            x: self.x - other.x,
+            y: self.y - other.y,
+        }
+    }
 }
 
 /// Indicate direction of movement
