@@ -14,6 +14,7 @@ use ratatui::{
     widgets::{Block, Borders, Clear, List, ListItem, Paragraph, Wrap},
 };
 use std::cmp::{max, min};
+use std::collections::binary_heap::Drain;
 use std::fmt::Pointer;
 use std::ops::Deref;
 
@@ -63,6 +64,10 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
         bored_view_port.set_view_dimensions(Coordinate {
             x: ui_chunks[1].width,
             y: ui_chunks[1].height,
+        });
+        bored_view_port.move_view(Coordinate {
+            x: ui_chunks[1].x,
+            y: ui_chunks[1].y,
         });
     }
     let status_block = Block::default()
@@ -155,24 +160,62 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
                         let display = draft.get_display().unwrap();
                         let display_text = display.get_display_text();
                         let display_text = character_wrap(display_text, draft.get_text_width());
+                        let x;
+                        let mut y;
                         // position so aprox in center of frame
-                        let draft_position = bored.get_dimensions().subtact(&draft_dimensions);
-                        let x = min(draft_position.x, (area.width - draft_dimensions.x) / 2);
-                        let y = min(draft_position.y, (area.height - draft_dimensions.y) / 2);
+                        if (draft.get_top_left() == Coordinate { x: 0, y: 0 }) {
+                            let draft_position = bored.get_dimensions().subtact(&draft_dimensions);
+                            x = min(draft_position.x, (area.width - draft_dimensions.x) / 2);
+                            y = min(draft_position.y, (area.height - draft_dimensions.y) / 2);
+                        } else {
+                            x = draft.get_top_left().x;
+                            y = draft.get_top_left().y;
+                        }
+                        // y = y - ui_chunks[0].height;
+                        app.position_draft(Coordinate { x, y })
+                            .expect("Starting position should always be within bored");
                         let draft_rect = Rect::new(x, y, draft_dimensions.x, draft_dimensions.y);
-                        let mut draft_block = Block::default()
+                        let draft_block = Block::default()
                             .borders(Borders::ALL)
                             .border_type(BorderType::Thick)
                             .style(app.theme.text_style());
                         let draft_text = Paragraph::new(display_text).block(draft_block);
                         let mut draft_buffer = Buffer::empty(draft_rect);
                         draft_text.render(draft_rect, &mut draft_buffer);
-                        app.status = format!("{:?}", draft_buffer);
+                        // app.status = format!("{:?}", draft_buffer);
                         // render hyperlinks
                         style_notice_hyperlinks(
                             &draft,
                             &mut draft_buffer,
                             Coordinate { x, y },
+                            app.theme.hyperlink_style(),
+                        );
+                        frame.buffer_mut().merge(&draft_buffer);
+                    }
+                    DraftMode::Position => {
+                        let draft_dimensions = draft.get_dimensions();
+                        // app.status = format!("{}", draft.get_top_left());
+                        let draft_top_left = draft.get_top_left();
+                        let display = draft.get_display().unwrap();
+                        let display_text = display.get_display_text();
+                        let display_text = character_wrap(display_text, draft.get_text_width());
+                        let draft_rect = Rect::new(
+                            draft_top_left.x,
+                            draft_top_left.y + ui_chunks[0].height,
+                            draft_dimensions.x,
+                            draft_dimensions.y,
+                        );
+                        let draft_block = Block::default()
+                            .borders(Borders::ALL)
+                            .border_type(BorderType::Thick)
+                            .style(app.theme.text_style());
+                        let draft_text = Paragraph::new(display_text).block(draft_block);
+                        let mut draft_buffer = Buffer::empty(draft_rect);
+                        draft_text.render(draft_rect, &mut draft_buffer);
+                        style_notice_hyperlinks(
+                            &draft,
+                            &mut draft_buffer,
+                            draft_top_left,
                             app.theme.hyperlink_style(),
                         );
                         frame.buffer_mut().merge(&draft_buffer);

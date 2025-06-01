@@ -153,7 +153,6 @@ impl BoredViewPort {
         let display_bored = DisplayBored::create(&self.bored, hyperlink_style);
         display_bored.render(self.bored_rect, &mut self.buffer);
         let visible_content = self.buffer.content.clone();
-        eprintln!("{:?} x:{} y:{}", view_rect, view_rect.x, view_rect.y);
         for x in view_rect.x..view_rect.x + view_rect.width {
             for y in view_rect.y..view_rect.y + view_rect.height {
                 let bored_pos = y * self.bored_rect.width + x;

@@ -192,10 +192,13 @@ impl Coordinate {
         }
     }
 
+    /// will not subtract below zero
     pub fn subtact(&self, other: &Self) -> Coordinate {
+        let x = if self.x >= other.x { other.x } else { 0 };
+        let y = if self.y >= other.y { other.y } else { 0 };
         Coordinate {
-            x: self.x - other.x,
-            y: self.y - other.y,
+            x: self.x - x,
+            y: self.y - y,
         }
     }
 }

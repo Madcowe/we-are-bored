@@ -13,7 +13,7 @@ use std::str::FromStr;
 
 use crate::display_bored::BoredViewPort;
 
-#[derive(Debug, thiserror::Error, Clone)]
+#[derive(Debug, thiserror::Error, Clone, PartialEq)]
 pub enum SurfBoredError {
     #[error("{0}")]
     BoredError(BoredError),
@@ -33,7 +33,7 @@ impl From<BoredError> for SurfBoredError {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum View {
     ErrorView(SurfBoredError),
     BoredView,
@@ -44,7 +44,7 @@ pub enum View {
     Quitting,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum CreateMode {
     Name,
     PrivateKey,
@@ -58,20 +58,20 @@ impl CreateMode {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum DraftMode {
     Content,
     Hyperlink(HyperlinkMode),
     Position,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum HyperlinkMode {
     Text,
     URL,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum GoToMode {
     Directory,
     PasteAddress,
@@ -395,7 +395,8 @@ mod tests {
             let mut app = App::new();
             app.directory_path = "test_directory.toml".to_string();
             app.init_client().await?;
-            app.create_bored_on_network("I am bored", "").await?;
+            app.create_bored_on_network("I am bored", "", Coordinate { x: 120, y: 40 })
+                .await?;
             directory = app.directory.clone();
         }
         {
@@ -404,7 +405,8 @@ mod tests {
             app.init_client().await?;
             app.load_directory()?;
             assert_eq!(directory, app.directory);
-            app.create_bored_on_network("We are bored", "").await?;
+            app.create_bored_on_network("We are bored", "", Coordinate { x: 120, y: 40 })
+                .await?;
             directory = app.directory.clone();
         }
         let mut app = App::new();
