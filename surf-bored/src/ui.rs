@@ -27,7 +27,7 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
     let area = frame.area();
     let mut title_text = String::new();
     let mut status_text = format!(
-        "Current: {:?} previous: {:?} key: {}",
+        "Current: {:?} previous: {:?} {}",
         app.current_view, app.previous_view, app.status
     ); //"Connected, no bored loaded";
     // let mut status_text = "Connected, no bored loaded";
@@ -163,17 +163,18 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
                         let x;
                         let mut y;
                         // position so aprox in center of frame
-                        if (draft.get_top_left() == Coordinate { x: 0, y: 0 }) {
-                            let draft_position = bored.get_dimensions().subtact(&draft_dimensions);
-                            x = min(draft_position.x, (area.width - draft_dimensions.x) / 2);
-                            y = min(draft_position.y, (area.height - draft_dimensions.y) / 2);
-                        } else {
-                            x = draft.get_top_left().x;
-                            y = draft.get_top_left().y;
-                        }
-                        // y = y - ui_chunks[0].height;
+                        // if (draft.get_top_left() == Coordinate { x: 0, y: 0 }) {
+                        //     let draft_position = bored.get_dimensions().subtact(&draft_dimensions);
+                        //     x = min(draft_position.x, (area.width - draft_dimensions.x) / 2);
+                        //     y = min(draft_position.y, (area.height - draft_dimensions.y) / 2);
+                        // } else {
+                        x = draft.get_top_left().x;
+                        y = draft.get_top_left().y;
+                        // }
+                        app.status = format!("x:{x} y:{y} ");
                         app.position_draft(Coordinate { x, y })
                             .expect("Starting position should always be within bored");
+                        y = y + ui_chunks[0].height;
                         let draft_rect = Rect::new(x, y, draft_dimensions.x, draft_dimensions.y);
                         let draft_block = Block::default()
                             .borders(Borders::ALL)

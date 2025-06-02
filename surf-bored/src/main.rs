@@ -199,23 +199,18 @@ async fn run_app<B: Backend>(termimal: &mut Terminal<B>, app: &mut App) -> io::R
                                 let mut new_position = Coordinate { x: 0, y: 0 };
                                 match key.code {
                                     KeyCode::Up => {
-                                        new_position = position.subtact(&Coordinate { x: 0, y: 1 })
+                                        try_move(app, position.subtact(&Coordinate { x: 0, y: 1 }))
                                     }
                                     KeyCode::Down => {
-                                        new_position = position.add(&Coordinate { x: 0, y: 1 })
+                                        try_move(app, position.add(&Coordinate { x: 0, y: 1 }))
                                     }
                                     KeyCode::Left => {
-                                        new_position = position.subtact(&Coordinate { x: 1, y: 0 })
+                                        try_move(app, position.subtact(&Coordinate { x: 1, y: 0 }))
                                     }
                                     KeyCode::Right => {
-                                        new_position = position.add(&Coordinate { x: 1, y: 0 })
+                                        try_move(app, position.add(&Coordinate { x: 1, y: 0 }))
                                     }
                                     _ => {}
-                                }
-                                // Do nothing is error so user can't move notice outside of bored
-                                // app.status = format!("{position} : {new_position}");
-                                match app.position_draft(new_position) {
-                                    _ => (),
                                 }
                             }
                         }
@@ -227,6 +222,14 @@ async fn run_app<B: Backend>(termimal: &mut Terminal<B>, app: &mut App) -> io::R
         }
     }
     Ok(())
+}
+
+fn try_move(app: &mut App, new_position: Coordinate) {
+    // Do nothing is error so user can't move notice outside of bored
+    // app.status = format!("{position} : {new_position}");
+    match app.position_draft(new_position) {
+        _ => (),
+    }
 }
 
 fn try_edit(app: &mut App) {
