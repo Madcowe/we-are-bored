@@ -222,6 +222,18 @@ impl BoredClient {
         }
         Ok(())
     }
+
+    /// Add notice to bored
+    pub fn add_draft_to_bored(&mut self) -> Result<(), BoredError> {
+        let Some(bored) = &mut self.current_bored else {
+            return Err(BoredError::NoBored);
+        };
+        if let Some(notice) = &self.draft_notice {
+            bored.add(notice.clone(), notice.get_top_left())?;
+            self.draft_notice = None;
+        }
+        Ok(())
+    }
 }
 
 async fn get_funded_wallet(
