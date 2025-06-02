@@ -70,18 +70,6 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
             y: ui_chunks[1].y,
         });
     }
-    let status_block = Block::default()
-        .borders(Borders::ALL)
-        .bold()
-        .border_type(BorderType::QuadrantOutside)
-        .style(app.theme.header_style())
-        .bold();
-    // let status_rect = Rect::new(0, area.height - 5, area.width, 5);
-    let status = Paragraph::new(Text::styled(status_text, Style::default()))
-        .wrap(Wrap { trim: false })
-        .block(status_block);
-    frame.render_widget(status, ui_chunks[2]);
-    // status.render(status_rect, frame.buffer_mut());
 
     // modify based on current_view
     match &app.current_view {
@@ -183,7 +171,6 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
                         let draft_text = Paragraph::new(display_text).block(draft_block);
                         let mut draft_buffer = Buffer::empty(draft_rect);
                         draft_text.render(draft_rect, &mut draft_buffer);
-                        // app.status = format!("{:?}", draft_buffer);
                         // render hyperlinks
                         style_notice_hyperlinks(
                             &draft,
@@ -195,7 +182,6 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
                     }
                     DraftMode::Position => {
                         let draft_dimensions = draft.get_dimensions();
-                        // app.status = format!("{}", draft.get_top_left());
                         let draft_top_left = draft.get_top_left();
                         let display = draft.get_display().unwrap();
                         let display_text = display.get_display_text();
@@ -216,7 +202,10 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
                         style_notice_hyperlinks(
                             &draft,
                             &mut draft_buffer,
-                            draft_top_left,
+                            Coordinate {
+                                x: draft_rect.x,
+                                y: draft_rect.y,
+                            },
                             app.theme.hyperlink_style(),
                         );
                         frame.buffer_mut().merge(&draft_buffer);
@@ -233,4 +222,18 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
 
         _ => (),
     }
+
+    // setup status area
+    let status_block = Block::default()
+        .borders(Borders::ALL)
+        .bold()
+        .border_type(BorderType::QuadrantOutside)
+        .style(app.theme.header_style())
+        .bold();
+    // let status_rect = Rect::new(0, area.height - 5, area.width, 5);
+    let status = Paragraph::new(Text::styled(status_text, Style::default()))
+        .wrap(Wrap { trim: false })
+        .block(status_block);
+    frame.render_widget(status, ui_chunks[2]);
+    // status.render(status_rect, frame.buffer_mut());
 }
