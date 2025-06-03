@@ -191,7 +191,7 @@ async fn run_app<B: Backend>(termimal: &mut Terminal<B>, app: &mut App) -> io::R
                                 app.current_view = View::DraftView(DraftMode::Content);
                             }
                             if let Some(mut draft) = app.get_draft() {
-                                app.status = format!("{}", draft.get_top_left());
+                                // app.status = format!("{}", draft.get_top_left());
                                 let bored = app
                                     .get_current_bored()
                                     .expect("Bored should exist if there is a draft");
@@ -209,6 +209,13 @@ async fn run_app<B: Backend>(termimal: &mut Terminal<B>, app: &mut App) -> io::R
                                     }
                                     KeyCode::Right => {
                                         try_move(app, position.add(&Coordinate { x: 1, y: 0 }))
+                                    }
+                                    KeyCode::Enter => {
+                                        if let Some(client) = &mut app.client {
+                                            client.add_draft_to_bored().expect("Position should already be valid so should be ale to place");
+                                            app.content_input = String::new();
+                                            app.change_view(View::BoredView);
+                                        }
                                     }
                                     _ => {}
                                 }

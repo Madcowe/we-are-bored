@@ -156,6 +156,7 @@ pub struct Theme {
     text_fg: Color,
     text_bg: Color,
     header_bg: Color,
+    bored_bg: Color,
     hyperlink_style: Style,
 }
 
@@ -166,6 +167,7 @@ impl Theme {
             text_fg: Color::Rgb(205, 152, 211),
             text_bg: Color::Rgb(23, 21, 41),
             header_bg: Color::Rgb(109, 228, 175), // bright green header_bg: Color::Rgb(149, 232, 196), // pale green
+            bored_bg: Color::Rgb(42, 33, 57),
             hyperlink_style: Style::new().underlined(),
         }
     }
@@ -184,6 +186,10 @@ impl Theme {
 
     pub fn hyperlink_style(&self) -> Style {
         self.hyperlink_style
+    }
+
+    pub fn bored_style(&self) -> Style {
+        Style::new().bg(self.bored_bg)
     }
 }
 
@@ -277,6 +283,9 @@ impl App {
         client.go_to_bored(&bored_address).await?;
         self.previous_view = self.current_view.clone();
         self.current_view = View::BoredView;
+        // could this happen befored the bored is loaded and hence still be None?
+        let bored = client.get_current_bored()?;
+        self.bored_view_port = Some(BoredViewPort::create(&bored, bored.get_dimensions()));
         Ok(())
     }
 
