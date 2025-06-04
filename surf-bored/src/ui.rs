@@ -72,11 +72,7 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
         });
         // render bored
         let mut bored_view_buffer = Buffer::empty(ui_chunks[1]);
-        bored_view_port.render_view(
-            &mut bored_view_buffer,
-            app.theme.hyperlink_style(),
-            app.theme.bored_style(),
-        );
+        bored_view_port.render_view(&mut bored_view_buffer, app.theme.hyperlink_style());
         // app.status = format!("{:?}", bored_view_buffer);
         frame.buffer_mut().merge(&bored_view_buffer);
     }

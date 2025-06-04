@@ -9,7 +9,7 @@ use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Style},
     text::{Line, Span, Text},
-    widgets::{Block, Borders, Clear, List, ListItem, Paragraph, Widget, Wrap},
+    widgets::{Block, BorderType, Borders, Clear, List, ListItem, Paragraph, Widget, Wrap},
 };
 use std::cmp::{max, min};
 
@@ -50,10 +50,7 @@ impl BoredOfRects {
             .zip(self.notice_rects.clone());
         for (notice, notice_rect) in notices {
             let display = get_display(notice.get_content(), get_hyperlinks(notice.get_content())?);
-            let block = Block::default()
-                .borders(Borders::ALL)
-                .style(Style::default());
-            // let text = render_hyperlinks(display, hyperlink_style);
+            let block = Block::default().borders(Borders::ALL);
             let text = character_wrap(display.get_display_text(), notice.get_text_width());
             let paragraph = Paragraph::new(text).block(block.clone()).white();
             display_notices.push((paragraph, notice_rect));
@@ -66,12 +63,13 @@ impl BoredOfRects {
 pub struct DisplayBored {
     bored: Bored,
     hyperlink_style: Style,
-    bored_style: Style,
 }
 impl Widget for DisplayBored {
     fn render(self, _: Rect, buffer: &mut Buffer) {
         // Render background of bored
-        let bored_block = Block::default().style(self.bored_style);
+        let bored_block = Block::default()
+            .borders(Borders::ALL)
+            .border_type(BorderType::Rounded);
         bored_block.render(buffer.area, buffer);
         let bored_of_rects = BoredOfRects::create(&self.bored, 0);
         if let Ok(display_notices) = bored_of_rects.get_display_notices(&self.bored) {
@@ -86,11 +84,10 @@ impl Widget for DisplayBored {
 }
 
 impl DisplayBored {
-    pub fn create(bored: &Bored, hyperlink_style: Style, bored_style: Style) -> DisplayBored {
+    pub fn create(bored: &Bored, hyperlink_style: Style) -> DisplayBored {
         DisplayBored {
             bored: bored.clone(),
             hyperlink_style,
-            bored_style,
         }
     }
 }
@@ -154,10 +151,10 @@ impl BoredViewPort {
     }
 
     /// render just what is in the view port
-    pub fn render_view(&mut self, buffer: &mut Buffer, hyperlink_style: Style, bored_style: Style) {
+    pub fn render_view(&mut self, buffer: &mut Buffer, hyperlink_style: Style) {
         let view_rect = self.get_view();
         let buffer_rect = buffer.area;
-        let display_bored = DisplayBored::create(&self.bored, hyperlink_style, bored_style);
+        let display_bored = DisplayBored::create(&self.bored, hyperlink_style);
         display_bored.render(self.bored_rect, &mut self.buffer);
         let visible_content = self.buffer.content.clone();
         for x in view_rect.x..view_rect.x + view_rect.width {
@@ -351,26 +348,26 @@ mod tests {
         let expected_output = r#"Buffer {
     area: Rect { x: 0, y: 0, width: 60, height: 20 },
     content: [
-        "                                                            ",
-        "                                                            ",
-        "                                                            ",
-        "     ┌────────────────────────────┐                         ",
-        "     │We are link bored.          │                         ",
-        "     │You are link bored.         │                         ",
-        "     │I am boooo                  │                         ",
-        "     │ooored.                     │                         ",
-        "     │Hello                       │                         ",
-        "     │World                       │                         ",
-        "     │                        ┌────────────────────────────┐",
-        "     └────────────────────────│world                       │",
-        "                              │                            │",
-        "                              │                            │",
-        "                              │                            │",
-        "                              │                            │",
-        "                              │                            │",
-        "                              │                            │",
-        "                              └────────────────────────────┘",
-        "                                                            ",
+        "╭──────────────────────────────────────────────────────────╮",
+        "│                                                          │",
+        "│                                                          │",
+        "│    ┌────────────────────────────┐                        │",
+        "│    │We are link bored.          │                        │",
+        "│    │You are link bored.         │                        │",
+        "│    │I am boooo                  │                        │",
+        "│    │ooored.                     │                        │",
+        "│    │Hello                       │                        │",
+        "│    │World                       │                        │",
+        "│    │                        ┌────────────────────────────┐",
+        "│    └────────────────────────│world                       │",
+        "│                             │                            │",
+        "│                             │                            │",
+        "│                             │                            │",
+        "│                             │                            │",
+        "│                             │                            │",
+        "│                             │                            │",
+        "│                             └────────────────────────────┘",
+        "╰──────────────────────────────────────────────────────────╯",
     ],
     styles: [
         x: 0, y: 0, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
@@ -418,81 +415,94 @@ mod tests {
         x: 0, y: 19, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
     ]
 }"#;
-        // assert_eq!(expected_output, format!("{:?}", buffer));
+        assert_eq!(expected_output, format!("{:?}", buffer));
         // just test view port with 100% view so should be the same as above
         let mut bored_view_port = BoredViewPort::create(&bored, Coordinate { x: 60, y: 20 });
+        buffer = Buffer::empty(bored_rect);
         bored_view_port.render_view(&mut buffer, hyperlink_style);
-        // assert_eq!(expected_output, format!("{:?}", buffer));
+        assert_eq!(expected_output, format!("{:?}", buffer));
         let mut bored_view_port = BoredViewPort::create(&bored, Coordinate { x: 40, y: 15 });
         bored_view_port.move_view(Coordinate { x: 5, y: 5 });
-        let mut buffer = Buffer::empty(bored_view_port.get_view());
+        buffer = Buffer::empty(bored_rect);
         let expected_output = r#"Buffer {
-    area: Rect { x: 5, y: 5, width: 40, height: 15 },
+    area: Rect { x: 0, y: 0, width: 60, height: 20 },
     content: [
-        "│You are link bored.         │          ",
-        "│I am boooo                  │          ",
-        "│ooored                      │          ",
-        "│                            │          ",
-        "│                            │          ",
-        "│                        ┌──────────────",
-        "└────────────────────────│world         ",
-        "                         │              ",
-        "                         │              ",
-        "                         │              ",
-        "                         │              ",
-        "                         │              ",
-        "                         │              ",
-        "                         └──────────────",
-        "                                        ",
+        "                                                            ",
+        "                                                            ",
+        "                                                            ",
+        "                                                            ",
+        "                                                            ",
+        "     │You are link bored.         │                         ",
+        "     │I am boooo                  │                         ",
+        "     │ooored.                     │                         ",
+        "     │Hello                       │                         ",
+        "     │World                       │                         ",
+        "     │                        ┌──────────────               ",
+        "     └────────────────────────│world                        ",
+        "                              │                             ",
+        "                              │                             ",
+        "                              │                             ",
+        "                              │                             ",
+        "                              │                             ",
+        "                              │                             ",
+        "                              └──────────────               ",
+        "     ────────────────────────────────────────               ",
     ],
     styles: [
-        x: 0, y: 0, fg: White, bg: Reset, underline: Reset, modifier: NONE,
-        x: 9, y: 0, fg: White, bg: Reset, underline: Reset, modifier: UNDERLINED,
-        x: 13, y: 0, fg: White, bg: Reset, underline: Reset, modifier: NONE,
-        x: 30, y: 0, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
-        x: 0, y: 1, fg: White, bg: Reset, underline: Reset, modifier: NONE,
-        x: 6, y: 1, fg: White, bg: Reset, underline: Reset, modifier: UNDERLINED,
-        x: 11, y: 1, fg: White, bg: Reset, underline: Reset, modifier: NONE,
-        x: 30, y: 1, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
-        x: 0, y: 2, fg: White, bg: Reset, underline: Reset, modifier: NONE,
-        x: 1, y: 2, fg: White, bg: Reset, underline: Reset, modifier: UNDERLINED,
-        x: 7, y: 2, fg: White, bg: Reset, underline: Reset, modifier: NONE,
-        x: 30, y: 2, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
-        x: 0, y: 3, fg: White, bg: Reset, underline: Reset, modifier: NONE,
-        x: 30, y: 3, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
-        x: 0, y: 4, fg: White, bg: Reset, underline: Reset, modifier: NONE,
-        x: 30, y: 4, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
-        x: 0, y: 5, fg: White, bg: Reset, underline: Reset, modifier: NONE,
-        x: 0, y: 7, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
-        x: 25, y: 7, fg: White, bg: Reset, underline: Reset, modifier: NONE,
-        x: 0, y: 8, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
-        x: 25, y: 8, fg: White, bg: Reset, underline: Reset, modifier: NONE,
-        x: 0, y: 9, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
-        x: 25, y: 9, fg: White, bg: Reset, underline: Reset, modifier: NONE,
-        x: 0, y: 10, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
-        x: 25, y: 10, fg: White, bg: Reset, underline: Reset, modifier: NONE,
-        x: 0, y: 11, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
-        x: 25, y: 11, fg: White, bg: Reset, underline: Reset, modifier: NONE,
-        x: 0, y: 12, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
-        x: 25, y: 12, fg: White, bg: Reset, underline: Reset, modifier: NONE,
-        x: 0, y: 13, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
-        x: 25, y: 13, fg: White, bg: Reset, underline: Reset, modifier: NONE,
-        x: 0, y: 14, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
+        x: 0, y: 0, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
+        x: 5, y: 5, fg: White, bg: Reset, underline: Reset, modifier: NONE,
+        x: 14, y: 5, fg: White, bg: Reset, underline: Reset, modifier: UNDERLINED,
+        x: 18, y: 5, fg: White, bg: Reset, underline: Reset, modifier: NONE,
+        x: 19, y: 5, fg: White, bg: Reset, underline: Reset, modifier: UNDERLINED,
+        x: 24, y: 5, fg: White, bg: Reset, underline: Reset, modifier: NONE,
+        x: 35, y: 5, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
+        x: 5, y: 6, fg: White, bg: Reset, underline: Reset, modifier: NONE,
+        x: 15, y: 6, fg: White, bg: Reset, underline: Reset, modifier: UNDERLINED,
+        x: 19, y: 6, fg: White, bg: Reset, underline: Reset, modifier: NONE,
+        x: 35, y: 6, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
+        x: 5, y: 7, fg: White, bg: Reset, underline: Reset, modifier: NONE,
+        x: 12, y: 7, fg: White, bg: Reset, underline: Reset, modifier: UNDERLINED,
+        x: 17, y: 7, fg: White, bg: Reset, underline: Reset, modifier: NONE,
+        x: 35, y: 7, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
+        x: 5, y: 8, fg: White, bg: Reset, underline: Reset, modifier: NONE,
+        x: 7, y: 8, fg: White, bg: Reset, underline: Reset, modifier: UNDERLINED,
+        x: 13, y: 8, fg: White, bg: Reset, underline: Reset, modifier: NONE,
+        x: 35, y: 8, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
+        x: 5, y: 9, fg: White, bg: Reset, underline: Reset, modifier: NONE,
+        x: 35, y: 9, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
+        x: 5, y: 10, fg: White, bg: Reset, underline: Reset, modifier: NONE,
+        x: 45, y: 10, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
+        x: 5, y: 11, fg: White, bg: Reset, underline: Reset, modifier: NONE,
+        x: 45, y: 11, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
+        x: 30, y: 12, fg: White, bg: Reset, underline: Reset, modifier: NONE,
+        x: 45, y: 12, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
+        x: 30, y: 13, fg: White, bg: Reset, underline: Reset, modifier: NONE,
+        x: 45, y: 13, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
+        x: 30, y: 14, fg: White, bg: Reset, underline: Reset, modifier: NONE,
+        x: 45, y: 14, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
+        x: 30, y: 15, fg: White, bg: Reset, underline: Reset, modifier: NONE,
+        x: 45, y: 15, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
+        x: 30, y: 16, fg: White, bg: Reset, underline: Reset, modifier: NONE,
+        x: 45, y: 16, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
+        x: 30, y: 17, fg: White, bg: Reset, underline: Reset, modifier: NONE,
+        x: 45, y: 17, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
+        x: 30, y: 18, fg: White, bg: Reset, underline: Reset, modifier: NONE,
+        x: 45, y: 18, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
     ]
 }"#;
         bored_view_port.render_view(&mut buffer, hyperlink_style);
-        // assert_eq!(expected_output, format!("{:?}", buffer));
+        assert_eq!(expected_output, format!("{:?}", buffer));
         // outside of x bounds
         bored_view_port.move_view(Coordinate { x: 21, y: 5 });
-        let mut buffer = Buffer::empty(bored_view_port.get_view());
+        buffer = Buffer::empty(bored_rect);
         bored_view_port.render_view(&mut buffer, hyperlink_style);
-        // assert_eq!(expected_output, format!("{:?}", buffer));
+        assert_eq!(expected_output, format!("{:?}", buffer));
         // outside of y bounds
         bored_view_port.move_view(Coordinate { x: 5, y: 6 });
-        let mut buffer = Buffer::empty(bored_view_port.get_view());
+        buffer = Buffer::empty(bored_rect);
         bored_view_port.render_view(&mut buffer, hyperlink_style);
-        // assert_eq!(expected_output, format!("{:?}", buffer));
-        // eprintln!("{:?}", buffer);
+        assert_eq!(expected_output, format!("{:?}", buffer));
+        eprintln!("{:?}", buffer);
         Ok(())
     }
 
@@ -574,18 +584,18 @@ line"#;
         let bored_rect = Rect::new(0, 0, bored.get_dimensions().x, bored.get_dimensions().y);
         let mut notice = Notice::create(Coordinate { x: 30, y: 9 });
         notice.write(
-            "We are [link](url) [bored](url).\nYou are [link](url) bored.\nI am [boooo\nooored](url).\nHello\nWorld",
-        )?;
+                "We are [link](url) [bored](url).\nYou are [link](url) bored.\nI am [boooo\nooored](url).\nHello\nWorld",
+            )?;
         bored.add(notice, Coordinate { x: 5, y: 3 })?;
         let mut notice = Notice::create(Coordinate { x: 10, y: 13 });
         notice.write(
-            "We are [link](url) [bored](url).\nYou are [link](url) bored.\nI am [boooo\nooored](url).\nHello\nWorld",
-        )?;
+                "We are [link](url) [bored](url).\nYou are [link](url) bored.\nI am [boooo\nooored](url).\nHello\nWorld",
+            )?;
         bored.add(notice, Coordinate { x: 10, y: 5 })?;
         let mut notice = Notice::create(Coordinate { x: 10, y: 13 });
         notice.write(
-            "We are [link](url) [bored](url).\nYou are [link](url) bored.\nI am [boooo\nooored](url).\nHello\nWorld",
-        )?;
+                "We are [link](url) [bored](url).\nYou are [link](url) bored.\nI am [boooo\nooored](url).\nHello\nWorld",
+            )?;
         bored.add(notice, Coordinate { x: 14, y: 7 })?;
         let mut bored_buffer = Buffer::empty(bored_rect);
         let display_bored = DisplayBored::create(&bored, hyperlink_style);
@@ -594,26 +604,26 @@ line"#;
         let expected_output = r#"Buffer {
     area: Rect { x: 0, y: 0, width: 40, height: 20 },
     content: [
-        "                                        ",
-        "                                        ",
-        "                                        ",
-        "     ┌────────────────────────────┐     ",
-        "     │We are link bored.          │     ",
-        "     │You ┌────────┐ored.         │     ",
-        "     │I am│We are l│              │     ",
-        "     │ooor│ink┌────────┐          │     ",
-        "     │Hell│d. │We are l│          │     ",
-        "     │Worl│You│ink bore│          │     ",
-        "     │    │lin│d.      │          │     ",
-        "     └────│ed.│You are │──────────┘     ",
-        "          │I a│link bor│                ",
-        "          │oo │ed.     │                ",
-        "          │ooo│I am boo│                ",
-        "          │Hel│oo      │                ",
-        "          │Wor│ooored. │                ",
-        "          └───│Hello   │                ",
-        "              │World   │                ",
-        "              └────────┘                ",
+        "╭──────────────────────────────────────╮",
+        "│                                      │",
+        "│                                      │",
+        "│    ┌────────────────────────────┐    │",
+        "│    │We are link bored.          │    │",
+        "│    │You ┌────────┐ored.         │    │",
+        "│    │I am│We are l│              │    │",
+        "│    │ooor│ink┌────────┐          │    │",
+        "│    │Hell│d. │We are l│          │    │",
+        "│    │Worl│You│ink bore│          │    │",
+        "│    │    │lin│d.      │          │    │",
+        "│    └────│ed.│You are │──────────┘    │",
+        "│         │I a│link bor│               │",
+        "│         │oo │ed.     │               │",
+        "│         │ooo│I am boo│               │",
+        "│         │Hel│oo      │               │",
+        "│         │Wor│ooored. │               │",
+        "│         └───│Hello   │               │",
+        "│             │World   │               │",
+        "╰─────────────└────────┘───────────────╯",
     ],
     styles: [
         x: 0, y: 0, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
