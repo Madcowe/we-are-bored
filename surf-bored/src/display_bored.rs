@@ -125,12 +125,12 @@ impl BoredViewPort {
 
     /// Moves the view, if view would place any part if the view outside the bored nothing happens
     pub fn move_view(&mut self, view_top_left: Coordinate) {
-        if view_top_left
-            .add(&self.view_dimensions)
-            .within(&self.bored_dimensions)
-        {
-            self.view_top_left = view_top_left;
-        }
+        // if view_top_left
+        //     .add(&self.view_dimensions)
+        //     .within(&self.bored_dimensions)
+        // {
+        self.view_top_left = view_top_left;
+        // }
     }
 
     /// Get rect that is position and size of view
@@ -143,25 +143,35 @@ impl BoredViewPort {
         )
     }
 
-    /// Change size of view port
+    /// Change size of view port can be larger than bored
     pub fn set_view_dimensions(&mut self, view_dimensions: Coordinate) {
-        if view_dimensions.within(&self.bored_dimensions) {
-            self.view_dimensions = view_dimensions;
-        }
+        // if view_dimensions.within(&self.bored_dimensions) {
+        self.view_dimensions = view_dimensions;
+        // }
     }
 
     /// render just what is in the view port
+    // !!! this fails when terminal is quarter size??
+    // do we need to acount for bottom of the bored render area too???
     pub fn render_view(&mut self, buffer: &mut Buffer, hyperlink_style: Style) {
         let view_rect = self.get_view();
+        // eprintln!("view_rect: {:?}", view_rect);
+        // eprintln!("buffer_rect: {:?}", buffer.area());
         let buffer_rect = buffer.area;
+        // so if display bigger then bored only render up to bored
+        let x_limit = min(view_rect.x + view_rect.width, self.bored_dimensions.x);
+        let y_limit = min(view_rect.y + view_rect.height, self.bored_dimensions.y);
         let display_bored = DisplayBored::create(&self.bored, hyperlink_style);
         display_bored.render(self.bored_rect, &mut self.buffer);
         let visible_content = self.buffer.content.clone();
-        for x in view_rect.x..view_rect.x + view_rect.width {
-            for y in view_rect.y..view_rect.y + view_rect.height {
+        for x in view_rect.x..x_limit {
+            for y in view_rect.y..y_limit {
                 let bored_pos = y * self.bored_rect.width + x;
-                buffer[(x + buffer_rect.x, y + buffer_rect.y)] =
-                    visible_content[bored_pos as usize].clone();
+                // if bored_pos still within buffer
+                if bored_pos < visible_content.len() as u16 {
+                    buffer[(x + buffer_rect.x, y + buffer_rect.y)] =
+                        visible_content[bored_pos as usize].clone();
+                }
             }
         }
     }
@@ -231,62 +241,6 @@ pub fn style_bored_hyperlinks(bored: &Bored, buffer: &mut Buffer, hyperlink_styl
         }
     }
 }
-
-// Return display text with hyperlinks rendered
-// pub fn render_hyperlinks(display: Display, hyperlink_style: Style) -> Text<'static> {
-//     let display_text = display.get_display_text();
-//     let mut end_of_previous_span = 0;
-//     let mut chars_in_previous_lines = 0;
-//     let mut lines = vec![];
-//     for line in display_text.lines() {
-//         let mut spans = vec![];
-//         let hyperlink_locations = display.get_hyperlink_locations();
-//         for i in 0..hyperlink_locations.len() {
-//             let hyperlink_location = hyperlink_locations[i];
-//             let next_hyperlink_start = if hyperlink_locations.len() > i + 1 {
-//                 hyperlink_locations[i + 1].0
-//             } else {
-//                 0
-//             };
-//             // if hyperlinks is on that line...it may span several
-//             let line_end = chars_in_previous_lines + line.len();
-//             if hyperlink_location.1 > chars_in_previous_lines && hyperlink_location.0 < line_end {
-//                 // set preceding non hyperlinked bit
-//                 if hyperlink_location.0 > end_of_previous_span {
-//                     let start = max(end_of_previous_span, chars_in_previous_lines);
-//                     let end = min(hyperlink_location.0, line_end);
-//                     let span_text = display_text[start..end].to_owned();
-//                     let span = Span::styled(span_text, Style::default());
-//                     spans.push(span);
-//                 }
-//                 // set hyperlinked bit
-//                 let start = max(hyperlink_location.0, chars_in_previous_lines);
-//                 let end = min(hyperlink_location.1, line_end);
-//                 let span_text = display_text[start..end].to_owned();
-//                 let span = Span::styled(span_text, hyperlink_style);
-//                 spans.push(span);
-//                 end_of_previous_span = end;
-//                 // set bit after final hyperlink if there is one
-//                 if end_of_previous_span < line_end
-//                     && (next_hyperlink_start == 0 || next_hyperlink_start > line_end)
-//                 {
-//                     let end = min(line_end, display_text.len());
-//                     let span_text = display_text[end_of_previous_span..end].to_owned();
-//                     let span = Span::styled(span_text, Style::default());
-//                     spans.push(span);
-//                 }
-//             }
-//         }
-//         chars_in_previous_lines += line.len() + 1;
-//         // let line = Line::from_iter(spans.to_owned());
-//         lines.push(spans);
-//     }
-//     let mut text = Text::from(display_text);
-//     if !display.get_hyperlink_locations().is_empty() {
-//         text = Text::from_iter(lines);
-//     }
-//     text.clone()
-// }
 
 #[cfg(test)]
 
@@ -490,16 +444,6 @@ mod tests {
         x: 45, y: 18, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
     ]
 }"#;
-        bored_view_port.render_view(&mut buffer, hyperlink_style);
-        assert_eq!(expected_output, format!("{:?}", buffer));
-        // outside of x bounds
-        bored_view_port.move_view(Coordinate { x: 21, y: 5 });
-        buffer = Buffer::empty(bored_rect);
-        bored_view_port.render_view(&mut buffer, hyperlink_style);
-        assert_eq!(expected_output, format!("{:?}", buffer));
-        // outside of y bounds
-        bored_view_port.move_view(Coordinate { x: 5, y: 6 });
-        buffer = Buffer::empty(bored_rect);
         bored_view_port.render_view(&mut buffer, hyperlink_style);
         assert_eq!(expected_output, format!("{:?}", buffer));
         eprintln!("{:?}", buffer);

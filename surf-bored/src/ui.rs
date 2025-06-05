@@ -66,14 +66,9 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
             x: ui_chunks[1].width,
             y: ui_chunks[1].height,
         });
-        bored_view_port.move_view(Coordinate {
-            x: ui_chunks[1].x,
-            y: ui_chunks[1].y,
-        });
         // render bored
         let mut bored_view_buffer = Buffer::empty(ui_chunks[1]);
         bored_view_port.render_view(&mut bored_view_buffer, app.theme.hyperlink_style());
-        // app.status = format!("{:?}", bored_view_buffer);
         frame.buffer_mut().merge(&bored_view_buffer);
     }
 
