@@ -307,4 +307,62 @@ mod tests {
         assert_eq!(bored_client.current_bored.unwrap(), bored);
         Ok(())
     }
+
+    #[tokio::test]
+    #[ignore]
+    async fn test_edit_draft() -> Result<(), BoredError> {
+        let mut bored_client = BoredClient::init(ConnectionType::Local).await?;
+        bored_client
+            .create_bored("", Coordinate { x: 120, y: 40 }, "")
+            .await?;
+        // let bored = bored_client.current_bored.as_ref().unwrap().clone();
+        bored_client
+            .create_draft(Coordinate { x: 0, y: 0 })
+            .unwrap();
+        assert_eq!(
+            bored_client.edit_draft("I am BORED"),
+            Err(BoredError::TooMuchText)
+        );
+        bored_client
+            .create_draft(Coordinate { x: 7, y: 4 })
+            .unwrap();
+        assert_eq!(
+            bored_client.edit_draft("I am BORED!"),
+            Err(BoredError::TooMuchText)
+        );
+        bored_client
+            .create_draft(Coordinate { x: 7, y: 4 })
+            .unwrap();
+        assert_eq!(bored_client.edit_draft("I am BORED"), Ok(()));
+        assert_eq!(
+            bored_client.draft_notice.as_ref().unwrap().get_content(),
+            "I am BORED"
+        );
+        bored_client
+            .create_draft(Coordinate { x: 7, y: 4 })
+            .unwrap();
+        assert_eq!(
+            bored_client.edit_draft("I\nam\nBORED"),
+            Err(BoredError::TooMuchText)
+        );
+        bored_client
+            .create_draft(Coordinate { x: 7, y: 6 })
+            .unwrap();
+        assert_eq!(bored_client.edit_draft("I\nam\nBORED"), Ok(()));
+        let draft_notice = bored_client.draft_notice.clone();
+        assert_eq!(draft_notice.as_ref().unwrap().get_content(), "I\nam\nBORED");
+        bored_client
+            .create_draft(Coordinate { x: 7, y: 4 })
+            .unwrap();
+        assert_eq!(
+            bored_client.edit_draft("I am [BORED](NOT)!"),
+            Err(BoredError::TooMuchText)
+        );
+        assert_eq!(bored_client.edit_draft("I am [BORED](NOT)"), Ok(()));
+        assert_eq!(
+            bored_client.draft_notice.as_ref().unwrap().get_content(),
+            "I am [BORED](NOT)"
+        );
+        Ok(())
+    }
 }

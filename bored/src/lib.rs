@@ -265,15 +265,6 @@ impl BoredHyperlinkMap {
                 for x in notice.get_top_left().x + 1
                     ..(notice.get_top_left().x.add(notice.get_dimensions().x)) - 1
                 {
-                    // eprintln!(
-                    //     "x: {x} y: {y} map_x: {map_x} map_y: {map_y} map width: {} map height: {} max_x: {} max_y: {} top_left_y {} dimension_y {}",
-                    //     notice_hyperlink_map[0].len(),
-                    //     notice_hyperlink_map.len(),
-                    //     (notice.get_top_left().x.add(notice.get_dimensions().x)) - 1,
-                    //     (notice.get_top_left().y.add(notice.get_dimensions().y)) - 1,
-                    //     notice.get_top_left().y,
-                    //     notice.get_dimensions().y
-                    // );
                     if let Some(hyperlink_index) = notice_hyperlink_map[map_y][map_x] {
                         visible[y as usize][x as usize] = Some((notices_index, hyperlink_index));
                     }
@@ -392,7 +383,6 @@ pub struct Bored {
     name: String,
     dimensions: Coordinate, // the board will range from (0,0) up to this
     notices: Vec<Notice>,
-    draft_notice: Option<Notice>,
 }
 
 // only methods dealing with the interal items of bored need to perform the protocol check
@@ -406,7 +396,6 @@ impl Bored {
             name: name.to_string(),
             dimensions,
             notices: Vec::new(),
-            draft_notice: None,
         }
     }
 
@@ -428,24 +417,6 @@ impl Bored {
 
     pub fn get_name(&self) -> &str {
         &self.name
-    }
-
-    /// create a draft notice that can be edited and added to the bored
-    pub fn create_draft(&mut self, dimensions: Coordinate) -> Result<(), BoredError> {
-        if dimensions.within(&self.dimensions) {
-            self.draft_notice = Some(Notice::create(dimensions));
-            return Ok(());
-        }
-        Err(BoredError::NoticeOutOfBounds(self.dimensions, dimensions))
-    }
-
-    /// check the content will fit in the notice and update content if so
-    pub fn edit_draft(&mut self, content: &str) -> Result<(), BoredError> {
-        if let Some(mut notice) = self.draft_notice.clone() {
-            notice.write(content)?;
-            self.draft_notice = Some(notice);
-        }
-        Ok(())
     }
 
     /// Removes any notices that are entirely occluded by notices above them
@@ -715,43 +686,6 @@ mod tests {
         assert_eq!(
             format!("bored://{}", scratchpad_key.to_hex()),
             format!("{}", bored_address)
-        );
-    }
-
-    #[test]
-    fn test_edit_draft() {
-        let mut bored = Bored::create("", Coordinate { x: 120, y: 40 });
-        bored.create_draft(Coordinate { x: 0, y: 0 }).unwrap();
-        assert_eq!(bored.edit_draft("I am BORED"), Err(BoredError::TooMuchText));
-        bored.create_draft(Coordinate { x: 7, y: 4 }).unwrap();
-        assert_eq!(
-            bored.edit_draft("I am BORED!"),
-            Err(BoredError::TooMuchText)
-        );
-        bored.create_draft(Coordinate { x: 7, y: 4 }).unwrap();
-        assert_eq!(bored.edit_draft("I am BORED"), Ok(()));
-        assert_eq!(
-            bored.draft_notice.as_ref().unwrap().get_content(),
-            "I am BORED"
-        );
-        bored.create_draft(Coordinate { x: 7, y: 4 }).unwrap();
-        assert_eq!(
-            bored.edit_draft("I\nam\nBORED"),
-            Err(BoredError::TooMuchText)
-        );
-        bored.create_draft(Coordinate { x: 7, y: 6 }).unwrap();
-        assert_eq!(bored.edit_draft("I\nam\nBORED"), Ok(()));
-        let draft_notice = bored.draft_notice.clone();
-        assert_eq!(draft_notice.as_ref().unwrap().get_content(), "I\nam\nBORED");
-        bored.create_draft(Coordinate { x: 7, y: 4 }).unwrap();
-        assert_eq!(
-            bored.edit_draft("I am [BORED](NOT)!"),
-            Err(BoredError::TooMuchText)
-        );
-        assert_eq!(bored.edit_draft("I am [BORED](NOT)"), Ok(()));
-        assert_eq!(
-            bored.draft_notice.as_ref().unwrap().get_content(),
-            "I am [BORED](NOT)"
         );
     }
 
