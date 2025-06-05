@@ -372,6 +372,14 @@ impl App {
         Ok(())
     }
 
+    pub fn add_draft_to_bored(&mut self) -> Result<(), BoredError> {
+        let Some(ref mut client) = self.client else {
+            return Err(BoredError::ClientConnectionError);
+        };
+        client.add_draft_to_bored()?;
+        Ok(())
+    }
+
     pub fn create_hyperlink(&mut self) {
         self.current_view = View::DraftView(DraftMode::Hyperlink(HyperlinkMode::Text));
     }

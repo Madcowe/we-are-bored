@@ -60,7 +60,7 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
     // let bored_view_rect = Rect::new(0, 4, area.width, area.height - 7);
     // frame.render_widget(bored_view_block, ui_chunks[1]);
     // Set bored view port to availabe area of ui
-    app.status = format!("{:?}", app.bored_view_port);
+    app.status = format!("{:?}", app.get_current_bored());
     if let Some(bored_view_port) = &mut app.bored_view_port {
         bored_view_port.set_view_dimensions(Coordinate {
             x: ui_chunks[1].width,

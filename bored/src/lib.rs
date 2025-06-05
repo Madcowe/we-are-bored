@@ -410,7 +410,7 @@ impl Bored {
         }
     }
 
-    /// Add a notice to the board in the spcefied position returns an error if out of bounds
+    /// Add a notice to the board in the specified position returns an error if out of bounds
     // Takes cordinate parametre to make sure it is correct with respect to self even
     // though relocate performs a check to a specfifed bored
     pub fn add(&mut self, mut notice: Notice, top_left: Coordinate) -> Result<(), BoredError> {
@@ -682,6 +682,8 @@ mod tests {
         let mut bored = Bored::create("", Coordinate { x: 120, y: 40 });
         let notice = Notice::new();
         assert!(bored.add(notice, Coordinate { x: 0, y: 0 }).is_ok());
+        assert_eq!(bored.notices.len(), 1);
+        assert_eq!(bored.notices[0], Notice::new());
         let notice = Notice::new();
         assert!(bored.add(notice, Coordinate { x: 999, y: 999 }).is_err());
     }
