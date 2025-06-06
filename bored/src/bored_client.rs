@@ -310,6 +310,22 @@ mod tests {
 
     #[tokio::test]
     #[ignore]
+    async fn test_add_draft_to_bored() -> Result<(), BoredError> {
+        let mut bored_client = BoredClient::init(ConnectionType::Local).await?;
+        bored_client
+            .create_bored("", Coordinate { x: 120, y: 40 }, "")
+            .await?;
+        bored_client.create_draft(Coordinate { x: 60, y: 18 })?;
+        bored_client.edit_draft("I am BORED")?;
+        let draft = bored_client.get_draft().unwrap().clone();
+        bored_client.add_draft_to_bored()?;
+        let bored = bored_client.current_bored.as_ref().unwrap().clone();
+        assert_eq!(bored.notices[0], draft);
+        Ok(())
+    }
+
+    #[tokio::test]
+    #[ignore]
     async fn test_edit_draft() -> Result<(), BoredError> {
         let mut bored_client = BoredClient::init(ConnectionType::Local).await?;
         bored_client

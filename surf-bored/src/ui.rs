@@ -19,7 +19,7 @@ use std::fmt::Pointer;
 use std::ops::Deref;
 
 use crate::app::{App, CreateMode, DraftMode, GoToMode, HyperlinkMode, View};
-use crate::display_bored::DisplayBored;
+use crate::display_bored::{BoredViewPort, DisplayBored};
 use crate::display_bored::{character_wrap, style_notice_hyperlinks};
 
 pub fn ui(frame: &mut Frame, app: &mut App) {
@@ -31,15 +31,6 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
         app.current_view, app.previous_view, app.status
     ); //"Connected, no bored loaded";
     // let mut status_text = "Connected, no bored loaded";
-    let bored = app.get_current_bored();
-    if let Some(bored) = bored {
-        let bored_name = format!(
-            "{}",
-            app.client.as_ref().unwrap().get_bored_address().unwrap()
-        );
-        title_text = bored.get_name().to_owned() + "\n" + &bored_name;
-        // status_text = "Connected, bored loded";
-    }
     let ui_chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
@@ -48,6 +39,25 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
             Constraint::Length(5),
         ])
         .split(area);
+    let bored = app.get_current_bored();
+    if let Some(bored) = bored {
+        let bored_name = format!(
+            "{}",
+            app.client.as_ref().unwrap().get_bored_address().unwrap()
+        );
+        title_text = bored.get_name().to_owned() + "\n" + &bored_name;
+        // status_text = "Connected, bored loded";
+        let mut bored_view_port = BoredViewPort::create(
+            &bored,
+            Coordinate {
+                x: ui_chunks[1].width,
+                y: ui_chunks[1].height,
+            },
+        );
+        let mut bored_view_buffer = Buffer::empty(ui_chunks[1]);
+        bored_view_port.render_view(&mut bored_view_buffer, app.theme.hyperlink_style());
+        frame.buffer_mut().merge(&bored_view_buffer);
+    }
     let title_block = Block::default()
         .borders(Borders::ALL)
         .border_type(BorderType::QuadrantOutside)
@@ -61,16 +71,17 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
     // frame.render_widget(bored_view_block, ui_chunks[1]);
     // Set bored view port to availabe area of ui
     app.status = format!("{:?}", app.get_current_bored());
-    if let Some(bored_view_port) = &mut app.bored_view_port {
-        bored_view_port.set_view_dimensions(Coordinate {
-            x: ui_chunks[1].width,
-            y: ui_chunks[1].height,
-        });
-        // render bored
-        let mut bored_view_buffer = Buffer::empty(ui_chunks[1]);
-        bored_view_port.render_view(&mut bored_view_buffer, app.theme.hyperlink_style());
-        frame.buffer_mut().merge(&bored_view_buffer);
-    }
+    // !!!!! bored_view_port needs to be updated each time...does it need to contain bored?
+    // if let Some(bored_view_port) = &mut app.bored_view_port {
+    // bored_view_port.set_view_dimensions(Coordinate {
+    //     x: ui_chunks[1].width,
+    //     y: ui_chunks[1].height,
+    // });
+    // render bored
+    // let mut bored_view_buffer = Buffer::empty(ui_chunks[1]);
+    // bored_view_port.render_view(&mut bored_view_buffer, app.theme.hyperlink_style());
+    // frame.buffer_mut().merge(&bored_view_buffer);
+    // }
 
     // modify based on current_view
     match &app.current_view {

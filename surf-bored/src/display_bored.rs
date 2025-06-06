@@ -107,12 +107,6 @@ pub struct BoredViewPort {
 impl BoredViewPort {
     pub fn create(bored: &Bored, view_dimensions: Coordinate) -> BoredViewPort {
         let bored_rect = Rect::new(0, 0, bored.get_dimensions().x, bored.get_dimensions().y);
-        // if view dimension is lerge then bored dimension user bored dimension
-        let view_dimensions = if view_dimensions.within(&bored.get_dimensions()) {
-            view_dimensions
-        } else {
-            bored.get_dimensions()
-        };
         BoredViewPort {
             bored: bored.clone(),
             bored_rect,
@@ -125,12 +119,7 @@ impl BoredViewPort {
 
     /// Moves the view, if view would place any part if the view outside the bored nothing happens
     pub fn move_view(&mut self, view_top_left: Coordinate) {
-        // if view_top_left
-        //     .add(&self.view_dimensions)
-        //     .within(&self.bored_dimensions)
-        // {
         self.view_top_left = view_top_left;
-        // }
     }
 
     /// Get rect that is position and size of view
@@ -145,18 +134,12 @@ impl BoredViewPort {
 
     /// Change size of view port can be larger than bored
     pub fn set_view_dimensions(&mut self, view_dimensions: Coordinate) {
-        // if view_dimensions.within(&self.bored_dimensions) {
         self.view_dimensions = view_dimensions;
-        // }
     }
 
     /// render just what is in the view port
-    // !!! this fails when terminal is quarter size??
-    // do we need to acount for bottom of the bored render area too???
     pub fn render_view(&mut self, buffer: &mut Buffer, hyperlink_style: Style) {
         let view_rect = self.get_view();
-        // eprintln!("view_rect: {:?}", view_rect);
-        // eprintln!("buffer_rect: {:?}", buffer.area());
         let buffer_rect = buffer.area;
         // so if display bigger then bored only render up to bored
         let x_limit = min(view_rect.x + view_rect.width, self.bored_dimensions.x);
@@ -225,7 +208,7 @@ pub fn style_notice_hyperlinks(
     }
 }
 
-/// Add hyperlink notice to buffer of bored
+/// Add notice hyperlinks to buffer of bored
 pub fn style_bored_hyperlinks(bored: &Bored, buffer: &mut Buffer, hyperlink_style: Style) {
     if let Ok(bored_hyperlink_map) = BoredHyperlinkMap::create(&bored) {
         for (mut y, row) in bored_hyperlink_map.get_map().iter().enumerate() {

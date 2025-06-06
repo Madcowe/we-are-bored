@@ -246,7 +246,6 @@ impl BoredHyperlinkMap {
         let mut visible = vec![vec![None; bored.dimensions.x.into()]; bored.dimensions.y.into()];
         for (notices_index, notice) in bored.notices.iter().enumerate() {
             let notice_hyperlink_map = NoticeHyperlinkMap::create(&notice)?;
-            eprintln!("{notice_hyperlink_map}");
             // set all charter in notice none so as to occlude any previous notices hyperlinks
             for y in notice.get_top_left().y..notice.get_top_left().y.add(notice.get_dimensions().y)
             {
