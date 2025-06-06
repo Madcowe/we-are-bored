@@ -145,7 +145,7 @@ impl BoredClient {
 
     /// Updates the current bored, if there is a newer version of the bored on th antnet it
     /// returns it within the error so that the local version can be updated
-    pub async fn update_bored(&mut self, updated_bored: &Bored) -> Result<(), BoredError> {
+    pub async fn update_bored(&mut self) -> Result<(), BoredError> {
         let Some(bored_address) = &self.bored_address else {
             return Err(BoredError::NoBored);
         };
@@ -160,7 +160,7 @@ impl BoredClient {
                 scratchpad_counter.clone(),
             ));
         }
-        let serialized_bored = serde_json::to_vec(&updated_bored)?;
+        let serialized_bored = serde_json::to_vec(&self.current_bored)?;
         let content = Bytes::from(serialized_bored);
         self.client
             .scratchpad_update(bored_address.get_key(), 27, &content)
@@ -224,13 +224,26 @@ impl BoredClient {
     }
 
     /// Add notice to bored
-    pub fn add_draft_to_bored(&mut self) -> Result<(), BoredError> {
+    pub async fn add_draft_to_bored(&mut self) -> Result<(), BoredError> {
         let Some(bored) = &mut self.current_bored else {
             return Err(BoredError::NoBored);
         };
         if let Some(notice) = &self.draft_notice {
             bored.add(notice.clone(), notice.get_top_left())?;
             self.draft_notice = None;
+        }
+        match self.update_bored().await {
+            Err(bored_error) => match bored_error {
+                // if nore recetn version update to new version but also pass error
+                // so ui can out put message
+                BoredError::MoreRecentVersionExists(ref bored, scratchpad_counter) => {
+                    self.current_bored = Some(bored.clone());
+                    self.scratchpad_counter = Some(scratchpad_counter);
+                    return Err(bored_error);
+                }
+                _ => return Err(bored_error),
+            },
+            _ => (),
         }
         Ok(())
     }
@@ -288,11 +301,12 @@ mod tests {
             .create_bored("I am BORED", Coordinate { x: 120, y: 40 }, "")
             .await?;
         let scrachpad_counter = bored_client.scratchpad_counter.unwrap();
-        let mut bored = bored_client.current_bored.as_ref().unwrap().clone();
+        let mut bored = bored_client.get_current_bored().unwrap();
         let mut notice = Notice::new();
         notice.write("We are bored")?;
         bored.add(notice, Coordinate { x: 1, y: 1 })?;
-        bored_client.update_bored(&bored).await?;
+        bored_client.current_bored = Some(bored.clone());
+        bored_client.update_bored().await?;
         // wait for the scratchpad to be replicated
         tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
         let (antnet_bored, antnet_counter) = bored_client
@@ -303,8 +317,8 @@ mod tests {
             scrachpad_counter + 1,
         );
         assert_eq!(bored_client.scratchpad_counter.unwrap(), antnet_counter);
-        assert_eq!(antnet_bored, bored);
-        assert_eq!(bored_client.current_bored.unwrap(), bored);
+        assert_eq!(antnet_bored, bored.clone());
+        assert_eq!(bored_client.current_bored.unwrap(), bored.clone());
         Ok(())
     }
 
@@ -318,9 +332,15 @@ mod tests {
         bored_client.create_draft(Coordinate { x: 60, y: 18 })?;
         bored_client.edit_draft("I am BORED")?;
         let draft = bored_client.get_draft().unwrap().clone();
-        bored_client.add_draft_to_bored()?;
+        bored_client.add_draft_to_bored().await?;
         let bored = bored_client.current_bored.as_ref().unwrap().clone();
         assert_eq!(bored.notices[0], draft);
+        tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
+        let (antnet_bored, antnet_counter) = bored_client
+            .retrieve_bored(&bored_client.get_bored_address()?)
+            .await?;
+        assert_eq!(bored_client.scratchpad_counter.unwrap(), antnet_counter);
+        assert_eq!(antnet_bored, bored.clone());
         Ok(())
     }
 

@@ -380,11 +380,11 @@ impl App {
         Ok(())
     }
 
-    pub fn add_draft_to_bored(&mut self) -> Result<(), BoredError> {
+    pub async fn add_draft_to_bored(&mut self) -> Result<(), BoredError> {
         let Some(ref mut client) = self.client else {
             return Err(BoredError::ClientConnectionError);
         };
-        client.add_draft_to_bored()?;
+        client.add_draft_to_bored().await?;
         Ok(())
     }
 

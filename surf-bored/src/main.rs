@@ -211,7 +211,7 @@ async fn run_app<B: Backend>(termimal: &mut Terminal<B>, app: &mut App) -> io::R
                                         try_move(app, position.add(&Coordinate { x: 1, y: 0 }))
                                     }
                                     KeyCode::Enter => {
-                                        app.add_draft_to_bored().expect("Position should already be valid so should be ale to place");
+                                        app.add_draft_to_bored().await.expect("Position should already be valid so should be ale to place");
                                         app.content_input = String::new();
                                         app.change_view(View::BoredView);
                                     }
