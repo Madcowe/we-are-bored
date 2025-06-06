@@ -3,6 +3,7 @@ use bored::notice::Notice;
 use bored::{Bored, BoredAddress, BoredError, Coordinate, Direction};
 use rand::seq::IndexedRandom;
 use ratatui::style::{Color, Style, Stylize};
+use ratatui::widgets::BorderType;
 use serde::{Deserialize, Serialize};
 use std::error::Error;
 use std::fs;
@@ -157,7 +158,6 @@ pub struct Theme {
     text_fg: Color,
     text_bg: Color,
     header_bg: Color,
-    bored_bg: Color,
     hyperlink_style: Style,
 }
 
@@ -168,7 +168,18 @@ impl Theme {
             text_fg: Color::Rgb(205, 152, 211),
             text_bg: Color::Rgb(23, 21, 41),
             header_bg: Color::Rgb(109, 228, 175), // bright green header_bg: Color::Rgb(149, 232, 196), // pale green
-            bored_bg: Color::Rgb(42, 33, 57),
+            hyperlink_style: Style::new().underlined(),
+        }
+    }
+
+    /// to use for tests so should not be amended
+    pub fn default() -> Theme {
+        let style = Style::default();
+        Theme {
+            name: "Default".to_string(),
+            text_fg: style.fg.unwrap_or_default(),
+            text_bg: style.bg.unwrap_or_default(),
+            header_bg: style.bg.unwrap_or_default(),
             hyperlink_style: Style::new().underlined(),
         }
     }
@@ -187,10 +198,6 @@ impl Theme {
 
     pub fn hyperlink_style(&self) -> Style {
         self.hyperlink_style
-    }
-
-    pub fn bored_style(&self) -> Style {
-        Style::new().bg(self.bored_bg)
     }
 }
 
