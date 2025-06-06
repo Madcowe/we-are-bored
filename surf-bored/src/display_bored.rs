@@ -13,7 +13,7 @@ use ratatui::{
 };
 use std::cmp::{max, min};
 
-use crate::app::{App, CreateMode, DraftMode, GoToMode, HyperlinkMode, View};
+use crate::app::{App, CreateMode, DraftMode, GoToMode, HyperlinkMode, Theme, View};
 
 /// Represent the layout of the bored an it's notices in rects
 struct BoredOfRects {
@@ -62,7 +62,7 @@ impl BoredOfRects {
 /// widget that can render the entirety of a bored
 pub struct DisplayBored {
     bored: Bored,
-    hyperlink_style: Style,
+    theme: Theme,
 }
 impl Widget for DisplayBored {
     fn render(self, _: Rect, buffer: &mut Buffer) {
@@ -74,20 +74,21 @@ impl Widget for DisplayBored {
         let bored_of_rects = BoredOfRects::create(&self.bored, 0);
         if let Ok(display_notices) = bored_of_rects.get_display_notices(&self.bored) {
             for (display_notice, notice_rect) in display_notices {
+                let display_notice = display_notice.clone().set_style(self.theme.text_style());
                 Clear.render(notice_rect, buffer);
                 display_notice.render(notice_rect, buffer);
             }
             // style hyperlinks
-            style_bored_hyperlinks(&self.bored, buffer, self.hyperlink_style);
+            style_bored_hyperlinks(&self.bored, buffer, self.theme.hyperlink_style());
         }
     }
 }
 
 impl DisplayBored {
-    pub fn create(bored: &Bored, hyperlink_style: Style) -> DisplayBored {
+    pub fn create(bored: &Bored, theme: Theme) -> DisplayBored {
         DisplayBored {
             bored: bored.clone(),
-            hyperlink_style,
+            theme,
         }
     }
 }
@@ -138,13 +139,13 @@ impl BoredViewPort {
     }
 
     /// render just what is in the view port
-    pub fn render_view(&mut self, buffer: &mut Buffer, hyperlink_style: Style) {
+    pub fn render_view(&mut self, buffer: &mut Buffer, theme: Theme) {
         let view_rect = self.get_view();
         let buffer_rect = buffer.area;
         // so if display bigger then bored only render up to bored
         let x_limit = min(view_rect.x + view_rect.width, self.bored_dimensions.x);
         let y_limit = min(view_rect.y + view_rect.height, self.bored_dimensions.y);
-        let display_bored = DisplayBored::create(&self.bored, hyperlink_style);
+        let display_bored = DisplayBored::create(&self.bored, theme.clone());
         display_bored.render(self.bored_rect, &mut self.buffer);
         let visible_content = self.buffer.content.clone();
         for x in view_rect.x..x_limit {
@@ -267,6 +268,7 @@ mod tests {
 
     #[test]
     fn test_display_bored_render() -> Result<(), BoredError> {
+        let theme = Theme::surf_bored_synth_wave();
         let hyperlink_style = Style::new().underlined();
         let mut bored = Bored::create("Hello", Coordinate { x: 60, y: 20 });
         let mut notice = Notice::create(Coordinate { x: 30, y: 9 });
@@ -279,7 +281,7 @@ mod tests {
         bored.add(notice, Coordinate { x: 30, y: 10 })?;
         let bored_rect = Rect::new(0, 0, bored.get_dimensions().x, bored.get_dimensions().y);
         let mut buffer = Buffer::empty(bored_rect);
-        let display_bored = DisplayBored::create(&bored, hyperlink_style);
+        let display_bored = DisplayBored::create(&bored, theme.clone());
         display_bored.render(bored_rect, &mut buffer);
         eprintln!("{:?}", buffer);
         let expected_output = r#"Buffer {
@@ -356,7 +358,7 @@ mod tests {
         // just test view port with 100% view so should be the same as above
         let mut bored_view_port = BoredViewPort::create(&bored, Coordinate { x: 60, y: 20 });
         buffer = Buffer::empty(bored_rect);
-        bored_view_port.render_view(&mut buffer, hyperlink_style);
+        bored_view_port.render_view(&mut buffer, theme.clone());
         assert_eq!(expected_output, format!("{:?}", buffer));
         let mut bored_view_port = BoredViewPort::create(&bored, Coordinate { x: 40, y: 15 });
         bored_view_port.move_view(Coordinate { x: 5, y: 5 });
@@ -427,7 +429,7 @@ mod tests {
         x: 45, y: 18, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
     ]
 }"#;
-        bored_view_port.render_view(&mut buffer, hyperlink_style);
+        bored_view_port.render_view(&mut buffer, theme.clone());
         assert_eq!(expected_output, format!("{:?}", buffer));
         eprintln!("{:?}", buffer);
         Ok(())
@@ -506,7 +508,7 @@ line"#;
 
     #[test]
     fn test_style_bored_hyperlinks() -> Result<(), SurfBoredError> {
-        let hyperlink_style = Style::new().underlined();
+        let theme = Theme::surf_bored_synth_wave();
         let mut bored = Bored::create("Hello", Coordinate { x: 40, y: 20 });
         let bored_rect = Rect::new(0, 0, bored.get_dimensions().x, bored.get_dimensions().y);
         let mut notice = Notice::create(Coordinate { x: 30, y: 9 });
@@ -525,7 +527,7 @@ line"#;
             )?;
         bored.add(notice, Coordinate { x: 14, y: 7 })?;
         let mut bored_buffer = Buffer::empty(bored_rect);
-        let display_bored = DisplayBored::create(&bored, hyperlink_style);
+        let display_bored = DisplayBored::create(&bored, theme.clone());
         display_bored.render(bored_rect, &mut bored_buffer);
         eprintln!("{}", format!("{:?}", bored_buffer));
         let expected_output = r#"Buffer {

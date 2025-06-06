@@ -151,6 +151,7 @@ impl History {
 }
 
 /// Represent colours in theme used by app
+#[derive(Clone)]
 pub struct Theme {
     name: String,
     text_fg: Color,

@@ -55,7 +55,7 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
             },
         );
         let mut bored_view_buffer = Buffer::empty(ui_chunks[1]);
-        bored_view_port.render_view(&mut bored_view_buffer, app.theme.hyperlink_style());
+        bored_view_port.render_view(&mut bored_view_buffer, app.theme.clone());
         frame.buffer_mut().merge(&bored_view_buffer);
     }
     let title_block = Block::default()
