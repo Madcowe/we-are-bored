@@ -71,6 +71,7 @@ impl Widget for DisplayBored {
         // Render background of bored
         let bored_block = Block::default()
             .borders(Borders::ALL)
+            .style(self.theme.text_style())
             .border_type(BorderType::Rounded);
         bored_block.render(buffer.area, buffer);
         let bored_of_rects = BoredOfRects::create(&self.bored, 0);

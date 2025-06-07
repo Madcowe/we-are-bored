@@ -163,6 +163,7 @@ async fn run_app<B: Backend>(termimal: &mut Terminal<B>, app: &mut App) -> io::R
                                 try_edit(app);
                             }
                             KeyCode::Char(value) => {
+                                // let mut edit = true;
                                 if key.modifiers == KeyModifiers::CONTROL {
                                     if value == 'h' {
                                         app.current_view = View::DraftView(DraftMode::Hyperlink(
@@ -171,6 +172,10 @@ async fn run_app<B: Backend>(termimal: &mut Terminal<B>, app: &mut App) -> io::R
                                     }
                                     if value == 'a' {
                                         app.current_view = View::DraftView(DraftMode::Position);
+                                    }
+                                    if value == 'u' {
+                                        app.content_input = String::new();
+                                        // edit = false;
                                     }
                                 }
                                 if app.current_view == View::DraftView(DraftMode::Content) {
@@ -211,9 +216,14 @@ async fn run_app<B: Backend>(termimal: &mut Terminal<B>, app: &mut App) -> io::R
                                         try_move(app, position.add(&Coordinate { x: 1, y: 0 }))
                                     }
                                     KeyCode::Enter => {
-                                        app.add_draft_to_bored().await.expect("Position should already be valid so should be ale to place");
-                                        app.content_input = String::new();
-                                        app.change_view(View::BoredView);
+                                        if let Err(bored_error) = app.add_draft_to_bored().await {
+                                            app.current_view = View::ErrorView(
+                                                app::SurfBoredError::BoredError(bored_error),
+                                            );
+                                        } else {
+                                            app.content_input = String::new();
+                                            app.change_view(View::BoredView);
+                                        }
                                     }
                                     _ => {}
                                 }

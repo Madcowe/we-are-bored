@@ -70,7 +70,9 @@ pub enum BoredError {
     DecryptionError(String),
     #[error("Cannot updated bored as it has not be downloaded this session")]
     BoredNotYetDownloaded,
-    #[error("Cannot update as a more recent versoin exists on the bored net")]
+    #[error(
+        "More recent version of bored exists so cannot add notice, the bored has now been refreshed so please try again"
+    )]
     MoreRecentVersionExists(Bored, u64),
     #[error("Hyperlink url is too long at max is {}", notice::MAX_URL_LENGTH)]
     URLTooLong,

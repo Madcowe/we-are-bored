@@ -90,7 +90,7 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
             let navigation_text = "Press (enter) to contiune or (q) to quit.";
             Clear.render(pop_up_rect, frame.buffer_mut());
             let pop_up_block = Block::default()
-                .title("Error")
+                // .title("Error")
                 .borders(Borders::ALL)
                 .border_type(BorderType::Thick)
                 .style(app.theme.text_style());
