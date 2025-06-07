@@ -67,21 +67,6 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
     let title = Paragraph::new(Text::raw(title_text)).block(title_block);
     frame.render_widget(title, ui_chunks[0]);
     let bored_view_block = Block::default().bg(Color::Black);
-    // let bored_view_rect = Rect::new(0, 4, area.width, area.height - 7);
-    // frame.render_widget(bored_view_block, ui_chunks[1]);
-    // Set bored view port to availabe area of ui
-    app.status = format!("{:?}", app.get_current_bored());
-    // !!!!! bored_view_port needs to be updated each time...does it need to contain bored?
-    // if let Some(bored_view_port) = &mut app.bored_view_port {
-    // bored_view_port.set_view_dimensions(Coordinate {
-    //     x: ui_chunks[1].width,
-    //     y: ui_chunks[1].height,
-    // });
-    // render bored
-    // let mut bored_view_buffer = Buffer::empty(ui_chunks[1]);
-    // bored_view_port.render_view(&mut bored_view_buffer, app.theme.hyperlink_style());
-    // frame.buffer_mut().merge(&bored_view_buffer);
-    // }
 
     // modify based on current_view
     match &app.current_view {

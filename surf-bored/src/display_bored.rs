@@ -215,10 +215,10 @@ pub fn style_notice_hyperlinks(
 /// Add notice hyperlinks to buffer of bored
 pub fn style_bored_hyperlinks(bored: &Bored, buffer: &mut Buffer, hyperlink_style: Style) {
     if let Ok(bored_hyperlink_map) = BoredHyperlinkMap::create(&bored) {
-        for (mut y, row) in bored_hyperlink_map.get_map().iter().enumerate() {
-            y += 1;
-            for (mut x, char) in row.iter().enumerate() {
-                x += 1;
+        for (y, row) in bored_hyperlink_map.get_map().iter().enumerate() {
+            // y += 1;
+            for (x, char) in row.iter().enumerate() {
+                // x += 1;
                 if char.is_some() {
                     if let Some(cell) = buffer.cell_mut((x as u16, y as u16)) {
                         cell.set_style(hyperlink_style);
@@ -313,16 +313,16 @@ mod tests {
     ],
     styles: [
         x: 0, y: 0, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
+        x: 13, y: 4, fg: Reset, bg: Reset, underline: Reset, modifier: UNDERLINED,
+        x: 17, y: 4, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
+        x: 18, y: 4, fg: Reset, bg: Reset, underline: Reset, modifier: UNDERLINED,
+        x: 23, y: 4, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
         x: 14, y: 5, fg: Reset, bg: Reset, underline: Reset, modifier: UNDERLINED,
         x: 18, y: 5, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
-        x: 19, y: 5, fg: Reset, bg: Reset, underline: Reset, modifier: UNDERLINED,
-        x: 24, y: 5, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
-        x: 15, y: 6, fg: Reset, bg: Reset, underline: Reset, modifier: UNDERLINED,
-        x: 19, y: 6, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
-        x: 12, y: 7, fg: Reset, bg: Reset, underline: Reset, modifier: UNDERLINED,
-        x: 17, y: 7, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
-        x: 7, y: 8, fg: Reset, bg: Reset, underline: Reset, modifier: UNDERLINED,
-        x: 13, y: 8, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
+        x: 11, y: 6, fg: Reset, bg: Reset, underline: Reset, modifier: UNDERLINED,
+        x: 16, y: 6, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
+        x: 6, y: 7, fg: Reset, bg: Reset, underline: Reset, modifier: UNDERLINED,
+        x: 12, y: 7, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
     ]
 }"#;
         assert_eq!(expected_output, format!("{:?}", buffer));
@@ -334,6 +334,9 @@ mod tests {
         let mut bored_view_port = BoredViewPort::create(&bored, Coordinate { x: 40, y: 15 });
         bored_view_port.move_view(Coordinate { x: 5, y: 5 });
         buffer = Buffer::empty(bored_rect);
+        // can't work out why there is plus one on both axes in the below compared to previous one at 100%
+        // however removing the plus one oorgnally in the render bored hyperlinks has seemed to sort
+        // all issue with pratical testing???
         let expected_output = r#"Buffer {
     area: Rect { x: 0, y: 0, width: 60, height: 20 },
     content: [
@@ -362,17 +365,14 @@ mod tests {
         x: 0, y: 0, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
         x: 14, y: 5, fg: Reset, bg: Reset, underline: Reset, modifier: UNDERLINED,
         x: 18, y: 5, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
-        x: 19, y: 5, fg: Reset, bg: Reset, underline: Reset, modifier: UNDERLINED,
-        x: 24, y: 5, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
-        x: 15, y: 6, fg: Reset, bg: Reset, underline: Reset, modifier: UNDERLINED,
-        x: 19, y: 6, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
-        x: 12, y: 7, fg: Reset, bg: Reset, underline: Reset, modifier: UNDERLINED,
-        x: 17, y: 7, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
-        x: 7, y: 8, fg: Reset, bg: Reset, underline: Reset, modifier: UNDERLINED,
-        x: 13, y: 8, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
+        x: 11, y: 6, fg: Reset, bg: Reset, underline: Reset, modifier: UNDERLINED,
+        x: 16, y: 6, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
+        x: 6, y: 7, fg: Reset, bg: Reset, underline: Reset, modifier: UNDERLINED,
+        x: 12, y: 7, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
     ]
 }"#;
         bored_view_port.render_view(&mut buffer, theme.clone());
+        eprintln!("{:?}", buffer);
         assert_eq!(expected_output, format!("{:?}", buffer));
         eprintln!("{:?}", buffer);
         Ok(())
@@ -499,40 +499,40 @@ line"#;
     ],
     styles: [
         x: 0, y: 0, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
-        x: 14, y: 5, fg: Reset, bg: Reset, underline: Reset, modifier: UNDERLINED,
-        x: 18, y: 5, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
-        x: 19, y: 5, fg: Reset, bg: Reset, underline: Reset, modifier: UNDERLINED,
-        x: 24, y: 5, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
-        x: 19, y: 7, fg: Reset, bg: Reset, underline: Reset, modifier: UNDERLINED,
-        x: 20, y: 7, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
-        x: 7, y: 8, fg: Reset, bg: Reset, underline: Reset, modifier: UNDERLINED,
-        x: 11, y: 8, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
-        x: 12, y: 8, fg: Reset, bg: Reset, underline: Reset, modifier: UNDERLINED,
-        x: 15, y: 8, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
-        x: 12, y: 9, fg: Reset, bg: Reset, underline: Reset, modifier: UNDERLINED,
-        x: 13, y: 9, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
-        x: 23, y: 9, fg: Reset, bg: Reset, underline: Reset, modifier: UNDERLINED,
-        x: 24, y: 9, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
-        x: 16, y: 10, fg: Reset, bg: Reset, underline: Reset, modifier: UNDERLINED,
-        x: 19, y: 10, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
-        x: 20, y: 10, fg: Reset, bg: Reset, underline: Reset, modifier: UNDERLINED,
-        x: 24, y: 10, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
-        x: 12, y: 11, fg: Reset, bg: Reset, underline: Reset, modifier: UNDERLINED,
-        x: 15, y: 11, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
-        x: 16, y: 11, fg: Reset, bg: Reset, underline: Reset, modifier: UNDERLINED,
-        x: 17, y: 11, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
-        x: 16, y: 13, fg: Reset, bg: Reset, underline: Reset, modifier: UNDERLINED,
-        x: 20, y: 13, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
-        x: 12, y: 14, fg: Reset, bg: Reset, underline: Reset, modifier: UNDERLINED,
+        x: 13, y: 4, fg: Reset, bg: Reset, underline: Reset, modifier: UNDERLINED,
+        x: 17, y: 4, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
+        x: 18, y: 4, fg: Reset, bg: Reset, underline: Reset, modifier: UNDERLINED,
+        x: 23, y: 4, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
+        x: 18, y: 6, fg: Reset, bg: Reset, underline: Reset, modifier: UNDERLINED,
+        x: 19, y: 6, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
+        x: 6, y: 7, fg: Reset, bg: Reset, underline: Reset, modifier: UNDERLINED,
+        x: 10, y: 7, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
+        x: 11, y: 7, fg: Reset, bg: Reset, underline: Reset, modifier: UNDERLINED,
+        x: 14, y: 7, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
+        x: 11, y: 8, fg: Reset, bg: Reset, underline: Reset, modifier: UNDERLINED,
+        x: 12, y: 8, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
+        x: 22, y: 8, fg: Reset, bg: Reset, underline: Reset, modifier: UNDERLINED,
+        x: 23, y: 8, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
+        x: 15, y: 9, fg: Reset, bg: Reset, underline: Reset, modifier: UNDERLINED,
+        x: 18, y: 9, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
+        x: 19, y: 9, fg: Reset, bg: Reset, underline: Reset, modifier: UNDERLINED,
+        x: 23, y: 9, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
+        x: 11, y: 10, fg: Reset, bg: Reset, underline: Reset, modifier: UNDERLINED,
+        x: 14, y: 10, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
+        x: 15, y: 10, fg: Reset, bg: Reset, underline: Reset, modifier: UNDERLINED,
+        x: 16, y: 10, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
+        x: 15, y: 12, fg: Reset, bg: Reset, underline: Reset, modifier: UNDERLINED,
+        x: 19, y: 12, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
+        x: 11, y: 13, fg: Reset, bg: Reset, underline: Reset, modifier: UNDERLINED,
+        x: 13, y: 13, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
+        x: 11, y: 14, fg: Reset, bg: Reset, underline: Reset, modifier: UNDERLINED,
         x: 14, y: 14, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
-        x: 12, y: 15, fg: Reset, bg: Reset, underline: Reset, modifier: UNDERLINED,
-        x: 15, y: 15, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
-        x: 21, y: 15, fg: Reset, bg: Reset, underline: Reset, modifier: UNDERLINED,
-        x: 24, y: 15, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
-        x: 16, y: 16, fg: Reset, bg: Reset, underline: Reset, modifier: UNDERLINED,
-        x: 18, y: 16, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
-        x: 16, y: 17, fg: Reset, bg: Reset, underline: Reset, modifier: UNDERLINED,
-        x: 22, y: 17, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
+        x: 20, y: 14, fg: Reset, bg: Reset, underline: Reset, modifier: UNDERLINED,
+        x: 23, y: 14, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
+        x: 15, y: 15, fg: Reset, bg: Reset, underline: Reset, modifier: UNDERLINED,
+        x: 17, y: 15, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
+        x: 15, y: 16, fg: Reset, bg: Reset, underline: Reset, modifier: UNDERLINED,
+        x: 21, y: 16, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
     ]
 }"#;
         assert_eq!(expected_output, format!("{:?}", bored_buffer));
