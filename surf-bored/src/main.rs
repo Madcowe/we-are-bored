@@ -163,7 +163,6 @@ async fn run_app<B: Backend>(termimal: &mut Terminal<B>, app: &mut App) -> io::R
                                 try_edit(app);
                             }
                             KeyCode::Char(value) => {
-                                // let mut edit = true;
                                 if key.modifiers == KeyModifiers::CONTROL {
                                     if value == 'h' {
                                         app.current_view = View::DraftView(DraftMode::Hyperlink(
@@ -175,14 +174,12 @@ async fn run_app<B: Backend>(termimal: &mut Terminal<B>, app: &mut App) -> io::R
                                     }
                                     if value == 'u' {
                                         app.content_input = String::new();
-                                        // edit = false;
                                     }
                                 }
                                 if app.current_view == View::DraftView(DraftMode::Content) {
                                     app.content_input.push(value);
                                     try_edit(app);
                                 }
-                                // app.status = format!("{}", app.get_draft().unwrap().get_top_left());
                             }
 
                             _ => {}
@@ -201,7 +198,7 @@ async fn run_app<B: Backend>(termimal: &mut Terminal<B>, app: &mut App) -> io::R
                                     .get_current_bored()
                                     .expect("Bored should exist if there is a draft");
                                 let position = draft.get_top_left();
-                                let mut new_position = Coordinate { x: 0, y: 0 };
+                                // let mut new_position = Coordinate { x: 0, y: 0 };
                                 match key.code {
                                     KeyCode::Up => {
                                         try_move(app, position.subtact(&Coordinate { x: 0, y: 1 }))
@@ -243,6 +240,21 @@ fn try_move(app: &mut App, new_position: Coordinate) {
     // Do nothing is error so user can't move notice outside of bored
     // app.status = format!("{position} : {new_position}");
     match app.position_draft(new_position) {
+        Ok(in_view) => {
+            eprintln!("{in_view}");
+            // if bottom right of notice is off screen scoll view towards it
+            if !in_view {
+                if let Some(bored_view_port) = app.bored_view_port.as_mut() {
+                    eprintln!(
+                        "bvptl: {:?} np: {:?}",
+                        bored_view_port.get_view_top_left(),
+                        new_position
+                    );
+                    bored_view_port
+                        .move_view(bored_view_port.get_view_top_left().add(&new_position));
+                }
+            }
+        }
         _ => (),
     }
 }

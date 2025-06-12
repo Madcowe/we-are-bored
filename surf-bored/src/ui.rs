@@ -54,9 +54,14 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
                 y: ui_chunks[1].height,
             },
         );
+        if let Some(view_top_left) = app.bored_view_port.as_ref().map(|s| s.get_view_top_left()) {
+            bored_view_port.move_view(view_top_left);
+        }
         let mut bored_view_buffer = Buffer::empty(ui_chunks[1]);
         bored_view_port.render_view(&mut bored_view_buffer, app.theme.clone());
+        eprintln!("{:?}", bored_view_buffer);
         frame.buffer_mut().merge(&bored_view_buffer);
+        app.bored_view_port = Some(bored_view_port);
     }
     let title_block = Block::default()
         .borders(Borders::ALL)

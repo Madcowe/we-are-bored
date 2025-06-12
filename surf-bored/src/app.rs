@@ -392,18 +392,26 @@ impl App {
         self.current_view = View::DraftView(DraftMode::Hyperlink(HyperlinkMode::Text));
     }
 
-    pub fn position_draft(&mut self, new_top_left: Coordinate) -> Result<(), BoredError> {
-        let Some(ref mut client) = self.client else {
-            return Err(BoredError::ClientConnectionError);
-        };
-        match client.position_draft(new_top_left) {
-            Err(bored_error) => match bored_error {
-                // if new position is out of bound do nothing so user can't move it there
-                BoredError::NoticeOutOfBounds(..) => return Ok(()),
-                _ => return Err(bored_error),
-            },
-            Ok(_) => Ok(()),
+    pub fn position_draft(&mut self, new_top_left: Coordinate) -> Result<bool, BoredError> {
+        if let Some(draft) = self.get_draft() {
+            let new_bottom_right = new_top_left.add(&draft.get_dimensions());
+            let Some(ref mut client) = self.client else {
+                return Err(BoredError::ClientConnectionError);
+            };
+            match client.position_draft(new_top_left) {
+                Err(bored_error) => match bored_error {
+                    // if new position is out of bound do nothing so user can't move it there
+                    BoredError::NoticeOutOfBounds(..) => return Ok(true),
+                    _ => return Err(bored_error),
+                },
+                Ok(_) => {
+                    if let Some(bored_view_port) = &self.bored_view_port {
+                        return Ok(bored_view_port.in_view(new_bottom_right));
+                    }
+                }
+            }
         }
+        Ok(true)
     }
 }
 

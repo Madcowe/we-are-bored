@@ -1,5 +1,5 @@
 use bored::notice::{Display, Notice, NoticeHyperlinkMap, get_display, get_hyperlinks};
-use bored::{Bored, BoredAddress, BoredError, BoredHyperlinkMap, Coordinate};
+use bored::{Bored, BoredAddress, BoredError, BoredHyperlinkMap, Coordinate, bored_client};
 use rand::seq::IndexedRandom;
 use ratatui::buffer::{Buffer, Cell};
 use ratatui::layout::Position;
@@ -126,6 +126,19 @@ impl BoredViewPort {
         self.view_top_left = view_top_left;
     }
 
+    /// checks if bottom righ is within view, so can test wether the view needs to scroll
+    pub fn in_view(&self, bottom_right: Coordinate) -> bool {
+        if bottom_right.within(&self.view_dimensions) {
+            true
+        } else {
+            false
+        }
+    }
+
+    pub fn get_view_top_left(&self) -> Coordinate {
+        self.view_top_left
+    }
+
     /// Get rect that is position and size of view
     pub fn get_view(&self) -> Rect {
         Rect::new(
@@ -144,20 +157,26 @@ impl BoredViewPort {
     /// render just what is in the view port
     pub fn render_view(&mut self, buffer: &mut Buffer, theme: Theme) {
         let view_rect = self.get_view();
-        let buffer_rect = buffer.area;
-        // so if display bigger then bored only render up to bored
-        let x_limit = min(view_rect.x + view_rect.width, self.bored_dimensions.x);
-        let y_limit = min(view_rect.y + view_rect.height, self.bored_dimensions.y);
+        let buffer_rect = buffer.area().clone();
+        let x_limit = view_rect.x
+            + min(
+                view_rect.width,
+                min(buffer_rect.width, self.bored_rect.width),
+            );
+        let y_limit = view_rect.y
+            + min(
+                view_rect.height,
+                min(buffer_rect.height, self.bored_rect.height),
+            );
         let display_bored = DisplayBored::create(&self.bored, theme.clone());
         display_bored.render(self.bored_rect, &mut self.buffer);
-        let visible_content = self.buffer.content.clone();
+        let bored_content = self.buffer.content.clone();
         for x in view_rect.x..x_limit {
             for y in view_rect.y..y_limit {
                 let bored_pos = y * self.bored_rect.width + x;
-                // if bored_pos still within buffer
-                if bored_pos < visible_content.len() as u16 {
+                if bored_pos < bored_content.len() as u16 {
                     buffer[(x + buffer_rect.x, y + buffer_rect.y)] =
-                        visible_content[bored_pos as usize].clone();
+                        bored_content[bored_pos as usize].clone();
                 }
             }
         }
@@ -328,53 +347,46 @@ mod tests {
         assert_eq!(expected_output, format!("{:?}", buffer));
         // just test view port with 100% view so should be the same as above
         let mut bored_view_port = BoredViewPort::create(&bored, Coordinate { x: 60, y: 20 });
+        let bored_rect = Rect::new(0, 0, bored.get_dimensions().x, bored.get_dimensions().y);
         buffer = Buffer::empty(bored_rect);
         bored_view_port.render_view(&mut buffer, theme.clone());
         assert_eq!(expected_output, format!("{:?}", buffer));
         let mut bored_view_port = BoredViewPort::create(&bored, Coordinate { x: 40, y: 15 });
         bored_view_port.move_view(Coordinate { x: 5, y: 5 });
+        let bored_rect = Rect::new(5, 5, 40, 15);
         buffer = Buffer::empty(bored_rect);
-        // can't work out why there is plus one on both axes in the below compared to previous one at 100%
-        // however removing the plus one oorgnally in the render bored hyperlinks has seemed to sort
-        // all issue with pratical testing???
         let expected_output = r#"Buffer {
-    area: Rect { x: 0, y: 0, width: 60, height: 20 },
+    area: Rect { x: 5, y: 5, width: 40, height: 15 },
     content: [
-        "                                                            ",
-        "                                                            ",
-        "                                                            ",
-        "                                                            ",
-        "                                                            ",
-        "     ┃You are link bored.         ┃                         ",
-        "     ┃I am boooo                  ┃                         ",
-        "     ┃ooored.                     ┃                         ",
-        "     ┃Hello                       ┃                         ",
-        "     ┃World                       ┃                         ",
-        "     ┃                        ┏━━━━━━━━━━━━━━               ",
-        "     ┗━━━━━━━━━━━━━━━━━━━━━━━━┃world                        ",
-        "                              ┃                             ",
-        "                              ┃                             ",
-        "                              ┃                             ",
-        "                              ┃                             ",
-        "                              ┃                             ",
-        "                              ┃                             ",
-        "                              ┗━━━━━━━━━━━━━━               ",
-        "     ────────────────────────────────────────               ",
+        "┃You are link bored.         ┃          ",
+        "┃I am boooo                  ┃          ",
+        "┃ooored.                     ┃          ",
+        "┃Hello                       ┃          ",
+        "┃World                       ┃          ",
+        "┃                        ┏━━━━━━━━━━━━━━",
+        "┗━━━━━━━━━━━━━━━━━━━━━━━━┃world         ",
+        "                         ┃              ",
+        "                         ┃              ",
+        "                         ┃              ",
+        "                         ┃              ",
+        "                         ┃              ",
+        "                         ┃              ",
+        "                         ┗━━━━━━━━━━━━━━",
+        "────────────────────────────────────────",
     ],
     styles: [
         x: 0, y: 0, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
-        x: 14, y: 5, fg: Reset, bg: Reset, underline: Reset, modifier: UNDERLINED,
-        x: 18, y: 5, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
-        x: 11, y: 6, fg: Reset, bg: Reset, underline: Reset, modifier: UNDERLINED,
-        x: 16, y: 6, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
-        x: 6, y: 7, fg: Reset, bg: Reset, underline: Reset, modifier: UNDERLINED,
-        x: 12, y: 7, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
+        x: 9, y: 0, fg: Reset, bg: Reset, underline: Reset, modifier: UNDERLINED,
+        x: 13, y: 0, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
+        x: 6, y: 1, fg: Reset, bg: Reset, underline: Reset, modifier: UNDERLINED,
+        x: 11, y: 1, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
+        x: 1, y: 2, fg: Reset, bg: Reset, underline: Reset, modifier: UNDERLINED,
+        x: 7, y: 2, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
     ]
 }"#;
         bored_view_port.render_view(&mut buffer, theme.clone());
         eprintln!("{:?}", buffer);
         assert_eq!(expected_output, format!("{:?}", buffer));
-        eprintln!("{:?}", buffer);
         Ok(())
     }
 
