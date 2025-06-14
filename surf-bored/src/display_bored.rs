@@ -126,9 +126,11 @@ impl BoredViewPort {
         self.view_top_left = view_top_left;
     }
 
-    /// checks if bottom righ is within view, so can test wether the view needs to scroll
-    pub fn in_view(&self, bottom_right: Coordinate) -> bool {
-        if bottom_right.within(&self.view_dimensions) {
+    /// checks if both tol left bottom righ is within view, so can test wether the view needs to scroll
+    pub fn in_view(&self, top_left: Coordinate, bottom_right: Coordinate) -> bool {
+        if self.view_top_left.within(&top_left)
+            && bottom_right.within(&self.view_dimensions.add(&self.view_top_left))
+        {
             true
         } else {
             false

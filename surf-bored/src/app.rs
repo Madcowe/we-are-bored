@@ -406,7 +406,7 @@ impl App {
                 },
                 Ok(_) => {
                     if let Some(bored_view_port) = &self.bored_view_port {
-                        return Ok(bored_view_port.in_view(new_bottom_right));
+                        return Ok(bored_view_port.in_view(new_top_left, new_bottom_right));
                     }
                 }
             }

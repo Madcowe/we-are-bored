@@ -191,9 +191,14 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
                         let display = draft.get_display().unwrap();
                         let display_text = display.get_display_text();
                         let display_text = character_wrap(display_text, draft.get_text_width());
+                        // need to get postion of view port and take this into account
+                        let view_top_left = match &app.bored_view_port {
+                            Some(bored_view_port) => bored_view_port.get_view_top_left(),
+                            None => Coordinate { x: 0, y: 0 },
+                        };
                         let draft_rect = Rect::new(
-                            draft_top_left.x,
-                            draft_top_left.y + ui_chunks[0].height,
+                            draft_top_left.x - view_top_left.x,
+                            draft_top_left.y + ui_chunks[0].height - view_top_left.y,
                             draft_dimensions.x,
                             draft_dimensions.y,
                         );
