@@ -1,3 +1,4 @@
+use app::SurfBoredError;
 use bored::{Bored, BoredAddress, BoredError, Coordinate, bored_client, notice::MAX_URL_LENGTH};
 use core::panic;
 use rand::Rng;
@@ -14,7 +15,7 @@ use ratatui::{
         execute,
         terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
     },
-    layout::{Margin, Size},
+    layout::{Margin, Rect, Size},
     style::Modifier,
 };
 use std::{char::MAX, cmp::max, cmp::min, error::Error, io};
@@ -58,7 +59,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-async fn run_app<B: Backend>(termimal: &mut Terminal<B>, app: &mut App) -> io::Result<()> {
+async fn run_app<B: Backend>(
+    termimal: &mut Terminal<B>,
+    app: &mut App,
+) -> Result<(), Box<dyn Error>> {
+    //io::Result<()> {
     if let Err(e) = app.load_directory() {
         app.display_error(e);
     }
@@ -99,6 +104,26 @@ async fn run_app<B: Backend>(termimal: &mut Terminal<B>, app: &mut App) -> io::R
                                 let draft_dimensions =
                                     generate_notice_size(terminal_size, bored_dimensions);
                                 match app.create_draft(draft_dimensions) {
+                                    Err(e) => {
+                                        app.current_view =
+                                            View::ErrorView(app::SurfBoredError::BoredError(e))
+                                    }
+                                    _ => (),
+                                }
+                                // postion draft centered in current view in UI
+                                let view_rect = match &app.bored_view_port {
+                                    Some(bored_view_port) => bored_view_port.get_view(),
+                                    None => Rect::new(0, 0, bored_dimensions.x, bored_dimensions.y),
+                                };
+                                let x = ((min(view_rect.width, bored_dimensions.x)
+                                    - draft_dimensions.x)
+                                    / 2)
+                                    + view_rect.x;
+                                let y = ((min(view_rect.height, bored_dimensions.y)
+                                    - draft_dimensions.y)
+                                    / 2)
+                                    + view_rect.y;
+                                match app.position_draft(Coordinate { x, y }) {
                                     Err(e) => {
                                         app.current_view =
                                             View::ErrorView(app::SurfBoredError::BoredError(e))
@@ -245,22 +270,13 @@ async fn run_app<B: Backend>(termimal: &mut Terminal<B>, app: &mut App) -> io::R
 
 fn try_move(app: &mut App, new_position: Coordinate, scroll_offset: (i32, i32)) {
     // Do nothing is error so user can't move notice outside of bored
-    // app.status = format!("{position} : {new_position}");
     match app.position_draft(new_position) {
         Ok(in_view) => {
-            eprintln!("{in_view}");
             // if bottom right of notice is off screen scoll view towards it
             if !in_view {
                 if let Some(bored_view_port) = app.bored_view_port.as_mut() {
                     let mut new_view_position = bored_view_port.get_view_top_left();
                     new_view_position = new_view_position.add_i32_tuple(scroll_offset);
-                    eprintln!(
-                        "np: {:?}, so: {:?} bvptl: {:?} nvp: {:?}",
-                        new_position,
-                        scroll_offset,
-                        bored_view_port.get_view_top_left(),
-                        new_view_position,
-                    );
                     bored_view_port.move_view(new_view_position);
                 }
             }
