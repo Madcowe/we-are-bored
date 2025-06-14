@@ -1,4 +1,5 @@
 use bored::{Bored, BoredAddress, BoredError, Coordinate, bored_client, notice::MAX_URL_LENGTH};
+use core::panic;
 use rand::Rng;
 use ratatui::{
     Terminal, Viewport,
@@ -193,25 +194,31 @@ async fn run_app<B: Backend>(termimal: &mut Terminal<B>, app: &mut App) -> io::R
                                 app.current_view = View::DraftView(DraftMode::Content);
                             }
                             if let Some(mut draft) = app.get_draft() {
-                                // app.status = format!("{}", draft.get_top_left());
                                 let bored = app
                                     .get_current_bored()
                                     .expect("Bored should exist if there is a draft");
                                 let position = draft.get_top_left();
-                                // let mut new_position = Coordinate { x: 0, y: 0 };
                                 match key.code {
-                                    KeyCode::Up => {
-                                        try_move(app, position.subtact(&Coordinate { x: 0, y: 1 }))
-                                    }
-                                    KeyCode::Down => {
-                                        try_move(app, position.add(&Coordinate { x: 0, y: 1 }))
-                                    }
-                                    KeyCode::Left => {
-                                        try_move(app, position.subtact(&Coordinate { x: 1, y: 0 }))
-                                    }
-                                    KeyCode::Right => {
-                                        try_move(app, position.add(&Coordinate { x: 1, y: 0 }))
-                                    }
+                                    KeyCode::Up => try_move(
+                                        app,
+                                        position.subtact(&Coordinate { x: 0, y: 1 }),
+                                        (0, -1),
+                                    ),
+                                    KeyCode::Down => try_move(
+                                        app,
+                                        position.add(&Coordinate { x: 0, y: 1 }),
+                                        (0, 1),
+                                    ),
+                                    KeyCode::Left => try_move(
+                                        app,
+                                        position.subtact(&Coordinate { x: 1, y: 0 }),
+                                        (-1, 0),
+                                    ),
+                                    KeyCode::Right => try_move(
+                                        app,
+                                        position.add(&Coordinate { x: 1, y: 0 }),
+                                        (1, 0),
+                                    ),
                                     KeyCode::Enter => {
                                         if let Err(bored_error) = app.add_draft_to_bored().await {
                                             app.current_view = View::ErrorView(
@@ -236,7 +243,7 @@ async fn run_app<B: Backend>(termimal: &mut Terminal<B>, app: &mut App) -> io::R
     Ok(())
 }
 
-fn try_move(app: &mut App, new_position: Coordinate) {
+fn try_move(app: &mut App, new_position: Coordinate, scroll_offset: (i32, i32)) {
     // Do nothing is error so user can't move notice outside of bored
     // app.status = format!("{position} : {new_position}");
     match app.position_draft(new_position) {
@@ -245,13 +252,16 @@ fn try_move(app: &mut App, new_position: Coordinate) {
             // if bottom right of notice is off screen scoll view towards it
             if !in_view {
                 if let Some(bored_view_port) = app.bored_view_port.as_mut() {
+                    let mut new_view_position = bored_view_port.get_view_top_left();
+                    new_view_position = new_view_position.add_i32_tuple(scroll_offset);
                     eprintln!(
-                        "bvptl: {:?} np: {:?}",
+                        "np: {:?}, so: {:?} bvptl: {:?} nvp: {:?}",
+                        new_position,
+                        scroll_offset,
                         bored_view_port.get_view_top_left(),
-                        new_position
+                        new_view_position,
                     );
-                    bored_view_port
-                        .move_view(bored_view_port.get_view_top_left().add(&new_position));
+                    bored_view_port.move_view(new_view_position);
                 }
             }
         }

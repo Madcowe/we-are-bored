@@ -203,6 +203,21 @@ impl Coordinate {
             y: self.y - y,
         }
     }
+
+    /// adds a possibley negative i32 tuple
+    pub fn add_i32_tuple(&self, other: (i32, i32)) -> Coordinate {
+        let x = if self.x as i32 + other.0 >= 0 {
+            self.x as i32 + other.0
+        } else {
+            0
+        } as u16;
+        let y = if self.y as i32 + other.1 >= 0 {
+            self.y as i32 + other.1
+        } else {
+            0
+        } as u16;
+        Coordinate { x, y }
+    }
 }
 
 /// Indicate direction of movement
@@ -782,5 +797,20 @@ mod tests {
 "#;
         assert_eq!(expected_output, format!("{}", bored_hyperlink_map));
         Ok(())
+    }
+
+    #[test]
+    fn test_add_i32_tuple() {
+        let mut coordinate = Coordinate { x: 0, y: 0 };
+        coordinate = coordinate.add_i32_tuple((1, 1));
+        assert_eq!(coordinate, Coordinate { x: 1, y: 1 });
+        coordinate = coordinate.add_i32_tuple((-1, -1));
+        assert_eq!(coordinate, Coordinate { x: 0, y: 0 });
+        coordinate = coordinate.add_i32_tuple((-1, -1));
+        assert_eq!(coordinate, Coordinate { x: 0, y: 0 });
+        coordinate = coordinate.add_i32_tuple((1, 0));
+        assert_eq!(coordinate, Coordinate { x: 1, y: 0 });
+        coordinate = coordinate.add_i32_tuple((0, 1));
+        assert_eq!(coordinate, Coordinate { x: 1, y: 1 });
     }
 }
