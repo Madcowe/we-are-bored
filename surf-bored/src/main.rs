@@ -195,7 +195,7 @@ async fn run_app<B: Backend>(
                                             HyperlinkMode::Text,
                                         ));
                                     }
-                                    if value == 'a' {
+                                    if value == 'p' {
                                         app.current_view = View::DraftView(DraftMode::Position);
                                     }
                                     if value == 'u' {

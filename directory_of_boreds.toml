@@ -1,0 +1,5 @@
+home_bored = 0
+
+[[bored_addresses]]
+name = "cheese bored"
+bored_address = "bored://320f058659499c7700e8643c57d3aea51444e48c1cdc38ec4e55019be2b3af7b"
