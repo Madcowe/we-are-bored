@@ -183,22 +183,28 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
                         frame.buffer_mut().merge(&draft_buffer);
                     }
                     DraftMode::Position => {
-                        let draft_dimensions = draft.get_dimensions();
-                        let draft_top_left = draft.get_top_left();
+                        // let draft_dimensions = draft.get_dimensions();
+                        // let draft_top_left = draft.get_top_left();
                         let display = draft.get_display().unwrap();
                         let display_text = display.get_display_text();
                         let display_text = character_wrap(display_text, draft.get_text_width());
                         // need to get postion of view port and take this into account
-                        let view_top_left = match &app.bored_view_port {
-                            Some(bored_view_port) => bored_view_port.get_view_top_left(),
-                            None => Coordinate { x: 0, y: 0 },
-                        };
-                        let draft_rect = Rect::new(
-                            draft_top_left.x - view_top_left.x,
-                            draft_top_left.y + ui_chunks[0].height - view_top_left.y,
-                            draft_dimensions.x,
-                            draft_dimensions.y,
+                        let draft_rect = get_draft_postion_on_viewport(
+                            &draft,
+                            &app.bored_view_port,
+                            ui_chunks[0].height,
                         );
+                        // let view_top_left = match &app.bored_view_port {
+                        //     Some(bored_view_port) => bored_view_port.get_view_top_left(),
+                        //     None => Coordinate { x: 0, y: 0 },
+                        // };
+                        // can sometime cause at panice do we need some checks here?
+                        // let draft_rect = Rect::new(
+                        //     draft_top_left.x - view_top_left.x,
+                        //     draft_top_left.y + ui_chunks[0].height - view_top_left.y,
+                        //     draft_dimensions.x,
+                        //     draft_dimensions.y,
+                        // );
                         let draft_block = Block::default()
                             .borders(Borders::ALL)
                             .border_type(BorderType::Thick)
@@ -239,4 +245,55 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
         .block(status_block);
     frame.render_widget(status, ui_chunks[2]);
     // status.render(status_rect, frame.buffer_mut());
+}
+
+fn get_draft_postion_on_viewport(
+    draft: &Notice,
+    bored_view_port: &Option<BoredViewPort>,
+    y_offset: u16,
+) -> Rect {
+    let view_top_left = match bored_view_port {
+        Some(bored_view_port) => bored_view_port.get_view_top_left(),
+        None => Coordinate { x: 0, y: 0 },
+    };
+    let x = safe_subtract_u16(draft.get_top_left().x, view_top_left.x);
+    let y = safe_subtract_u16(draft.get_top_left().y, view_top_left.y) + y_offset;
+    Rect::new(x, y, draft.get_dimensions().x, draft.get_dimensions().y)
+}
+
+/// Returns 0 if sunbtction overflow
+fn safe_subtract_u16(a: u16, b: u16) -> u16 {
+    if (a as i32 - b as i32) < 0 { 0 } else { a - b }
+}
+
+#[cfg(test)]
+
+mod tests {
+
+    use super::*;
+
+    #[test]
+    fn test_safe_subtract_u16() {
+        assert_eq!(safe_subtract_u16(3, 2), 1);
+        assert_eq!(safe_subtract_u16(3, 3), 0);
+        assert_eq!(safe_subtract_u16(3, 4), 0);
+    }
+
+    #[test]
+    fn test_get_draft_notice_on_viewport() {
+        let bored = Bored::create("Test", Coordinate { x: 120, y: 40 });
+        let draft = Notice::create(Coordinate { x: 30, y: 10 });
+        let draft_postion_on_viewport = get_draft_postion_on_viewport(&draft, &None, 4);
+        assert_eq!(draft_postion_on_viewport, Rect::new(0, 4, 30, 10));
+        let mut bored_view_port = BoredViewPort::create(&bored, Coordinate { x: 40, y: 15 });
+        bored_view_port.move_view(Coordinate { x: 80, y: 5 });
+        let draft_postion_on_viewport =
+            get_draft_postion_on_viewport(&draft, &Some(bored_view_port), 4);
+        assert_eq!(draft_postion_on_viewport, Rect::new(0, 4, 30, 10));
+        let mut bored_view_port = BoredViewPort::create(&bored, Coordinate { x: 40, y: 15 });
+        bored_view_port.move_view(Coordinate { x: 10, y: 5 });
+        let draft_postion_on_viewport =
+            get_draft_postion_on_viewport(&draft, &Some(bored_view_port), 4);
+        assert_eq!(draft_postion_on_viewport, Rect::new(0, 4, 30, 10));
+    }
 }
