@@ -146,26 +146,31 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
                     .expect("There should not be a draft without a bored");
                 match draft_mode {
                     DraftMode::Content => {
-                        let draft_dimensions = draft.get_dimensions();
+                        // let draft_dimensions = draft.get_dimensions();
                         let display = draft.get_display().unwrap();
                         let display_text = display.get_display_text();
                         let display_text = character_wrap(display_text, draft.get_text_width());
-                        let x;
-                        let mut y;
+                        // let x;
+                        // let mut y;
                         // position so aprox in center of frame
                         // if (draft.get_top_left() == Coordinate { x: 0, y: 0 }) {
                         //     let draft_position = bored.get_dimensions().subtact(&draft_dimensions);
                         //     x = min(draft_position.x, (area.width - draft_dimensions.x) / 2);
                         //     y = min(draft_position.y, (area.height - draft_dimensions.y) / 2);
                         // } else {
-                        x = draft.get_top_left().x;
-                        y = draft.get_top_left().y;
+                        // x = draft.get_top_left().x;
+                        // y = draft.get_top_left().y;
                         // }
                         // app.status = format!("x:{x} y:{y} ");
-                        app.position_draft(Coordinate { x, y })
-                            .expect("Starting position should always be within bored");
-                        y = y + ui_chunks[0].height;
-                        let draft_rect = Rect::new(x, y, draft_dimensions.x, draft_dimensions.y);
+                        // app.position_draft(Coordinate { x, y })
+                        //     .expect("Starting position should always be within bored");
+                        // y = y + ui_chunks[0].height;
+                        // let draft_rect = Rect::new(x, y, draft_dimensions.x, draft_dimensions.y);
+                        let draft_rect = get_draft_postion_on_viewport(
+                            &draft,
+                            &app.bored_view_port,
+                            ui_chunks[0].height,
+                        );
                         let draft_block = Block::default()
                             .borders(Borders::ALL)
                             .border_type(BorderType::Thick)
@@ -177,14 +182,15 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
                         style_notice_hyperlinks(
                             &draft,
                             &mut draft_buffer,
-                            Coordinate { x, y },
+                            Coordinate {
+                                x: draft_rect.x,
+                                y: draft_rect.y,
+                            },
                             app.theme.hyperlink_style(),
                         );
                         frame.buffer_mut().merge(&draft_buffer);
                     }
                     DraftMode::Position => {
-                        // let draft_dimensions = draft.get_dimensions();
-                        // let draft_top_left = draft.get_top_left();
                         let display = draft.get_display().unwrap();
                         let display_text = display.get_display_text();
                         let display_text = character_wrap(display_text, draft.get_text_width());
@@ -194,17 +200,6 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
                             &app.bored_view_port,
                             ui_chunks[0].height,
                         );
-                        // let view_top_left = match &app.bored_view_port {
-                        //     Some(bored_view_port) => bored_view_port.get_view_top_left(),
-                        //     None => Coordinate { x: 0, y: 0 },
-                        // };
-                        // can sometime cause at panice do we need some checks here?
-                        // let draft_rect = Rect::new(
-                        //     draft_top_left.x - view_top_left.x,
-                        //     draft_top_left.y + ui_chunks[0].height - view_top_left.y,
-                        //     draft_dimensions.x,
-                        //     draft_dimensions.y,
-                        // );
                         let draft_block = Block::default()
                             .borders(Borders::ALL)
                             .border_type(BorderType::Thick)
