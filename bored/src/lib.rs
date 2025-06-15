@@ -3,7 +3,7 @@ use notice::{Display, Notice, NoticeHyperlinkMap};
 use serde::{Deserialize, Serialize};
 use std::any::Any;
 use std::fmt::{self};
-use std::ops::Add;
+use std::ops::{Add, IndexMut};
 
 pub mod bored_client;
 pub mod notice;
@@ -616,6 +616,33 @@ impl Bored {
             }
         }
         None
+    }
+
+    /// Get the index of the notice closest to the coordinate 0 0
+    pub fn get_upper_left_most_notice(&self) -> Option<usize> {
+        if self.notices.is_empty() {
+            return None;
+        } else {
+            let mut notice = self.notices[0].clone();
+            let mut notices_index = 0;
+            let mut next_notice_index = Some(0);
+            while next_notice_index.is_some() {
+                let next_notice_index = self.get_cardinal_notice(notices_index, Direction::Left);
+                if let Some(index) = next_notice_index {
+                    notice = self.notices[index].clone();
+                    notices_index = index;
+                }
+            }
+            next_notice_index = Some(notices_index);
+            while next_notice_index.is_some() {
+                let next_notice_index = self.get_cardinal_notice(notices_index, Direction::Up);
+                if let Some(index) = next_notice_index {
+                    notice = self.notices[index].clone();
+                    notices_index = index;
+                }
+            }
+            Some(notices_index)
+        }
     }
 }
 
