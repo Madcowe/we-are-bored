@@ -96,6 +96,10 @@ async fn run_app<B: Backend>(
                     },
                     View::BoredView => match key.code {
                         KeyCode::Char('q') => break,
+                        KeyCode::Char('w') => app.select_notice(bored::Direction::Up),
+                        KeyCode::Char('a') => app.select_notice(bored::Direction::Left),
+                        KeyCode::Char('s') => app.select_notice(bored::Direction::Down),
+                        KeyCode::Char('d') => app.select_notice(bored::Direction::Right),
                         KeyCode::Char('c') => app.change_view(View::CreateView(CreateMode::Name)),
                         KeyCode::Char('n') => {
                             if let Some(bored) = app.get_current_bored() {

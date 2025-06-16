@@ -388,6 +388,22 @@ impl App {
         Ok(())
     }
 
+    pub fn select_notice(&mut self, direction: Direction) {
+        if let Some(bored) = self.get_current_bored() {
+            if bored.get_notices().len() > 0 {
+                if self.selected_notice.is_none() {
+                    self.selected_notice = bored.get_upper_left_most_notice()
+                } else {
+                    self.selected_notice =
+                        match bored.get_cardinal_notice(self.selected_notice.unwrap(), direction) {
+                            Some(notice_index) => Some(notice_index),
+                            None => self.selected_notice,
+                        }
+                }
+            }
+        }
+    }
+
     pub fn create_hyperlink(&mut self) {
         self.current_view = View::DraftView(DraftMode::Hyperlink(HyperlinkMode::Text));
     }

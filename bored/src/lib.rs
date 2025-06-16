@@ -623,23 +623,18 @@ impl Bored {
         if self.notices.is_empty() {
             return None;
         } else {
-            let mut notice = self.notices[0].clone();
             let mut notices_index = 0;
             let mut next_notice_index = Some(0);
             while next_notice_index.is_some() {
-                let next_notice_index = self.get_cardinal_notice(notices_index, Direction::Left);
-                eprintln!("Left: {:?}", next_notice_index);
+                next_notice_index = self.get_cardinal_notice(notices_index, Direction::Left);
                 if let Some(index) = next_notice_index {
-                    notice = self.notices[index].clone();
                     notices_index = index;
                 }
             }
             next_notice_index = Some(notices_index);
             while next_notice_index.is_some() {
-                let next_notice_index = self.get_cardinal_notice(notices_index, Direction::Up);
-                eprintln!("Up {:?}", next_notice_index);
+                next_notice_index = self.get_cardinal_notice(notices_index, Direction::Up);
                 if let Some(index) = next_notice_index {
-                    notice = self.notices[index].clone();
                     notices_index = index;
                 }
             }

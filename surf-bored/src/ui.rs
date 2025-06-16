@@ -1,9 +1,7 @@
 use bored::bored_client::{BoredClient, ConnectionType};
 use bored::notice::{Display, Notice, NoticeHyperlinkMap, get_display, get_hyperlinks};
 use bored::{Bored, BoredAddress, BoredError, Coordinate};
-use rand::rand_core::block::BlockRng;
 use ratatui::buffer::Buffer;
-use ratatui::prelude::BlockExt;
 use ratatui::style::{Styled, Stylize};
 use ratatui::widgets::{BorderType, Widget};
 use ratatui::{
@@ -14,9 +12,6 @@ use ratatui::{
     widgets::{Block, Borders, Clear, List, ListItem, Paragraph, Wrap},
 };
 use std::cmp::{max, min};
-use std::collections::binary_heap::Drain;
-use std::fmt::Pointer;
-use std::ops::Deref;
 
 use crate::app::{App, CreateMode, DraftMode, GoToMode, HyperlinkMode, View};
 use crate::display_bored::{BoredViewPort, DisplayBored};
@@ -27,8 +22,8 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
     let area = frame.area();
     let mut title_text = String::new();
     let mut status_text = format!(
-        "Current: {:?} previous: {:?} {}",
-        app.current_view, app.previous_view, app.status
+        "Current: {:?} previous: {:?} notice: {:?} {}",
+        app.current_view, app.previous_view, app.selected_notice, app.status
     ); //"Connected, no bored loaded";
     // let mut status_text = "Connected, no bored loaded";
     let ui_chunks = Layout::default()
