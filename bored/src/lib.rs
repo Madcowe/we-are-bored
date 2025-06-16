@@ -628,6 +628,7 @@ impl Bored {
             let mut next_notice_index = Some(0);
             while next_notice_index.is_some() {
                 let next_notice_index = self.get_cardinal_notice(notices_index, Direction::Left);
+                eprintln!("Left: {:?}", next_notice_index);
                 if let Some(index) = next_notice_index {
                     notice = self.notices[index].clone();
                     notices_index = index;
@@ -636,6 +637,7 @@ impl Bored {
             next_notice_index = Some(notices_index);
             while next_notice_index.is_some() {
                 let next_notice_index = self.get_cardinal_notice(notices_index, Direction::Up);
+                eprintln!("Up {:?}", next_notice_index);
                 if let Some(index) = next_notice_index {
                     notice = self.notices[index].clone();
                     notices_index = index;
@@ -649,7 +651,7 @@ impl Bored {
 #[cfg(test)]
 mod tests {
 
-    use std::error::Error;
+    use std::{error::Error, fmt::Debug};
 
     use super::*;
 
@@ -839,5 +841,18 @@ mod tests {
         assert_eq!(coordinate, Coordinate { x: 1, y: 0 });
         coordinate = coordinate.add_i32_tuple((0, 1));
         assert_eq!(coordinate, Coordinate { x: 1, y: 1 });
+    }
+
+    #[test]
+    fn test_get_upper_left_notice() {
+        let mut bored = Bored::create("Test", Coordinate { x: 120, y: 40 });
+        assert_eq!(bored.get_upper_left_most_notice(), None);
+        let notice = Notice::create(Coordinate { x: 10, y: 5 });
+        bored.add(notice, Coordinate { x: 0, y: 15 }).unwrap();
+        let notice = Notice::create(Coordinate { x: 10, y: 5 });
+        bored.add(notice, Coordinate { x: 0, y: 0 }).unwrap();
+        let notice = Notice::create(Coordinate { x: 10, y: 5 });
+        bored.add(notice, Coordinate { x: 50, y: 0 }).unwrap();
+        assert_eq!(bored.get_upper_left_most_notice(), Some(1))
     }
 }
