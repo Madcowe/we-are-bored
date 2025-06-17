@@ -1,5 +1,8 @@
 use app::SurfBoredError;
-use bored::{Bored, BoredAddress, BoredError, Coordinate, bored_client, notice::MAX_URL_LENGTH};
+use bored::{
+    Bored, BoredAddress, BoredError, Coordinate, Direction, bored_client,
+    notice::{self, MAX_URL_LENGTH},
+};
 use core::panic;
 use rand::Rng;
 use ratatui::{
@@ -270,6 +273,22 @@ async fn run_app<B: Backend>(
         }
     }
     Ok(())
+}
+fn try_select_notice(app: &mut App, direction: Direction) {
+    app.select_notice(direction);
+    if let Some(notice) = app.get_selected_notice() {
+        let bored_view_port = app
+            .bored_view_port
+            .as_mut()
+            .expect("Bored view port should exist by now");
+        if !bored_view_port.in_view(
+            notice.get_top_left(),
+            notice.get_top_left().add(&notice.get_dimensions()),
+        ) {
+            let new_view_position = notice.get_top_left();
+            bored_view_port.move_view(new_view_position);
+        }
+    }
 }
 
 fn try_move(app: &mut App, new_position: Coordinate, scroll_offset: (i32, i32)) {

@@ -1,7 +1,6 @@
 use bored::bored_client::{BoredClient, ConnectionType};
-use bored::notice::Notice;
+use bored::notice::{self, Notice};
 use bored::{Bored, BoredAddress, BoredError, Coordinate, Direction};
-use rand::seq::IndexedRandom;
 use ratatui::style::{Color, Style, Stylize};
 use ratatui::widgets::BorderType;
 use serde::{Deserialize, Serialize};
@@ -10,6 +9,7 @@ use std::fs;
 use std::fs::File;
 use std::io::Write;
 use std::path::{Path, PathBuf};
+use std::rc::Rc;
 use std::str::FromStr;
 
 use crate::display_bored::BoredViewPort;
@@ -413,6 +413,15 @@ impl App {
                 }
             }
         }
+    }
+
+    pub fn get_selected_notice(&mut self) -> Option<Notice> {
+        if let Some(notice_index) = self.selected_notice {
+            return self
+                .get_current_bored()
+                .map(|b| b.get_notices()[notice_index].clone());
+        }
+        None
     }
 
     pub fn create_hyperlink(&mut self) {
