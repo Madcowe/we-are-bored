@@ -48,6 +48,7 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
                 x: ui_chunks[1].width,
                 y: ui_chunks[1].height,
             },
+            app.selected_notice,
         );
         if let Some(view_top_left) = app.bored_view_port.as_ref().map(|s| s.get_view_top_left()) {
             bored_view_port.move_view(view_top_left);
@@ -142,26 +143,9 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
                     .expect("There should not be a draft without a bored");
                 match draft_mode {
                     DraftMode::Content => {
-                        // let draft_dimensions = draft.get_dimensions();
                         let display = draft.get_display().unwrap();
                         let display_text = display.get_display_text();
                         let display_text = character_wrap(display_text, draft.get_text_width());
-                        // let x;
-                        // let mut y;
-                        // position so aprox in center of frame
-                        // if (draft.get_top_left() == Coordinate { x: 0, y: 0 }) {
-                        //     let draft_position = bored.get_dimensions().subtact(&draft_dimensions);
-                        //     x = min(draft_position.x, (area.width - draft_dimensions.x) / 2);
-                        //     y = min(draft_position.y, (area.height - draft_dimensions.y) / 2);
-                        // } else {
-                        // x = draft.get_top_left().x;
-                        // y = draft.get_top_left().y;
-                        // }
-                        // app.status = format!("x:{x} y:{y} ");
-                        // app.position_draft(Coordinate { x, y })
-                        //     .expect("Starting position should always be within bored");
-                        // y = y + ui_chunks[0].height;
-                        // let draft_rect = Rect::new(x, y, draft_dimensions.x, draft_dimensions.y);
                         let draft_rect = get_draft_postion_on_viewport(
                             &draft,
                             &app.bored_view_port,
@@ -190,7 +174,6 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
                         let display = draft.get_display().unwrap();
                         let display_text = display.get_display_text();
                         let display_text = character_wrap(display_text, draft.get_text_width());
-                        // need to get postion of view port and take this into account
                         let draft_rect = get_draft_postion_on_viewport(
                             &draft,
                             &app.bored_view_port,
@@ -226,7 +209,6 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
     // setup status area
     let status_block = Block::default()
         .borders(Borders::ALL)
-        .bold()
         .border_type(BorderType::QuadrantOutside)
         .style(app.theme.header_style())
         .bold();
@@ -252,7 +234,7 @@ fn get_draft_postion_on_viewport(
     Rect::new(x, y, draft.get_dimensions().x, draft.get_dimensions().y)
 }
 
-/// Returns 0 if sunbtction overflow
+/// Returns 0 if subraction overflow
 fn safe_subtract_u16(a: u16, b: u16) -> u16 {
     if (a as i32 - b as i32) < 0 { 0 } else { a - b }
 }
@@ -276,12 +258,12 @@ mod tests {
         let draft = Notice::create(Coordinate { x: 30, y: 10 });
         let draft_postion_on_viewport = get_draft_postion_on_viewport(&draft, &None, 4);
         assert_eq!(draft_postion_on_viewport, Rect::new(0, 4, 30, 10));
-        let mut bored_view_port = BoredViewPort::create(&bored, Coordinate { x: 40, y: 15 });
+        let mut bored_view_port = BoredViewPort::create(&bored, Coordinate { x: 40, y: 15 }, None);
         bored_view_port.move_view(Coordinate { x: 80, y: 5 });
         let draft_postion_on_viewport =
             get_draft_postion_on_viewport(&draft, &Some(bored_view_port), 4);
         assert_eq!(draft_postion_on_viewport, Rect::new(0, 4, 30, 10));
-        let mut bored_view_port = BoredViewPort::create(&bored, Coordinate { x: 40, y: 15 });
+        let mut bored_view_port = BoredViewPort::create(&bored, Coordinate { x: 40, y: 15 }, None);
         bored_view_port.move_view(Coordinate { x: 10, y: 5 });
         let draft_postion_on_viewport =
             get_draft_postion_on_viewport(&draft, &Some(bored_view_port), 4);

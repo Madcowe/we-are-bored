@@ -1,6 +1,5 @@
 use bored::notice::{Display, Notice, NoticeHyperlinkMap, get_display, get_hyperlinks};
 use bored::{Bored, BoredAddress, BoredError, BoredHyperlinkMap, Coordinate, bored_client};
-use rand::seq::IndexedRandom;
 use ratatui::buffer::{Buffer, Cell};
 use ratatui::layout::Position;
 use ratatui::style::{Styled, Stylize};
@@ -38,11 +37,7 @@ impl BoredOfRects {
 
     /// returns a vector of blocks with the notice text attached to the rects
     /// inluding styling for hyperlinks, however new lines in the text will be lost
-    fn get_display_notices(
-        &self,
-        bored: &Bored,
-        // hyperlink_style: Style,
-    ) -> Result<Vec<(Paragraph, Rect)>, BoredError> {
+    fn get_display_notices(&self, bored: &Bored) -> Result<Vec<(Paragraph, Rect)>, BoredError> {
         let mut display_notices = vec![];
         let notices = bored
             .get_notices()
@@ -54,7 +49,7 @@ impl BoredOfRects {
                 .borders(Borders::ALL)
                 .border_type(BorderType::Thick);
             let text = character_wrap(display.get_display_text(), notice.get_text_width());
-            let paragraph = Paragraph::new(text).block(block.clone()).white();
+            let paragraph = Paragraph::new(text).block(block.clone());
             display_notices.push((paragraph, notice_rect));
         }
         Ok(display_notices)
@@ -65,6 +60,7 @@ impl BoredOfRects {
 pub struct DisplayBored {
     bored: Bored,
     theme: Theme,
+    selected_notice: Option<usize>,
 }
 impl Widget for DisplayBored {
     fn render(self, _: Rect, buffer: &mut Buffer) {
@@ -76,10 +72,16 @@ impl Widget for DisplayBored {
         bored_block.render(buffer.area, buffer);
         let bored_of_rects = BoredOfRects::create(&self.bored, 0);
         if let Ok(display_notices) = bored_of_rects.get_display_notices(&self.bored) {
-            for (display_notice, notice_rect) in display_notices {
-                let display_notice = display_notice.clone().set_style(self.theme.text_style());
-                Clear.render(notice_rect, buffer);
-                display_notice.render(notice_rect, buffer);
+            for (notice_index, (display_notice, notice_rect)) in display_notices.iter().enumerate()
+            {
+                let style = if Some(notice_index) == self.selected_notice {
+                    self.theme.inverted_text_style()
+                } else {
+                    self.theme.text_style()
+                };
+                let display_notice = display_notice.clone().set_style(style);
+                Clear.render(*notice_rect, buffer);
+                display_notice.render(*notice_rect, buffer);
             }
             // style hyperlinks
             style_bored_hyperlinks(&self.bored, buffer, self.theme.hyperlink_style());
@@ -88,10 +90,11 @@ impl Widget for DisplayBored {
 }
 
 impl DisplayBored {
-    pub fn create(bored: &Bored, theme: Theme) -> DisplayBored {
+    pub fn create(bored: &Bored, theme: Theme, selected_notice: Option<usize>) -> DisplayBored {
         DisplayBored {
             bored: bored.clone(),
             theme,
+            selected_notice,
         }
     }
 }
@@ -106,10 +109,15 @@ pub struct BoredViewPort {
     view_top_left: Coordinate,
     view_dimensions: Coordinate,
     buffer: Buffer,
+    selected_notice: Option<usize>,
 }
 
 impl BoredViewPort {
-    pub fn create(bored: &Bored, view_dimensions: Coordinate) -> BoredViewPort {
+    pub fn create(
+        bored: &Bored,
+        view_dimensions: Coordinate,
+        selected_notice: Option<usize>,
+    ) -> BoredViewPort {
         let bored_rect = Rect::new(0, 0, bored.get_dimensions().x, bored.get_dimensions().y);
         BoredViewPort {
             bored: bored.clone(),
@@ -118,6 +126,7 @@ impl BoredViewPort {
             view_top_left: Coordinate { x: 0, y: 0 },
             view_dimensions,
             buffer: Buffer::empty(bored_rect),
+            selected_notice,
         }
     }
 
@@ -170,7 +179,7 @@ impl BoredViewPort {
                 view_rect.height,
                 min(buffer_rect.height, self.bored_rect.height),
             );
-        let display_bored = DisplayBored::create(&self.bored, theme.clone());
+        let display_bored = DisplayBored::create(&self.bored, theme.clone(), self.selected_notice);
         display_bored.render(self.bored_rect, &mut self.buffer);
         let bored_content = self.buffer.content.clone();
         for x in view_rect.x..x_limit {
@@ -306,7 +315,7 @@ mod tests {
         bored.add(notice, Coordinate { x: 30, y: 10 })?;
         let bored_rect = Rect::new(0, 0, bored.get_dimensions().x, bored.get_dimensions().y);
         let mut buffer = Buffer::empty(bored_rect);
-        let display_bored = DisplayBored::create(&bored, theme.clone());
+        let display_bored = DisplayBored::create(&bored, theme.clone(), None);
         display_bored.render(bored_rect, &mut buffer);
         eprintln!("{:?}", buffer);
         let expected_output = r#"Buffer {
@@ -349,12 +358,12 @@ mod tests {
 }"#;
         assert_eq!(expected_output, format!("{:?}", buffer));
         // just test view port with 100% view so should be the same as above
-        let mut bored_view_port = BoredViewPort::create(&bored, Coordinate { x: 60, y: 20 });
+        let mut bored_view_port = BoredViewPort::create(&bored, Coordinate { x: 60, y: 20 }, None);
         let bored_rect = Rect::new(0, 0, bored.get_dimensions().x, bored.get_dimensions().y);
         buffer = Buffer::empty(bored_rect);
         bored_view_port.render_view(&mut buffer, theme.clone());
         assert_eq!(expected_output, format!("{:?}", buffer));
-        let mut bored_view_port = BoredViewPort::create(&bored, Coordinate { x: 40, y: 15 });
+        let mut bored_view_port = BoredViewPort::create(&bored, Coordinate { x: 40, y: 15 }, None);
         bored_view_port.move_view(Coordinate { x: 5, y: 5 });
         let bored_rect = Rect::new(5, 5, 40, 15);
         buffer = Buffer::empty(bored_rect);
@@ -485,7 +494,7 @@ line"#;
             )?;
         bored.add(notice, Coordinate { x: 14, y: 7 })?;
         let mut bored_buffer = Buffer::empty(bored_rect);
-        let display_bored = DisplayBored::create(&bored, theme.clone());
+        let display_bored = DisplayBored::create(&bored, theme.clone(), None);
         display_bored.render(bored_rect, &mut bored_buffer);
         eprintln!("{}", format!("{:?}", bored_buffer));
         let expected_output = r#"Buffer {

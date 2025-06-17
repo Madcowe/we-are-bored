@@ -1,4 +1,4 @@
-home_bored = 2
+home_bored = 3
 
 [[bored_addresses]]
 name = "cheese bored"
@@ -11,3 +11,7 @@ bored_address = "bored://0ef42ed2d8641a30a762bedff45625f14878c7885d3ed19048d5793
 [[bored_addresses]]
 name = "The tourist information bored"
 bored_address = "bored://21c25faee887ee74967577709c110ee0a01a98c11a54e0bea8ae885462689c13"
+
+[[bored_addresses]]
+name = "cheese bored"
+bored_address = "bored://729e536d45d35e9e61c6e3afcc758303bb4f2747f09f0da1e75b77ff1f9d3442"

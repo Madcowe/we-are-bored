@@ -193,7 +193,8 @@ impl Theme {
     }
 
     pub fn inverted_text_style(&self) -> Style {
-        Style::new().fg(self.text_bg).bg(self.text_fg)
+        // Style::new().fg(self.text_bg).bg(self.text_fg)
+        Style::new()
     }
 
     pub fn hyperlink_style(&self) -> Style {
@@ -289,11 +290,16 @@ impl App {
             ));
         };
         client.go_to_bored(&bored_address).await?;
+        self.selected_notice = None;
         self.previous_view = self.current_view.clone();
         self.current_view = View::BoredView;
         // could this happen befored the bored is loaded and hence still be None?
         let bored = client.get_current_bored()?;
-        self.bored_view_port = Some(BoredViewPort::create(&bored, bored.get_dimensions()));
+        self.bored_view_port = Some(BoredViewPort::create(
+            &bored,
+            bored.get_dimensions(),
+            self.selected_notice,
+        ));
         Ok(())
     }
 
@@ -344,8 +350,13 @@ impl App {
         };
         client.create_bored(name, dimensions, private_key).await?;
         let bored = client.get_current_bored()?;
+        self.selected_notice = None;
         self.current_view = View::BoredView;
-        self.bored_view_port = Some(BoredViewPort::create(&bored, bored.get_dimensions()));
+        self.bored_view_port = Some(BoredViewPort::create(
+            &bored,
+            bored.get_dimensions(),
+            self.selected_notice,
+        ));
         self.directory.add(
             Listing {
                 name: client.get_bored_name()?.to_string(),
