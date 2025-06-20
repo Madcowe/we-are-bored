@@ -173,12 +173,12 @@ impl BoredViewPort {
         let x_limit = view_rect.x
             + min(
                 view_rect.width,
-                min(buffer_rect.width, self.bored_rect.width),
+                min(buffer_rect.width, self.bored_rect.width - view_rect.x),
             );
         let y_limit = view_rect.y
             + min(
                 view_rect.height,
-                min(buffer_rect.height, self.bored_rect.height),
+                min(buffer_rect.height, self.bored_rect.height - view_rect.y),
             );
         let display_bored = DisplayBored::create(&self.bored, theme.clone(), self.selected_notice);
         display_bored.render(self.bored_rect, &mut self.buffer);
