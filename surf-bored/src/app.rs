@@ -193,8 +193,8 @@ impl Theme {
     }
 
     pub fn inverted_text_style(&self) -> Style {
-        // Style::new().fg(self.text_bg).bg(self.text_fg)
-        Style::new()
+        Style::new().fg(self.text_bg).bg(self.text_fg)
+        // Style::new()
     }
 
     pub fn hyperlink_style(&self) -> Style {

@@ -79,7 +79,8 @@ impl Widget for DisplayBored {
                 } else {
                     self.theme.text_style()
                 };
-                let display_notice = display_notice.clone().set_style(style);
+
+                let display_notice = display_notice.clone().style(style);
                 Clear.render(*notice_rect, buffer);
                 display_notice.render(*notice_rect, buffer);
             }
