@@ -67,8 +67,6 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
     // let title_rect = Rect::new(0, 0, area.width, 4);
     let title = Paragraph::new(Text::raw(title_text)).block(title_block);
     frame.render_widget(title, ui_chunks[0]);
-    let bored_view_block = Block::default().bg(Color::Black);
-    frame.render_widget(bored_view_block, ui_chunks[1]);
 
     // modify based on current_view
     match &app.current_view {
