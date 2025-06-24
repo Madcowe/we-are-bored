@@ -1,7 +1,6 @@
 use autonomi::SecretKey;
 use notice::{Display, Notice, NoticeHyperlinkMap};
 use serde::{Deserialize, Serialize};
-use std::any::Any;
 use std::fmt::{self};
 use std::ops::{Add, IndexMut};
 
@@ -602,13 +601,32 @@ impl Bored {
     ) -> Option<usize> {
         let notice = &self.notices[current_notice];
         let visible = WhatsOnTheBored::create(&self);
-        let to_check = match direction {
-            Direction::Up => self.get_up_coordinates(&notice),
-            Direction::Right => self.get_right_coordinates(&notice),
-            Direction::Down => self.get_down_coordinates(&notice),
-            Direction::Left => self.get_left_coordinates(&notice),
+        let (to_check, to_check_next) = match direction {
+            Direction::Up => (
+                self.get_up_coordinates(&notice),
+                self.get_right_coordinates(&notice),
+            ),
+            Direction::Right => (
+                self.get_right_coordinates(&notice),
+                self.get_down_coordinates(&notice),
+            ),
+            Direction::Down => (
+                self.get_down_coordinates(&notice),
+                self.get_left_coordinates(&notice),
+            ),
+            Direction::Left => (
+                self.get_left_coordinates(&notice),
+                self.get_up_coordinates(&notice),
+            ),
         };
         for coordinate_set in to_check {
+            for coordinate in coordinate_set {
+                if let Some(notice_index) = visible.get_vaule_at_coordinate(coordinate) {
+                    return Some(notice_index);
+                }
+            }
+        }
+        for coordinate_set in to_check_next {
             for coordinate in coordinate_set {
                 if let Some(notice_index) = visible.get_vaule_at_coordinate(coordinate) {
                     return Some(notice_index);
