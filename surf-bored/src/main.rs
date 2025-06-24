@@ -285,7 +285,10 @@ fn try_select_notice(app: &mut App, direction: Direction) {
             notice.get_top_left(),
             notice.get_top_left().add(&notice.get_dimensions()),
         ) {
-            let new_view_position = notice.get_top_left();
+            //if at bottom right show as much of bored as possible
+            //otherwise in middle of screen
+            // otherwise at notices top left
+            let new_view_position = bored_view_port.get_view_for_notice(&notice);
             bored_view_port.move_view(new_view_position);
         }
     }

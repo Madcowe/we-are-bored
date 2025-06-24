@@ -233,7 +233,7 @@ fn get_draft_postion_on_viewport(
 }
 
 /// Returns 0 if subraction overflow
-fn safe_subtract_u16(a: u16, b: u16) -> u16 {
+pub fn safe_subtract_u16(a: u16, b: u16) -> u16 {
     if (a as i32 - b as i32) < 0 { 0 } else { a - b }
 }
 

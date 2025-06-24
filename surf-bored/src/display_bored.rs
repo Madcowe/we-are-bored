@@ -1,6 +1,7 @@
-use bored::notice::{Display, Notice, NoticeHyperlinkMap, get_display, get_hyperlinks};
+use bored::notice::{self, Display, Notice, NoticeHyperlinkMap, get_display, get_hyperlinks};
 use bored::{Bored, BoredAddress, BoredError, BoredHyperlinkMap, Coordinate, bored_client};
 use ratatui::buffer::{Buffer, Cell};
+use ratatui::crossterm::cursor::position;
 use ratatui::layout::Position;
 use ratatui::style::{Styled, Stylize};
 use ratatui::text::ToSpan;
@@ -13,6 +14,7 @@ use ratatui::{
 use std::cmp::{max, min};
 
 use crate::app::{App, CreateMode, DraftMode, GoToMode, HyperlinkMode, Theme, View};
+use crate::ui::safe_subtract_u16;
 
 /// Represent the layout of the bored an it's notices in rects
 struct BoredOfRects {
@@ -193,6 +195,28 @@ impl BoredViewPort {
                 }
             }
         }
+    }
+
+    pub fn get_view_for_notice(&self, notice: &Notice) -> Coordinate {
+        let notice_bottom_right = notice.get_top_left().add(&notice.get_dimensions());
+        let mut position = notice.get_top_left();
+        let (mut x, mut y) = (position.x, position.y);
+        x = if (safe_subtract_u16(self.view_dimensions.x, notice.get_dimensions().x) / 2)
+            < position.x
+        {
+            position.x - (safe_subtract_u16(self.view_dimensions.x, notice.get_dimensions().x) / 2)
+        } else {
+            0
+        };
+        y = if (safe_subtract_u16(self.view_dimensions.y, notice.get_dimensions().y) / 2)
+            < position.y
+        {
+            position.y - (safe_subtract_u16(self.view_dimensions.y, notice.get_dimensions().y) / 2)
+        } else {
+            0
+        };
+        position = Coordinate { x, y };
+        position
     }
 }
 
