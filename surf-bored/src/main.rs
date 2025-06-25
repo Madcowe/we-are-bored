@@ -94,6 +94,7 @@ async fn run_app<B: Backend>(
                 match &app.current_view {
                     View::ErrorView(_) => match key.code {
                         KeyCode::Enter => app.revert_view(),
+                        KeyCode::Esc => app.revert_view(),
                         KeyCode::Char('q') => break,
                         _ => {}
                     },
@@ -116,6 +117,13 @@ async fn run_app<B: Backend>(
                             app,
                             NoticeSelection::Direction(bored::Direction::Right),
                         ),
+                        KeyCode::Enter => {
+                            app.selected_notice.inspect(|_| {
+                                app.change_view(View::NoticeView {
+                                    hyperlinks_index: None,
+                                })
+                            });
+                        }
                         KeyCode::Char('c') => app.change_view(View::CreateView(CreateMode::Name)),
                         KeyCode::Char('n') => {
                             if let Some(bored) = app.get_current_bored() {
@@ -155,6 +163,13 @@ async fn run_app<B: Backend>(
                                 app.revert_view();
                             }
                         }
+                        _ => {}
+                    },
+                    View::NoticeView { .. } => match key.code {
+                        KeyCode::Esc => app.revert_view(),
+                        KeyCode::Char('q') => break,
+                        KeyCode::Tab => app.next_hyperlink(),
+                        KeyCode::BackTab => app.previous_hyperlink(),
                         _ => {}
                     },
                     View::CreateView(create_view) => match key.code {

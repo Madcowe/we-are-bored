@@ -1,17 +1,13 @@
 use bored::bored_client::{BoredClient, ConnectionType};
-use bored::notice::{self, Notice};
+use bored::notice::{self, Notice, NoticeHyperlinkMap};
 use bored::{Bored, BoredAddress, BoredError, Coordinate, Direction};
 use rand::seq::IndexedRandom;
 use ratatui::style::{Color, Style, Stylize};
-use ratatui::widgets::BorderType;
 use serde::{Deserialize, Serialize};
-use std::error::Error;
 use std::fs;
 use std::fs::File;
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use std::rc::Rc;
-use std::str::FromStr;
 
 use crate::display_bored::BoredViewPort;
 
@@ -43,7 +39,6 @@ pub enum View {
     DraftView(DraftMode),
     CreateView(CreateMode),
     GoToView(GoToMode),
-    Quitting,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -483,6 +478,72 @@ impl App {
             }
         }
         Ok(true)
+    }
+
+    pub fn next_hyperlink(&mut self) {
+        if let View::NoticeView { hyperlinks_index } = self.current_view {
+            if let (Some(notices), Some(notice_index)) = (
+                self.get_current_bored().map(|b| b.get_notices()),
+                self.selected_notice,
+            ) {
+                if let Some(Ok(hyperlinks)) = notices
+                    .get(notice_index)
+                    .map(|n| n.get_display().map(|d| d.get_hyperlink_locations()))
+                {
+                    self.status = format!("hyperlinks: {:?}", hyperlinks);
+                    self.current_view = if hyperlinks_index.is_none() && !hyperlinks.is_empty() {
+                        View::NoticeView {
+                            hyperlinks_index: Some(0),
+                        }
+                    } else if hyperlinks_index.is_some_and(|i| i + 1 < hyperlinks.len()) {
+                        View::NoticeView {
+                            hyperlinks_index: Some(hyperlinks_index.unwrap() + 1),
+                        }
+                    } else if hyperlinks_index.is_some_and(|i| i + 1 >= hyperlinks.len()) {
+                        View::NoticeView {
+                            hyperlinks_index: Some(0),
+                        }
+                    } else {
+                        View::NoticeView {
+                            hyperlinks_index: None,
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    pub fn previous_hyperlink(&mut self) {
+        if let View::NoticeView { hyperlinks_index } = self.current_view {
+            if let (Some(notices), Some(notice_index)) = (
+                self.get_current_bored().map(|b| b.get_notices()),
+                self.selected_notice,
+            ) {
+                if let Some(Ok(hyperlinks)) = notices
+                    .get(notice_index)
+                    .map(|n| n.get_display().map(|d| d.get_hyperlink_locations()))
+                {
+                    self.status = format!("hyperlinks: {:?}", hyperlinks);
+                    self.current_view = if hyperlinks_index.is_none() && !hyperlinks.is_empty() {
+                        View::NoticeView {
+                            hyperlinks_index: Some(hyperlinks.len() - 1),
+                        }
+                    } else if hyperlinks_index.is_some_and(|i| i > 0) {
+                        View::NoticeView {
+                            hyperlinks_index: Some(hyperlinks_index.unwrap() - 1),
+                        }
+                    } else if hyperlinks_index.is_some_and(|i| i == 0) {
+                        View::NoticeView {
+                            hyperlinks_index: Some(hyperlinks.len() - 1),
+                        }
+                    } else {
+                        View::NoticeView {
+                            hyperlinks_index: None,
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
