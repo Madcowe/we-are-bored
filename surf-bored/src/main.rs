@@ -1,4 +1,4 @@
-use app::SurfBoredError;
+use app::{NoticeSelection, SurfBoredError};
 use bored::{
     Bored, BoredAddress, BoredError, Coordinate, Direction, bored_client,
     notice::{self, MAX_URL_LENGTH},
@@ -99,10 +99,23 @@ async fn run_app<B: Backend>(
                     },
                     View::BoredView => match key.code {
                         KeyCode::Char('q') => break,
-                        KeyCode::Char('w') => try_select_notice(app, bored::Direction::Up),
-                        KeyCode::Char('a') => try_select_notice(app, bored::Direction::Left),
-                        KeyCode::Char('s') => try_select_notice(app, bored::Direction::Down),
-                        KeyCode::Char('d') => try_select_notice(app, bored::Direction::Right),
+                        KeyCode::Tab => try_select_notice(app, NoticeSelection::Next),
+                        KeyCode::BackTab => try_select_notice(app, NoticeSelection::Previous),
+                        KeyCode::Char('w') => {
+                            try_select_notice(app, NoticeSelection::Direction(bored::Direction::Up))
+                        }
+                        KeyCode::Char('a') => try_select_notice(
+                            app,
+                            NoticeSelection::Direction(bored::Direction::Left),
+                        ),
+                        KeyCode::Char('s') => try_select_notice(
+                            app,
+                            NoticeSelection::Direction(bored::Direction::Down),
+                        ),
+                        KeyCode::Char('d') => try_select_notice(
+                            app,
+                            NoticeSelection::Direction(bored::Direction::Right),
+                        ),
                         KeyCode::Char('c') => app.change_view(View::CreateView(CreateMode::Name)),
                         KeyCode::Char('n') => {
                             if let Some(bored) = app.get_current_bored() {
@@ -274,8 +287,13 @@ async fn run_app<B: Backend>(
     }
     Ok(())
 }
-fn try_select_notice(app: &mut App, direction: Direction) {
-    app.select_notice(direction);
+
+fn try_select_notice(app: &mut App, notice_selection: NoticeSelection) {
+    match notice_selection {
+        NoticeSelection::Direction(direction) => app.select_notice(direction),
+        NoticeSelection::Next => app.increment_selected_notice(),
+        NoticeSelection::Previous => app.decrement_selected_notice(),
+    }
     if let Some(notice) = app.get_selected_notice() {
         let bored_view_port = app
             .bored_view_port

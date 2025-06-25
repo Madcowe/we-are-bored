@@ -594,6 +594,7 @@ impl Bored {
     ///  | 8634
     ///  | 7512   
     ///  |   XX - border of notice   
+    // if smaller notice is entirely withihn large notice how would it ever be selected?
     pub fn get_cardinal_notice(
         &self,
         current_notice: usize,

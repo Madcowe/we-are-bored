@@ -1,6 +1,7 @@
 use bored::bored_client::{BoredClient, ConnectionType};
 use bored::notice::{self, Notice};
 use bored::{Bored, BoredAddress, BoredError, Coordinate, Direction};
+use rand::seq::IndexedRandom;
 use ratatui::style::{Color, Style, Stylize};
 use ratatui::widgets::BorderType;
 use serde::{Deserialize, Serialize};
@@ -76,6 +77,12 @@ pub enum HyperlinkMode {
 pub enum GoToMode {
     Directory,
     PasteAddress,
+}
+
+pub enum NoticeSelection {
+    Direction(Direction),
+    Next,
+    Previous,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
@@ -422,6 +429,34 @@ impl App {
                 .map(|b| b.get_notices()[notice_index].clone());
         }
         None
+    }
+
+    pub fn increment_selected_notice(&mut self) {
+        if let Some(bored) = self.get_current_bored() {
+            if self.selected_notice.is_none() && !bored.get_notices().len() > 0 {
+                self.selected_notice = Some(0);
+            } else {
+                if let Some(notices_index) = self.selected_notice {
+                    if notices_index >= bored.get_notices().len() - 1 {
+                        self.selected_notice = Some(0);
+                    } else {
+                        self.selected_notice = Some(notices_index + 1);
+                    }
+                }
+            }
+        }
+    }
+
+    pub fn decrement_selected_notice(&mut self) {
+        if let Some(notices_index) = self.selected_notice {
+            if let Some(bored) = self.get_current_bored() {
+                if notices_index == 0 {
+                    self.selected_notice = Some(bored.get_notices().len() - 1);
+                } else {
+                    self.selected_notice = Some(notices_index - 1);
+                }
+            }
+        }
     }
 
     pub fn create_hyperlink(&mut self) {
