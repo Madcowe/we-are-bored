@@ -1,7 +1,6 @@
 use bored::bored_client::{BoredClient, ConnectionType};
 use bored::notice::{self, Notice, NoticeHyperlinkMap};
 use bored::{Bored, BoredAddress, BoredError, Coordinate, Direction};
-use rand::seq::IndexedRandom;
 use ratatui::style::{Color, Style, Stylize};
 use serde::{Deserialize, Serialize};
 use std::fs;

@@ -27,7 +27,7 @@ mod app;
 mod display_bored;
 mod ui;
 use crate::app::{App, CreateMode, DraftMode, GoToMode, HyperlinkMode, View};
-use crate::ui::ui;
+use crate::ui::{safe_subtract_u16, ui};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -143,13 +143,15 @@ async fn run_app<B: Backend>(
                                     Some(bored_view_port) => bored_view_port.get_view(),
                                     None => Rect::new(0, 0, bored_dimensions.x, bored_dimensions.y),
                                 };
-                                let x = ((min(view_rect.width, bored_dimensions.x)
-                                    - draft_dimensions.x)
-                                    / 2)
+                                let x = (safe_subtract_u16(
+                                    min(view_rect.width, bored_dimensions.x),
+                                    draft_dimensions.x,
+                                ) / 2)
                                     + view_rect.x;
-                                let y = ((min(view_rect.height, bored_dimensions.y)
-                                    - draft_dimensions.y)
-                                    / 2)
+                                let y = (safe_subtract_u16(
+                                    min(view_rect.height, bored_dimensions.y),
+                                    draft_dimensions.y,
+                                ) / 2)
                                     + view_rect.y;
                                 match app.position_draft(Coordinate { x, y }) {
                                     Err(e) => {

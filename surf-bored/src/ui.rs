@@ -1,5 +1,5 @@
 use bored::bored_client::{BoredClient, ConnectionType};
-use bored::notice::{Display, Notice, NoticeHyperlinkMap, get_display, get_hyperlinks};
+use bored::notice::{self, Display, Notice, NoticeHyperlinkMap, get_display, get_hyperlinks};
 use bored::{Bored, BoredAddress, BoredError, Coordinate};
 use ratatui::buffer::Buffer;
 use ratatui::style::{Styled, Stylize};
@@ -200,7 +200,27 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
             }
         }
         View::BoredView => {}
-
+        View::NoticeView { hyperlinks_index } => {
+            if let Some(notice) = app.get_selected_notice() {
+                let pop_up_rect = area.inner(Margin::new(
+                    safe_subtract_u16(area.width, notice.get_dimensions().x) / 2,
+                    safe_subtract_u16(area.height, notice.get_dimensions().y) / 2,
+                ));
+                // Rect::new(0, 0, notice.get_dimensions().x, notice.get_dimensions().y);
+                Clear.render(pop_up_rect, frame.buffer_mut());
+                let display = get_display(
+                    notice.get_content(),
+                    get_hyperlinks(notice.get_content()).unwrap_or(vec![]),
+                );
+                let pop_up_block = Block::default()
+                    .borders(Borders::ALL)
+                    .border_type(BorderType::Thick)
+                    .style(app.theme.inverted_text_style());
+                let text = character_wrap(display.get_display_text(), notice.get_text_width());
+                let pop_up_paragraph = Paragraph::new(text).block(pop_up_block.clone());
+                frame.render_widget(pop_up_paragraph, pop_up_rect);
+            };
+        }
         _ => (),
     }
 

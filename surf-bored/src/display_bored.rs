@@ -198,7 +198,7 @@ impl BoredViewPort {
     }
 
     pub fn get_view_for_notice(&self, notice: &Notice) -> Coordinate {
-        let notice_bottom_right = notice.get_top_left().add(&notice.get_dimensions());
+        // let notice_bottom_right = notice.get_top_left().add(&notice.get_dimensions());
         let mut position = notice.get_top_left();
         let (mut x, mut y) = (position.x, position.y);
         x = if (safe_subtract_u16(self.view_dimensions.x, notice.get_dimensions().x) / 2)

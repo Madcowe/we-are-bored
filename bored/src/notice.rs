@@ -36,7 +36,7 @@ impl Hyperlink {
 
 /// a 2d vector of option<uszie> representing the location of hyperlinks
 /// if the coordinate is empty it will be none otherwise it will be the
-/// hindex of the hyperlink in Display.hyperlink_locations
+/// index of the hyperlink in Display.hyperlink_locations
 #[derive(Debug, Clone, Default)]
 pub struct NoticeHyperlinkMap {
     visible: Vec<Vec<Option<usize>>>,
