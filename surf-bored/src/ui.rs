@@ -216,9 +216,24 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
                     .borders(Borders::ALL)
                     .border_type(BorderType::Thick)
                     .style(app.theme.inverted_text_style());
-                let text = character_wrap(display.get_display_text(), notice.get_text_width());
-                let pop_up_paragraph = Paragraph::new(text).block(pop_up_block.clone());
-                frame.render_widget(pop_up_paragraph, pop_up_rect);
+                let pop_up_text =
+                    character_wrap(display.get_display_text(), notice.get_text_width());
+                let pop_up_paragraph =
+                    Paragraph::new(pop_up_text.clone()).block(pop_up_block.clone());
+                // frame.render_widget(pop_up_paragraph, pop_up_rect);
+                let mut pop_up_buffer = Buffer::empty(pop_up_rect);
+                pop_up_paragraph.render(pop_up_rect, &mut pop_up_buffer);
+                // render hyperlinks
+                style_notice_hyperlinks(
+                    &notice,
+                    &mut pop_up_buffer,
+                    Coordinate {
+                        x: pop_up_rect.x,
+                        y: pop_up_rect.y,
+                    },
+                    app.theme.hyperlink_style(),
+                );
+                frame.buffer_mut().merge(&pop_up_buffer);
             };
         }
         _ => (),
