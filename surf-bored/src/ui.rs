@@ -50,13 +50,20 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
             },
             app.selected_notice,
         );
-        if let Some(view_top_left) = app.bored_view_port.as_ref().map(|s| s.get_view_top_left()) {
-            bored_view_port.move_view(view_top_left);
+        if let View::NoticeView {
+            hyperlinks_index: _,
+        } = app.current_view
+        {
+        } else {
+            if let Some(view_top_left) = app.bored_view_port.as_ref().map(|s| s.get_view_top_left())
+            {
+                bored_view_port.move_view(view_top_left);
+            }
+            let mut bored_view_buffer = Buffer::empty(ui_chunks[1]);
+            bored_view_port.render_view(&mut bored_view_buffer, app.theme.clone());
+            // eprintln!("{:?}", bored_view_buffer);
+            frame.buffer_mut().merge(&bored_view_buffer);
         }
-        let mut bored_view_buffer = Buffer::empty(ui_chunks[1]);
-        bored_view_port.render_view(&mut bored_view_buffer, app.theme.clone());
-        // eprintln!("{:?}", bored_view_buffer);
-        frame.buffer_mut().merge(&bored_view_buffer);
         app.bored_view_port = Some(bored_view_port);
     }
     let title_block = Block::default()
@@ -214,7 +221,7 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
                 );
                 let pop_up_block = Block::default()
                     .borders(Borders::ALL)
-                    .border_type(BorderType::Thick)
+                    .border_type(BorderType::QuadrantOutside)
                     .style(app.theme.inverted_text_style());
                 let pop_up_text =
                     character_wrap(display.get_display_text(), notice.get_text_width());
