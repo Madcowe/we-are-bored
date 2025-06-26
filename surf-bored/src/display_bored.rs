@@ -47,11 +47,11 @@ impl BoredOfRects {
             .zip(self.notice_rects.clone());
         for (notice, notice_rect) in notices {
             let display = get_display(notice.get_content(), get_hyperlinks(notice.get_content())?);
-            let block = Block::default()
-                .borders(Borders::ALL)
-                .border_type(BorderType::Thick);
+            // let block = Block::default()
+            //     .borders(Borders::ALL)
+            //     .border_type(BorderType::Thick);
             let text = character_wrap(display.get_display_text(), notice.get_text_width());
-            let paragraph = Paragraph::new(text).block(block.clone());
+            let paragraph = Paragraph::new(text); //.block(block.clone());
             display_notices.push((paragraph, notice_rect));
         }
         Ok(display_notices)
@@ -76,13 +76,19 @@ impl Widget for DisplayBored {
         if let Ok(display_notices) = bored_of_rects.get_display_notices(&self.bored) {
             for (notice_index, (display_notice, notice_rect)) in display_notices.iter().enumerate()
             {
-                let style = if Some(notice_index) == self.selected_notice {
-                    self.theme.inverted_text_style()
+                let (style, border_type) = if Some(notice_index) == self.selected_notice {
+                    (
+                        self.theme.inverted_text_style(),
+                        BorderType::QuadrantOutside,
+                    )
                 } else {
-                    self.theme.text_style()
+                    (self.theme.text_style(), BorderType::Thick)
                 };
 
-                let display_notice = display_notice.clone().style(style);
+                let block = Block::default()
+                    .borders(Borders::ALL)
+                    .border_type(border_type);
+                let display_notice = display_notice.clone().style(style).block(block);
                 Clear.render(*notice_rect, buffer);
                 display_notice.render(*notice_rect, buffer);
             }
