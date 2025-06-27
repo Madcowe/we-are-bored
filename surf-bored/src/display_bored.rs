@@ -47,11 +47,8 @@ impl BoredOfRects {
             .zip(self.notice_rects.clone());
         for (notice, notice_rect) in notices {
             let display = get_display(notice.get_content(), get_hyperlinks(notice.get_content())?);
-            // let block = Block::default()
-            //     .borders(Borders::ALL)
-            //     .border_type(BorderType::Thick);
             let text = character_wrap(display.get_display_text(), notice.get_text_width());
-            let paragraph = Paragraph::new(text); //.block(block.clone());
+            let paragraph = Paragraph::new(text);
             display_notices.push((paragraph, notice_rect));
         }
         Ok(display_notices)

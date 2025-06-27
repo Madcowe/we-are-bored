@@ -6,6 +6,7 @@ use ratatui::style::{Styled, Stylize};
 use ratatui::widgets::{BorderType, Widget};
 use ratatui::{
     Frame,
+    buffer::Cell,
     layout::{Alignment, Constraint, Direction, Layout, Margin, Rect},
     style::{Color, Style},
     text::{Line, Span, Text},
@@ -213,7 +214,6 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
                     safe_subtract_u16(area.width, notice.get_dimensions().x) / 2,
                     safe_subtract_u16(area.height, notice.get_dimensions().y) / 2,
                 ));
-                // Rect::new(0, 0, notice.get_dimensions().x, notice.get_dimensions().y);
                 Clear.render(pop_up_rect, frame.buffer_mut());
                 let display = get_display(
                     notice.get_content(),
@@ -227,7 +227,6 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
                     character_wrap(display.get_display_text(), notice.get_text_width());
                 let pop_up_paragraph =
                     Paragraph::new(pop_up_text.clone()).block(pop_up_block.clone());
-                // frame.render_widget(pop_up_paragraph, pop_up_rect);
                 let mut pop_up_buffer = Buffer::empty(pop_up_rect);
                 pop_up_paragraph.render(pop_up_rect, &mut pop_up_buffer);
                 // render hyperlinks
@@ -240,6 +239,21 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
                     },
                     app.theme.hyperlink_style(),
                 );
+                // Highlight selected hyperlink
+                if let Some(hyperlinks_index) = hyperlinks_index {
+                    if let Some(hyperlink_location) =
+                        display.get_hyperlink_locations().get(*hyperlinks_index)
+                    {
+                        let (begin, end) = hyperlink_location;
+                        for i in *begin as u16..*end as u16 {
+                            let x = i % notice.get_text_width() + pop_up_rect.x + 1;
+                            let y = i / notice.get_text_width() + pop_up_rect.y + 1;
+                            if let Some(cell) = pop_up_buffer.cell_mut((x, y)) {
+                                cell.set_style(app.theme.text_style());
+                            }
+                        }
+                    }
+                }
                 frame.buffer_mut().merge(&pop_up_buffer);
             };
         }

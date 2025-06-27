@@ -422,7 +422,7 @@ impl App {
         }
     }
 
-    pub fn get_selected_notice(&mut self) -> Option<Notice> {
+    pub fn get_selected_notice(&self) -> Option<Notice> {
         if let Some(notice_index) = self.selected_notice {
             return self
                 .get_current_bored()
@@ -495,7 +495,7 @@ impl App {
                     .get(notice_index)
                     .map(|n| n.get_display().map(|d| d.get_hyperlink_locations()))
                 {
-                    self.status = format!("hyperlinks: {:?}", hyperlinks);
+                    // self.status = format!("hyperlinks: {:?}", hyperlinks);
                     self.current_view = if hyperlinks_index.is_none() && !hyperlinks.is_empty() {
                         View::NoticeView {
                             hyperlinks_index: Some(0),
