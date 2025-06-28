@@ -83,8 +83,8 @@ pub enum BoredError {
     QuoteError(String),
     #[error("No bored has been set yet")]
     NoBored,
-    #[error("Cannot parse as bored URL")]
-    NotBoredURL,
+    #[error("Non Bored URL:\n{0}")]
+    NotBoredURL(String),
 }
 
 impl From<serde_json::Error> for BoredError {
@@ -147,7 +147,7 @@ impl BoredAddress {
         }
         let key = match SecretKey::from_hex(&s) {
             Ok(key) => key,
-            Err(_) => return Err(BoredError::NotBoredURL),
+            Err(_) => return Err(BoredError::NotBoredURL(s)),
         };
         Ok(BoredAddress::ScratchpadKey(key))
     }
@@ -650,13 +650,14 @@ impl Bored {
                     notices_index = index;
                 }
             }
-            next_notice_index = Some(notices_index);
-            while next_notice_index.is_some() {
-                next_notice_index = self.get_cardinal_notice(notices_index, Direction::Up);
-                if let Some(index) = next_notice_index {
-                    notices_index = index;
-                }
-            }
+            // not required now get_cardinal_notice tries the next anticlockwise direction as well
+            // next_notice_index = Some(notices_index);
+            // while next_notice_index.is_some() {
+            //     next_notice_index = self.get_cardinal_notice(notices_index, Direction::Up);
+            //     if let Some(index) = next_notice_index {
+            //         notices_index = index;
+            //     }
+            // }
             Some(notices_index)
         }
     }
@@ -664,8 +665,6 @@ impl Bored {
 
 #[cfg(test)]
 mod tests {
-
-    use std::{error::Error, fmt::Debug};
 
     use super::*;
 
@@ -781,7 +780,7 @@ mod tests {
     #[test]
     fn test_bored_address_from_string() {
         let bored_address = BoredAddress::from_string("".to_string());
-        assert_eq!(bored_address, Err(BoredError::NotBoredURL));
+        assert_eq!(bored_address, Err(BoredError::NotBoredURL("".to_string())));
         let string =
             "bored://2f67b46da5e6d62c07fb97889c7e7155ca7e1fd3efb711a5468eeda8e1501330".to_string();
         let bored_address = BoredAddress::from_string(string);
@@ -863,10 +862,12 @@ mod tests {
         assert_eq!(bored.get_upper_left_most_notice(), None);
         let notice = Notice::create(Coordinate { x: 10, y: 5 });
         bored.add(notice, Coordinate { x: 0, y: 15 }).unwrap();
+        assert_eq!(bored.get_upper_left_most_notice(), Some(0));
         let notice = Notice::create(Coordinate { x: 10, y: 5 });
         bored.add(notice, Coordinate { x: 0, y: 0 }).unwrap();
+        assert_eq!(bored.get_upper_left_most_notice(), Some(1));
         let notice = Notice::create(Coordinate { x: 10, y: 5 });
         bored.add(notice, Coordinate { x: 50, y: 0 }).unwrap();
-        assert_eq!(bored.get_upper_left_most_notice(), Some(1))
+        assert_eq!(bored.get_upper_left_most_notice(), Some(1));
     }
 }

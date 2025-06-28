@@ -71,7 +71,8 @@ async fn run_app<B: Backend>(
         app.display_error(e);
     }
     if let Some(home_address) = app.directory.get_home() {
-        let home_address = match BoredAddress::from_string(home_address.to_string()) {
+        // let home_address =
+        match BoredAddress::from_string(home_address.to_string()) {
             Ok(home_address) => match app.goto_bored(home_address).await {
                 Err(e) => app.display_error(e),
                 _ => (),
@@ -168,10 +169,25 @@ async fn run_app<B: Backend>(
                         _ => {}
                     },
                     View::NoticeView { .. } => match key.code {
-                        KeyCode::Esc => app.revert_view(),
+                        KeyCode::Esc => app.current_view = View::BoredView, //app.revert_view(),
                         KeyCode::Char('q') => break,
                         KeyCode::Tab => app.next_hyperlink(),
                         KeyCode::BackTab => app.previous_hyperlink(),
+                        KeyCode::Enter => {
+                            // if let Some(hyperlinks_index) = hyperlinks_index {
+                            if let Some(hyperlink) = app.get_selected_hyperlink() {
+                                match BoredAddress::from_string(hyperlink.get_link()) {
+                                    Ok(bored_address) => {
+                                        match app.goto_bored(bored_address).await {
+                                            Err(e) => app.display_error(e),
+                                            _ => (),
+                                        }
+                                    }
+                                    Err(e) => app.display_error(SurfBoredError::BoredError(e)),
+                                }
+                            }
+                            // }
+                        }
                         _ => {}
                     },
                     View::CreateView(create_view) => match key.code {

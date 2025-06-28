@@ -32,6 +32,10 @@ impl Hyperlink {
             link_location,
         })
     }
+
+    pub fn get_link(&self) -> String {
+        self.link.clone()
+    }
 }
 
 /// a 2d vector of option<uszie> representing the location of hyperlinks

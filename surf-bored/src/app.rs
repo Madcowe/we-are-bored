@@ -1,5 +1,5 @@
 use bored::bored_client::{BoredClient, ConnectionType};
-use bored::notice::{self, Notice, NoticeHyperlinkMap};
+use bored::notice::{self, Hyperlink, Notice, NoticeHyperlinkMap, get_hyperlinks};
 use bored::{Bored, BoredAddress, BoredError, Coordinate, Direction};
 use ratatui::style::{Color, Style, Stylize};
 use serde::{Deserialize, Serialize};
@@ -549,6 +549,21 @@ impl App {
                 }
             }
         }
+    }
+
+    pub fn get_selected_hyperlink(&self) -> Option<Hyperlink> {
+        if let (Some(notice), View::NoticeView { hyperlinks_index }) =
+            (self.get_selected_notice(), &self.current_view)
+        {
+            if let Some(hyperlinks_index) = hyperlinks_index {
+                if let Ok(hyperlinks) = get_hyperlinks(notice.get_content()) {
+                    if let Some(hyperlink) = hyperlinks.get(*hyperlinks_index) {
+                        return Some(hyperlink.clone());
+                    }
+                }
+            }
+        }
+        None
     }
 }
 
