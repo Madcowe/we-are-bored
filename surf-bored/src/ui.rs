@@ -240,26 +240,24 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
                     app.theme.hyperlink_style(),
                 );
                 // Highlight selected hyperlink
-                if let Some(hyperlinks_index) = hyperlinks_index {
-                    if let Some(hyperlink_location) =
-                        display.get_hyperlink_locations().get(*hyperlinks_index)
-                    {
-                        let (begin, end) = hyperlink_location;
-                        for i in *begin as u16..*end as u16 {
-                            let x = i % notice.get_text_width() + pop_up_rect.x + 1;
-                            let y = i / notice.get_text_width() + pop_up_rect.y + 1;
-                            if let Some(cell) = pop_up_buffer.cell_mut((x, y)) {
-                                cell.set_style(app.theme.text_style());
+                if let Ok(notice_hyperlink_map) = NoticeHyperlinkMap::create(&notice) {
+                    for (mut y, row) in notice_hyperlink_map.get_map().iter().enumerate() {
+                        y = y + pop_up_rect.y as usize + 1; // + 1 as the buffer will have a border
+                        for (mut x, index) in row.iter().enumerate() {
+                            x = x + pop_up_rect.x as usize + 1; // as the buffer will have a border
+                            if index == hyperlinks_index && index.is_some() {
+                                if let Some(cell) = pop_up_buffer.cell_mut((x as u16, y as u16)) {
+                                    cell.set_style(app.theme.text_style());
+                                }
                             }
                         }
                     }
                 }
                 frame.buffer_mut().merge(&pop_up_buffer);
-            };
+            }
         }
         _ => (),
     }
-
     // setup status area
     let status_block = Block::default()
         .borders(Borders::ALL)
