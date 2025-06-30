@@ -20,6 +20,7 @@ use ratatui::{
 };
 use std::{
     cmp::{max, min},
+    env::Args,
     error::Error,
     io,
     time::Duration,
@@ -127,14 +128,21 @@ async fn run_app<B: Backend>(
                             NoticeSelection::Direction(bored::Direction::Right),
                         ),
                         KeyCode::Char('1') => {
-                            let f = || {
-                                sleep(Duration::from_secs(2));
+                            let f = |_| async {
+                                sleep(Duration::from_secs(2)).await;
                             };
-                            wait_for_future(termimal, app, f, "wait_for_futture test".to_string());
+                            wait_for_future(
+                                termimal,
+                                app,
+                                f,
+                                "wait_for_future test".to_string(),
+                                0,
+                            );
                             // app.change_view(View::Waiting("Waiting test".to_string()));
                             // termimal.draw(|f| ui(f, app))?;
+                            // f().await;
+                            // f();
                             // sleep(Duration::from_secs(2)).await;
-                            // // std::thread::sleep(Duration::from_secs(2));
                             // app.revert_view();
                         }
                         KeyCode::Enter => {
@@ -340,19 +348,20 @@ async fn run_app<B: Backend>(
     Ok(())
 }
 
-async fn wait_for_future<B, F>(
+async fn wait_for_future<B, F, A>(
     termimal: &mut Terminal<B>,
     app: &mut App,
     f: F,
     message: String,
+    a: A,
 ) -> Result<(), Box<dyn Error>>
 where
     B: Backend,
-    F: Fn(),
+    F: AsyncFn(A),
 {
     app.change_view(View::Waiting(message));
     termimal.draw(|f| ui(f, app))?;
-    f().await;
+    f(a).await;
     app.revert_view();
     Ok(())
 }
