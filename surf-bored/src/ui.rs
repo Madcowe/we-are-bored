@@ -23,8 +23,8 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
     let area = frame.area();
     let mut title_text = String::new();
     let mut status_text = format!(
-        "Current: {:?} previous: {:?} notice: {:?} {}",
-        app.current_view, app.previous_view, app.selected_notice, app.status
+        "Current: {:?} previous: {:?} interupted: {:?} notice: {:?} {}",
+        app.current_view, app.previous_view, app.interupted_view, app.selected_notice, app.status
     ); //"Connected, no bored loaded";
     // let mut status_text = "Connected, no bored loaded";
     let ui_chunks = Layout::default()
@@ -103,6 +103,20 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
                 Paragraph::new(Text::styled(navigation_text, Style::default()).not_rapid_blink())
                     .alignment(Alignment::Center);
             frame.render_widget(navigation_text, pop_up_chunks[1]);
+        }
+        View::Waiting(message) => {
+            let pop_up_rect = area.inner(Margin::new(area.width / 4, area.height / 4));
+            Clear.render(pop_up_rect, frame.buffer_mut());
+            let pop_up_block = Block::default()
+                .title("Working...")
+                .borders(Borders::ALL)
+                .border_type(BorderType::Thick)
+                .style(app.theme.text_style());
+            // frame.render_widget(pop_up_block, pop_up_rect);
+            let pop_up_text = Paragraph::new(Text::styled(format!("{message}"), Style::default()))
+                .block(pop_up_block);
+            // .wrap(Wrap { trim: false });
+            frame.render_widget(pop_up_text, pop_up_rect);
         }
         View::CreateView(create_mode) => {
             let pop_up_rect = area.inner(Margin::new(area.width / 8, area.height / 5));

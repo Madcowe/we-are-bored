@@ -3,13 +3,11 @@ use bored::{
     Bored, BoredAddress, BoredError, Coordinate, Direction, bored_client,
     notice::{self, MAX_URL_LENGTH},
 };
-use core::panic;
 use rand::Rng;
 use ratatui::{
-    Terminal, Viewport,
+    Terminal,
     backend::{Backend, CrosstermBackend},
     crossterm::{
-        cursor::position,
         event::{
             self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEventKind,
             KeyModifiers, KeyboardEnhancementFlags, PopKeyboardEnhancementFlags,
@@ -19,9 +17,14 @@ use ratatui::{
         terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
     },
     layout::{Margin, Rect, Size},
-    style::Modifier,
 };
-use std::{char::MAX, cmp::max, cmp::min, error::Error, io};
+use std::{
+    cmp::{max, min},
+    error::Error,
+    io,
+    time::Duration,
+};
+use tokio::time::sleep;
 
 mod app;
 mod display_bored;
@@ -66,18 +69,23 @@ async fn run_app<B: Backend>(
     termimal: &mut Terminal<B>,
     app: &mut App,
 ) -> Result<(), Box<dyn Error>> {
-    //io::Result<()> {
-    if let Err(e) = app.load_directory() {
-        app.display_error(e);
-    }
-    if let Some(home_address) = app.directory.get_home() {
-        // let home_address =
-        match BoredAddress::from_string(home_address.to_string()) {
-            Ok(home_address) => match app.goto_bored(home_address).await {
-                Err(e) => app.display_error(e),
-                _ => (),
-            },
-            Err(e) => app.display_error(app::SurfBoredError::BoredError(e)),
+    loop {
+        termimal.draw(|f| ui(f, app))?;
+        if let Err(e) = app.load_directory() {
+            app.display_error(e);
+        }
+        // app.change_view(View::Waiting("Downloading bored from antnet".to_string()));
+        if let Some(home_address) = app.directory.get_home() {
+            match BoredAddress::from_string(home_address.to_string()) {
+                Ok(home_address) => match app.goto_bored(home_address).await {
+                    Err(e) => app.display_error(e),
+                    _ => (),
+                },
+                Err(e) => app.display_error(app::SurfBoredError::BoredError(e)),
+            };
+        }
+        let View::Waiting(_) = app.current_view else {
+            break;
         };
     }
 
@@ -118,6 +126,17 @@ async fn run_app<B: Backend>(
                             app,
                             NoticeSelection::Direction(bored::Direction::Right),
                         ),
+                        KeyCode::Char('1') => {
+                            let f = || {
+                                sleep(Duration::from_secs(2));
+                            };
+                            wait_for_future(termimal, app, f, "wait_for_futture test".to_string());
+                            // app.change_view(View::Waiting("Waiting test".to_string()));
+                            // termimal.draw(|f| ui(f, app))?;
+                            // sleep(Duration::from_secs(2)).await;
+                            // // std::thread::sleep(Duration::from_secs(2));
+                            // app.revert_view();
+                        }
                         KeyCode::Enter => {
                             app.selected_notice.inspect(|_| {
                                 app.change_view(View::NoticeView {
@@ -133,10 +152,9 @@ async fn run_app<B: Backend>(
                                 let draft_dimensions =
                                     generate_notice_size(terminal_size, bored_dimensions);
                                 match app.create_draft(draft_dimensions) {
-                                    Err(e) => {
-                                        app.current_view =
-                                            View::ErrorView(app::SurfBoredError::BoredError(e))
-                                    }
+                                    Err(e) => app.change_view(View::ErrorView(
+                                        app::SurfBoredError::BoredError(e),
+                                    )),
                                     _ => (),
                                 }
                                 // postion draft centered in current view in UI
@@ -155,10 +173,9 @@ async fn run_app<B: Backend>(
                                 ) / 2)
                                     + view_rect.y;
                                 match app.position_draft(Coordinate { x, y }) {
-                                    Err(e) => {
-                                        app.current_view =
-                                            View::ErrorView(app::SurfBoredError::BoredError(e))
-                                    }
+                                    Err(e) => app.change_view(View::ErrorView(
+                                        app::SurfBoredError::BoredError(e),
+                                    )),
                                     _ => (),
                                 }
                             } else {
@@ -169,11 +186,12 @@ async fn run_app<B: Backend>(
                         _ => {}
                     },
                     View::NoticeView { .. } => match key.code {
-                        KeyCode::Esc => app.current_view = View::BoredView, //app.revert_view(),
+                        KeyCode::Esc => app.revert_view(), //app.current_view = View::BoredView,
                         KeyCode::Char('q') => break,
                         KeyCode::Tab => app.next_hyperlink(),
                         KeyCode::BackTab => app.previous_hyperlink(),
                         KeyCode::Enter => {
+                            app.change_view(View::Waiting("Updating bored on antnet".to_string()));
                             // if let Some(hyperlinks_index) = hyperlinks_index {
                             if let Some(hyperlink) = app.get_selected_hyperlink() {
                                 match BoredAddress::from_string(hyperlink.get_link()) {
@@ -186,6 +204,7 @@ async fn run_app<B: Backend>(
                                     Err(e) => app.display_error(SurfBoredError::BoredError(e)),
                                 }
                             }
+                            app.revert_view();
                             // }
                         }
                         _ => {}
@@ -208,7 +227,7 @@ async fn run_app<B: Backend>(
                         },
                         KeyCode::Enter => match create_view {
                             CreateMode::Name => {
-                                app.current_view = View::CreateView(CreateMode::PrivateKey)
+                                app.change_view(View::CreateView(CreateMode::PrivateKey));
                             }
                             CreateMode::PrivateKey => {
                                 let new_bored = app
@@ -299,9 +318,9 @@ async fn run_app<B: Backend>(
                                     ),
                                     KeyCode::Enter => {
                                         if let Err(bored_error) = app.add_draft_to_bored().await {
-                                            app.current_view = View::ErrorView(
+                                            app.change_view(View::ErrorView(
                                                 app::SurfBoredError::BoredError(bored_error),
-                                            );
+                                            ));
                                         } else {
                                             app.content_input = String::new();
                                             app.change_view(View::BoredView);
@@ -318,6 +337,23 @@ async fn run_app<B: Backend>(
             }
         }
     }
+    Ok(())
+}
+
+async fn wait_for_future<B, F>(
+    termimal: &mut Terminal<B>,
+    app: &mut App,
+    f: F,
+    message: String,
+) -> Result<(), Box<dyn Error>>
+where
+    B: Backend,
+    F: Fn(),
+{
+    app.change_view(View::Waiting(message));
+    termimal.draw(|f| ui(f, app))?;
+    f().await;
+    app.revert_view();
     Ok(())
 }
 

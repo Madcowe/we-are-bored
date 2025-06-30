@@ -1,6 +1,7 @@
 use bored::bored_client::{BoredClient, ConnectionType};
 use bored::notice::{self, Hyperlink, Notice, NoticeHyperlinkMap, get_hyperlinks};
 use bored::{Bored, BoredAddress, BoredError, Coordinate, Direction};
+use ratatui::Viewport;
 use ratatui::style::{Color, Style, Stylize};
 use serde::{Deserialize, Serialize};
 use std::fs;
@@ -33,6 +34,7 @@ impl From<BoredError> for SurfBoredError {
 #[derive(Clone, Debug, PartialEq)]
 pub enum View {
     ErrorView(SurfBoredError),
+    Waiting(String),
     BoredView,
     NoticeView { hyperlinks_index: Option<usize> },
     DraftView(DraftMode),
@@ -216,6 +218,7 @@ pub struct App {
     pub history: History,
     pub current_view: View,
     pub previous_view: View,
+    pub interupted_view: View,
     pub selected_notice: Option<usize>,
     pub theme: Theme,
     pub bored_view_port: Option<BoredViewPort>,
@@ -235,6 +238,7 @@ impl App {
             history: History::new(),
             current_view: View::BoredView,
             previous_view: View::BoredView,
+            interupted_view: View::BoredView,
             selected_notice: None,
             theme: Theme::surf_bored_synth_wave(),
             bored_view_port: None,
@@ -258,24 +262,45 @@ impl App {
     }
 
     pub fn display_error(&mut self, surf_bored_error: SurfBoredError) {
-        self.previous_view = self.current_view.clone();
-        self.current_view = View::ErrorView(surf_bored_error);
+        // self.previous_view = self.current_view.clone();
+        // self.current_view = View::ErrorView(surf_bored_error);
+        self.change_view(View::ErrorView(surf_bored_error));
     }
 
     /// set previous view so can allways go back
     pub fn change_view(&mut self, view: View) {
-        self.previous_view = self.current_view.clone();
-        self.current_view = view;
+        match view {
+            View::ErrorView(_) => self.interupted_view(self.current_view.clone()),
+            View::Waiting(_) => self.interupted_view(self.current_view.clone()),
+            _ => {
+                self.previous_view = self.current_view.clone();
+            }
+        }
+        self.current_view = view.clone();
+    }
+
+    /// only sets interupted view if it is not an error/waiting
+    fn interupted_view(&mut self, view: View) {
+        match view {
+            View::ErrorView(_) => (),
+            View::Waiting(_) => (),
+            _ => self.interupted_view = self.current_view.clone(),
+        }
     }
 
     /// go back to previous view
     pub fn revert_view(&mut self) {
-        self.current_view = self.previous_view.clone();
+        match self.current_view {
+            View::ErrorView(_) => self.current_view = self.interupted_view.clone(),
+            View::Waiting(_) => self.current_view = self.interupted_view.clone(),
+            _ => self.current_view = self.previous_view.clone(),
+        }
     }
 
     pub fn goto(&mut self) {
-        self.previous_view = self.current_view.clone();
-        self.current_view = View::GoToView(GoToMode::PasteAddress)
+        // self.previous_view = self.current_view.clone();
+        // self.current_view = View::GoToView(GoToMode::PasteAddress)
+        self.change_view(View::GoToView(GoToMode::PasteAddress));
     }
 
     pub fn goto_view_toggle(&mut self) {
@@ -291,6 +316,7 @@ impl App {
     }
 
     pub async fn goto_bored(&mut self, bored_address: BoredAddress) -> Result<(), SurfBoredError> {
+        self.change_view(View::Waiting("Downloading bored from antnet".to_string()));
         let Some(ref mut client) = self.client else {
             return Err(SurfBoredError::BoredError(
                 BoredError::ClientConnectionError,
@@ -298,10 +324,10 @@ impl App {
         };
         client.go_to_bored(&bored_address).await?;
         self.selected_notice = None;
-        self.previous_view = self.current_view.clone();
-        self.current_view = View::BoredView;
         // could this happen befored the bored is loaded and hence still be None?
         let bored = client.get_current_bored()?;
+        self.revert_view();
+        // self.change_view(View::BoredView);
         self.bored_view_port = Some(BoredViewPort::create(
             &bored,
             bored.get_dimensions(),
@@ -311,15 +337,19 @@ impl App {
     }
 
     pub fn view_notice(&mut self) {
-        self.previous_view = self.current_view.clone();
-        self.current_view = View::NoticeView {
+        // self.previous_view = self.current_view.clone();
+        // self.current_view = View::NoticeView {
+        //     hyperlinks_index: None,
+        // };
+        self.change_view(View::NoticeView {
             hyperlinks_index: None,
-        };
+        });
     }
 
     pub fn create_bored(&mut self) {
-        self.previous_view = self.current_view.clone();
-        self.current_view = View::CreateView(CreateMode::Name);
+        // self.previous_view = self.current_view.clone();
+        // self.current_view = View::CreateView(CreateMode::Name);
+        self.change_view(View::CreateView(CreateMode::Name));
     }
 
     /// returns the current bored of the cliet if both exist otherwise None
@@ -355,7 +385,12 @@ impl App {
                 BoredError::ClientConnectionError,
             ));
         };
+        // self.interupted_view = self.current_view.clone();
+        // self.current_view = View::Waiting("Creating bored on antnet".to_string());
         client.create_bored(name, dimensions, private_key).await?;
+        // if let View::Waiting(_) = self.current_view {
+        //     self.current_view = self.interupted_view.clone();
+        // }
         let bored = client.get_current_bored()?;
         self.selected_notice = None;
         self.current_view = View::BoredView;
@@ -399,10 +434,12 @@ impl App {
     }
 
     pub async fn add_draft_to_bored(&mut self) -> Result<(), BoredError> {
+        // self.change_view(View::Waiting("Updating bored on antnet".to_string()));
         let Some(ref mut client) = self.client else {
             return Err(BoredError::ClientConnectionError);
         };
         client.add_draft_to_bored().await?;
+        // self.revert_view();
         Ok(())
     }
 
@@ -460,7 +497,7 @@ impl App {
     }
 
     pub fn create_hyperlink(&mut self) {
-        self.current_view = View::DraftView(DraftMode::Hyperlink(HyperlinkMode::Text));
+        self.change_view(View::DraftView(DraftMode::Hyperlink(HyperlinkMode::Text)));
     }
 
     pub fn position_draft(&mut self, new_top_left: Coordinate) -> Result<bool, BoredError> {
