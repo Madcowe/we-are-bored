@@ -70,23 +70,20 @@ async fn run_app<B: Backend>(
     terminal: &mut Terminal<B>,
     app: &mut App,
 ) -> Result<(), Box<dyn Error>> {
-    loop {
-        terminal.draw(|f| ui(f, app))?;
-        if let Err(e) = app.load_directory() {
-            app.display_error(e);
-        }
-        // app.change_view(View::Waiting("Downloading bored from antnet".to_string()));
-        if let Some(home_address) = app.directory.get_home() {
-            match BoredAddress::from_string(home_address.to_string()) {
-                Ok(home_address) => match app.goto_bored(home_address).await {
-                    Err(e) => app.display_error(e),
-                    _ => (),
-                },
-                Err(e) => app.display_error(app::SurfBoredError::BoredError(e)),
-            };
-        }
-        let View::Waiting(_) = app.current_view else {
-            break;
+    // loop {
+    terminal.draw(|f| ui(f, app))?;
+    if let Err(e) = app.load_directory() {
+        app.display_error(e);
+    }
+    app.change_view(View::Waiting("Loading bored from antnet".to_string()));
+    terminal.draw(|f| ui(f, app))?;
+    if let Some(home_address) = app.directory.get_home() {
+        match BoredAddress::from_string(home_address.to_string()) {
+            Ok(home_address) => match app.goto_bored(home_address).await {
+                Err(e) => app.display_error(e),
+                _ => (),
+            },
+            Err(e) => app.display_error(app::SurfBoredError::BoredError(e)),
         };
     }
 
@@ -231,7 +228,7 @@ async fn run_app<B: Backend>(
                         },
                         KeyCode::Enter => match create_view {
                             CreateMode::Name => {
-                                app.change_view(View::CreateView(CreateMode::PrivateKey));
+                                app.current_view = View::CreateView(CreateMode::PrivateKey)
                             }
                             CreateMode::PrivateKey => {
                                 app.change_view(View::Waiting(
