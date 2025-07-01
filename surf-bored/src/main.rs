@@ -67,11 +67,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
 }
 
 async fn run_app<B: Backend>(
-    termimal: &mut Terminal<B>,
+    terminal: &mut Terminal<B>,
     app: &mut App,
 ) -> Result<(), Box<dyn Error>> {
     loop {
-        termimal.draw(|f| ui(f, app))?;
+        terminal.draw(|f| ui(f, app))?;
         if let Err(e) = app.load_directory() {
             app.display_error(e);
         }
@@ -91,7 +91,7 @@ async fn run_app<B: Backend>(
     }
 
     loop {
-        termimal.draw(|f| ui(f, app))?;
+        terminal.draw(|f| ui(f, app))?;
         if let Event::Key(key) = event::read()? {
             // app.status = format!("{:?}", key);
             if key.kind == event::KeyEventKind::Release {
@@ -132,18 +132,13 @@ async fn run_app<B: Backend>(
                                 sleep(Duration::from_secs(2)).await;
                             };
                             wait_for_future(
-                                termimal,
+                                terminal,
                                 app,
                                 f,
                                 "wait_for_future test".to_string(),
-                                0,
-                            );
-                            // app.change_view(View::Waiting("Waiting test".to_string()));
-                            // termimal.draw(|f| ui(f, app))?;
-                            // f().await;
-                            // f();
-                            // sleep(Duration::from_secs(2)).await;
-                            // app.revert_view();
+                                (),
+                            )
+                            .await?;
                         }
                         KeyCode::Enter => {
                             app.selected_notice.inspect(|_| {
@@ -155,7 +150,7 @@ async fn run_app<B: Backend>(
                         KeyCode::Char('c') => app.change_view(View::CreateView(CreateMode::Name)),
                         KeyCode::Char('n') => {
                             if let Some(bored) = app.get_current_bored() {
-                                let terminal_size = termimal.size()?;
+                                let terminal_size = terminal.size()?;
                                 let bored_dimensions = bored.get_dimensions();
                                 let draft_dimensions =
                                     generate_notice_size(terminal_size, bored_dimensions);
@@ -200,6 +195,7 @@ async fn run_app<B: Backend>(
                         KeyCode::BackTab => app.previous_hyperlink(),
                         KeyCode::Enter => {
                             app.change_view(View::Waiting("Updating bored on antnet".to_string()));
+                            terminal.draw(|f| ui(f, app))?;
                             // if let Some(hyperlinks_index) = hyperlinks_index {
                             if let Some(hyperlink) = app.get_selected_hyperlink() {
                                 match BoredAddress::from_string(hyperlink.get_link()) {
@@ -238,6 +234,10 @@ async fn run_app<B: Backend>(
                                 app.change_view(View::CreateView(CreateMode::PrivateKey));
                             }
                             CreateMode::PrivateKey => {
+                                app.change_view(View::Waiting(
+                                    "Creating bored on antnet".to_string(),
+                                ));
+                                terminal.draw(|f| ui(f, app))?;
                                 let new_bored = app
                                     .create_bored_on_network(
                                         &app.name_input.clone(),
@@ -245,6 +245,7 @@ async fn run_app<B: Backend>(
                                         Coordinate { x: 120, y: 40 },
                                     )
                                     .await;
+                                app.revert_view();
                                 match new_bored {
                                     Err(e) => app.display_error(e),
                                     _ => (),
@@ -325,14 +326,29 @@ async fn run_app<B: Backend>(
                                         (1, 0),
                                     ),
                                     KeyCode::Enter => {
-                                        if let Err(bored_error) = app.add_draft_to_bored().await {
-                                            app.change_view(View::ErrorView(
-                                                app::SurfBoredError::BoredError(bored_error),
-                                            ));
-                                        } else {
-                                            app.content_input = String::new();
-                                            app.change_view(View::BoredView);
+                                        app.change_view(View::Waiting(
+                                            "Updating bored on antnet".to_string(),
+                                        ));
+                                        terminal.draw(|f| ui(f, app))?;
+                                        match app.add_draft_to_bored().await {
+                                            Err(bored_error) => app.change_view(View::ErrorView(
+                                                SurfBoredError::BoredError(bored_error),
+                                            )),
+                                            _ => (),
                                         }
+                                        app.revert_view();
+                                        // wait_for_future(
+                                        //     terminal,
+                                        //     app,
+                                        //     async |_| {
+                                        //         app.add_draft_to_bored().await;
+                                        //     },
+                                        //     "Updating bored on antnet".to_string(),
+                                        //     (),
+                                        // )
+                                        // .await?;
+                                        app.content_input = String::new();
+                                        app.change_view(View::BoredView);
                                     }
                                     _ => {}
                                 }
@@ -349,7 +365,7 @@ async fn run_app<B: Backend>(
 }
 
 async fn wait_for_future<B, F, A>(
-    termimal: &mut Terminal<B>,
+    terminal: &mut Terminal<B>,
     app: &mut App,
     f: F,
     message: String,
@@ -360,7 +376,7 @@ where
     F: AsyncFn(A),
 {
     app.change_view(View::Waiting(message));
-    termimal.draw(|f| ui(f, app))?;
+    terminal.draw(|f| ui(f, app))?;
     f(a).await;
     app.revert_view();
     Ok(())
