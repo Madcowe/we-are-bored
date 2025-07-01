@@ -124,19 +124,6 @@ async fn run_app<B: Backend>(
                             app,
                             NoticeSelection::Direction(bored::Direction::Right),
                         ),
-                        KeyCode::Char('1') => {
-                            let f = |_| async {
-                                sleep(Duration::from_secs(2)).await;
-                            };
-                            wait_for_future(
-                                terminal,
-                                app,
-                                f,
-                                "wait_for_future test".to_string(),
-                                (),
-                            )
-                            .await?;
-                        }
                         KeyCode::Enter => {
                             app.selected_notice.inspect(|_| {
                                 app.change_view(View::NoticeView {
@@ -191,22 +178,22 @@ async fn run_app<B: Backend>(
                         KeyCode::Tab => app.next_hyperlink(),
                         KeyCode::BackTab => app.previous_hyperlink(),
                         KeyCode::Enter => {
-                            app.change_view(View::Waiting("Updating bored on antnet".to_string()));
-                            terminal.draw(|f| ui(f, app))?;
                             // if let Some(hyperlinks_index) = hyperlinks_index {
                             if let Some(hyperlink) = app.get_selected_hyperlink() {
                                 match BoredAddress::from_string(hyperlink.get_link()) {
                                     Ok(bored_address) => {
+                                        app.change_view(View::Waiting(
+                                            "Loading bored from antnet".to_string(),
+                                        ));
+                                        terminal.draw(|f| ui(f, app))?;
                                         match app.goto_bored(bored_address).await {
                                             Err(e) => app.display_error(e),
-                                            _ => (),
+                                            _ => app.revert_view(),
                                         }
                                     }
                                     Err(e) => app.display_error(SurfBoredError::BoredError(e)),
                                 }
                             }
-                            app.revert_view();
-                            // }
                         }
                         _ => {}
                     },
@@ -334,16 +321,6 @@ async fn run_app<B: Backend>(
                                             _ => (),
                                         }
                                         app.revert_view();
-                                        // wait_for_future(
-                                        //     terminal,
-                                        //     app,
-                                        //     async |_| {
-                                        //         app.add_draft_to_bored().await;
-                                        //     },
-                                        //     "Updating bored on antnet".to_string(),
-                                        //     (),
-                                        // )
-                                        // .await?;
                                         app.content_input = String::new();
                                         app.change_view(View::BoredView);
                                     }
@@ -358,24 +335,6 @@ async fn run_app<B: Backend>(
             }
         }
     }
-    Ok(())
-}
-
-async fn wait_for_future<B, F, A>(
-    terminal: &mut Terminal<B>,
-    app: &mut App,
-    f: F,
-    message: String,
-    a: A,
-) -> Result<(), Box<dyn Error>>
-where
-    B: Backend,
-    F: AsyncFn(A),
-{
-    app.change_view(View::Waiting(message));
-    terminal.draw(|f| ui(f, app))?;
-    f(a).await;
-    app.revert_view();
     Ok(())
 }
 
