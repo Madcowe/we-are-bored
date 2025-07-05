@@ -5,7 +5,8 @@ use ratatui::buffer::Buffer;
 use ratatui::style::{Styled, Stylize};
 use ratatui::widgets::{BorderType, Widget};
 use ratatui::{
-    Frame,
+    Frame, Terminal,
+    backend::Backend,
     buffer::Cell,
     layout::{Alignment, Constraint, Direction, Layout, Margin, Rect},
     style::{Color, Style},
@@ -13,10 +14,14 @@ use ratatui::{
     widgets::{Block, Borders, Clear, List, ListItem, Paragraph, Wrap},
 };
 use std::cmp::{max, min};
+use std::time::Duration;
+use tokio::task;
+use tokio::time::sleep;
 
-use crate::app::{App, CreateMode, DraftMode, GoToMode, HyperlinkMode, View};
+use crate::app::{App, CreateMode, DraftMode, GoToMode, HyperlinkMode, SurfBoredError, View};
 use crate::display_bored::{BoredViewPort, DisplayBored};
 use crate::display_bored::{character_wrap, style_notice_hyperlinks};
+use crate::theme::Theme;
 
 pub fn ui(frame: &mut Frame, app: &mut App) {
     // setup base interface
@@ -104,20 +109,20 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
                     .alignment(Alignment::Center);
             frame.render_widget(navigation_text, pop_up_chunks[1]);
         }
-        View::Waiting(message) => {
-            let pop_up_rect = area.inner(Margin::new(area.width / 4, area.height / 4));
-            Clear.render(pop_up_rect, frame.buffer_mut());
-            let pop_up_block = Block::default()
-                .title("Working...")
-                .borders(Borders::ALL)
-                .border_type(BorderType::Thick)
-                .style(app.theme.text_style());
-            // frame.render_widget(pop_up_block, pop_up_rect);
-            let pop_up_text = Paragraph::new(Text::styled(format!("{message}"), Style::default()))
-                .block(pop_up_block);
-            // .wrap(Wrap { trim: false });
-            frame.render_widget(pop_up_text, pop_up_rect);
-        }
+        // View::Waiting(message) => {
+        //     let pop_up_rect = area.inner(Margin::new(area.width / 4, area.height / 4));
+        //     Clear.render(pop_up_rect, frame.buffer_mut());
+        //     let pop_up_block = Block::default()
+        //         .title("Working...")
+        //         .borders(Borders::ALL)
+        //         .border_type(BorderType::Thick)
+        //         .style(app.theme.text_style());
+        //     // frame.render_widget(pop_up_block, pop_up_rect);
+        //     let pop_up_text = Paragraph::new(Text::styled(format!("{message}"), Style::default()))
+        //         .block(pop_up_block);
+        //     // .wrap(Wrap { trim: false });
+        //     frame.render_widget(pop_up_text, pop_up_rect);
+        // }
         View::CreateView(create_mode) => {
             let pop_up_rect = area.inner(Margin::new(area.width / 8, area.height / 5));
             let navigation_text =
@@ -303,6 +308,51 @@ fn get_draft_postion_on_viewport(
 /// Returns 0 if subraction overflow
 pub fn safe_subtract_u16(a: u16, b: u16) -> u16 {
     if (a as i32 - b as i32) < 0 { 0 } else { a - b }
+}
+
+/// pops up a wating popup while awaiting a future
+pub async fn wait_pop_up<B: Backend>(
+    // frame: &mut Frame<'_>,
+    terminal: &mut Terminal<B>,
+    previous_buffer: Buffer,
+    future: impl Future<Output = Result<(), SurfBoredError>>,
+    message: &str,
+    theme: Theme,
+) -> Result<(), SurfBoredError> {
+    let mut count = 0;
+    let animate = async {
+        while count < 10 {
+            terminal
+                .draw(|frame| {
+                    frame.buffer_mut().merge(&previous_buffer);
+                    let area = frame.area();
+                    let pop_up_rect = area.inner(Margin::new(area.width / 4, area.height / 4));
+                    Clear.render(pop_up_rect, frame.buffer_mut());
+                    let pop_up_block = Block::default()
+                        .title("Working...")
+                        .borders(Borders::ALL)
+                        .border_type(BorderType::Thick)
+                        .style(theme.text_style());
+                    let pop_up_text = Paragraph::new(Text::styled(
+                        format!("{message} Wait: {count}"),
+                        Style::default(),
+                    ))
+                    .block(pop_up_block);
+                    frame.render_widget(pop_up_text, pop_up_rect);
+                })
+                .unwrap();
+            count += 1;
+            sleep(Duration::from_secs(1)).await;
+        }
+    };
+
+    tokio::select! {
+        _ = animate => { }
+        f = future => {
+          f?;
+        }
+    }
+    Ok(())
 }
 
 #[cfg(test)]

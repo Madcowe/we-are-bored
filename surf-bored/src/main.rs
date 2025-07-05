@@ -29,9 +29,10 @@ use tokio::time::sleep;
 
 mod app;
 mod display_bored;
+mod theme;
 mod ui;
 use crate::app::{App, CreateMode, DraftMode, GoToMode, HyperlinkMode, View};
-use crate::ui::{safe_subtract_u16, ui};
+use crate::ui::{safe_subtract_u16, ui, wait_pop_up};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -75,14 +76,31 @@ async fn run_app<B: Backend>(
     if let Err(e) = app.load_directory() {
         app.display_error(e);
     }
-    app.change_view(View::Waiting("Loading bored from antnet".to_string()));
-    terminal.draw(|f| ui(f, app))?;
+    // app.change_view(View::Waiting("Loading bored from antnet".to_string()));
+    let previous_buffer = terminal.draw(|f| ui(f, app))?.buffer.clone();
     if let Some(home_address) = app.directory.get_home() {
         match BoredAddress::from_string(home_address.to_string()) {
-            Ok(home_address) => match app.goto_bored(home_address).await {
-                Err(e) => app.display_error(e),
-                _ => (),
-            },
+            Ok(home_address) => {
+                let theme = app.theme.clone();
+                let going_to_bored = app.goto_bored(home_address);
+                match wait_pop_up(
+                    terminal,
+                    previous_buffer,
+                    going_to_bored,
+                    "Loading bored from antnet.",
+                    theme,
+                )
+                .await
+                {
+                    Err(e) => app.display_error(e),
+                    _ => (),
+                }
+            }
+
+            //     Ok(home_address) => match app.goto_bored(home_address).await {
+            //         Err(e) => app.display_error(e),
+            //         _ => (),
+            //     },
             Err(e) => app.display_error(app::SurfBoredError::BoredError(e)),
         };
     }

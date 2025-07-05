@@ -13,7 +13,8 @@ use ratatui::{
 };
 use std::cmp::{max, min};
 
-use crate::app::{App, CreateMode, DraftMode, GoToMode, HyperlinkMode, Theme, View};
+use crate::app::{App, CreateMode, DraftMode, GoToMode, HyperlinkMode, View};
+use crate::theme::Theme;
 use crate::ui::safe_subtract_u16;
 
 /// Represent the layout of the bored an it's notices in rects

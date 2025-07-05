@@ -1,7 +1,6 @@
 use bored::bored_client::{BoredClient, ConnectionType};
 use bored::notice::{self, Hyperlink, Notice, NoticeHyperlinkMap, get_hyperlinks};
 use bored::{Bored, BoredAddress, BoredError, Coordinate, Direction};
-use ratatui::Viewport;
 use ratatui::style::{Color, Style, Stylize};
 use serde::{Deserialize, Serialize};
 use std::fs;
@@ -10,6 +9,7 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use crate::display_bored::BoredViewPort;
+use crate::theme::Theme;
 
 #[derive(Debug, thiserror::Error, Clone, PartialEq)]
 pub enum SurfBoredError {
@@ -151,63 +151,6 @@ impl History {
             boreds: vec![],
             current_position: 0,
         }
-    }
-}
-
-/// Represent colours in theme used by app
-#[derive(Clone)]
-pub struct Theme {
-    name: String,
-    text_fg: Color,
-    text_bg: Color,
-    dimmed_text_fg: Color,
-    header_bg: Color,
-    hyperlink_style: Style,
-}
-
-impl Theme {
-    pub fn surf_bored_synth_wave() -> Theme {
-        Theme {
-            name: "Surf bored synth wave".to_string(),
-            text_fg: Color::Rgb(205, 152, 211),
-            text_bg: Color::Rgb(23, 21, 41),
-            dimmed_text_fg: Color::Rgb(205, 152, 211),
-            header_bg: Color::Rgb(109, 228, 175), // bright green header_bg: Color::Rgb(149, 232, 196), // pale green
-            hyperlink_style: Style::new().underlined(),
-        }
-    }
-
-    /// to use for tests so should not be amended
-    pub fn default() -> Theme {
-        let style = Style::default();
-        Theme {
-            name: "Default".to_string(),
-            text_fg: style.fg.unwrap_or_default(),
-            text_bg: style.bg.unwrap_or_default(),
-            dimmed_text_fg: style.fg.unwrap_or_default(),
-            header_bg: style.bg.unwrap_or_default(),
-            hyperlink_style: Style::new().underlined(),
-        }
-    }
-
-    pub fn header_style(&self) -> Style {
-        Style::new().fg(self.text_bg).bg(self.header_bg)
-    }
-
-    pub fn text_style(&self) -> Style {
-        Style::new().fg(self.text_fg).bg(self.text_bg)
-    }
-
-    pub fn inverted_text_style(&self) -> Style {
-        Style::new().fg(self.text_bg).bg(self.text_fg)
-    }
-
-    pub fn dimmed_text_style(&self) -> Style {
-        Style::new().fg(self.dimmed_text_fg).bg(self.text_bg)
-    }
-
-    pub fn hyperlink_style(&self) -> Style {
-        self.hyperlink_style
     }
 }
 
