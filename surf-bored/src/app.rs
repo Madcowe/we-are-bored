@@ -23,6 +23,8 @@ pub enum SurfBoredError {
     DirectorySerialzationError,
     #[error("Could not derserialize directory file so directory is empty.")]
     DirectoryDeserialzationError,
+    #[error("Antnet call timed out as never returned")]
+    StillWaiting,
 }
 
 impl From<BoredError> for SurfBoredError {
@@ -322,7 +324,7 @@ impl App {
         name: &str,
         private_key: &str,
         dimensions: Coordinate,
-    ) -> Result<Bored, SurfBoredError> {
+    ) -> Result<(), SurfBoredError> {
         let Some(ref mut client) = self.client else {
             return Err(SurfBoredError::BoredError(
                 BoredError::ClientConnectionError,
@@ -349,7 +351,7 @@ impl App {
             },
             &self.directory_path,
         )?;
-        Ok(bored)
+        Ok(())
     }
 
     pub fn create_draft(&mut self, dimensions: Coordinate) -> Result<(), BoredError> {
@@ -376,12 +378,17 @@ impl App {
         Ok(())
     }
 
-    pub async fn add_draft_to_bored(&mut self) -> Result<(), BoredError> {
+    pub async fn add_draft_to_bored(&mut self) -> Result<(), SurfBoredError> {
         // self.change_view(View::Waiting("Updating bored on antnet".to_string()));
         let Some(ref mut client) = self.client else {
-            return Err(BoredError::ClientConnectionError);
+            return Err(SurfBoredError::BoredError(
+                BoredError::ClientConnectionError,
+            ));
         };
-        client.add_draft_to_bored().await?;
+        client
+            .add_draft_to_bored()
+            .await
+            .map_err(|e| SurfBoredError::BoredError(e))?;
         // self.revert_view();
         Ok(())
     }

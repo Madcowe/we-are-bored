@@ -72,12 +72,11 @@ async fn run_app<B: Backend>(
     app: &mut App,
 ) -> Result<(), Box<dyn Error>> {
     // loop {
-    terminal.draw(|f| ui(f, app))?;
+    // terminal.draw(|f| ui(f, app))?;
+    let previous_buffer = terminal.draw(|f| ui(f, app))?.buffer.clone();
     if let Err(e) = app.load_directory() {
         app.display_error(e);
     }
-    // app.change_view(View::Waiting("Loading bored from antnet".to_string()));
-    let previous_buffer = terminal.draw(|f| ui(f, app))?.buffer.clone();
     if let Some(home_address) = app.directory.get_home() {
         match BoredAddress::from_string(home_address.to_string()) {
             Ok(home_address) => {
@@ -96,17 +95,13 @@ async fn run_app<B: Backend>(
                     _ => (),
                 }
             }
-
-            //     Ok(home_address) => match app.goto_bored(home_address).await {
-            //         Err(e) => app.display_error(e),
-            //         _ => (),
-            //     },
             Err(e) => app.display_error(app::SurfBoredError::BoredError(e)),
         };
     }
 
     loop {
-        terminal.draw(|f| ui(f, app))?;
+        // terminal.draw(|f| ui(f, app))?;
+        let previous_buffer = terminal.draw(|f| ui(f, app))?.buffer.clone();
         if let Event::Key(key) = event::read()? {
             // app.status = format!("{:?}", key);
             if key.kind == event::KeyEventKind::Release {
@@ -198,20 +193,31 @@ async fn run_app<B: Backend>(
                         KeyCode::Enter => {
                             // if let Some(hyperlinks_index) = hyperlinks_index {
                             if let Some(hyperlink) = app.get_selected_hyperlink() {
+                                app.status = format!("{:?}", hyperlink);
                                 match BoredAddress::from_string(hyperlink.get_link()) {
                                     Ok(bored_address) => {
                                         app.change_view(View::Waiting(
                                             "Loading bored from antnet".to_string(),
                                         ));
-                                        terminal.draw(|f| ui(f, app))?;
-                                        match app.goto_bored(bored_address).await {
+                                        let theme = app.theme.clone();
+                                        let going_to_bored = app.goto_bored(bored_address);
+                                        match wait_pop_up(
+                                            terminal,
+                                            previous_buffer,
+                                            going_to_bored,
+                                            "Loading bored from antnet.",
+                                            theme,
+                                        )
+                                        .await
+                                        {
                                             Err(e) => app.display_error(e),
-                                            _ => app.revert_view(),
+                                            _ => (),
                                         }
                                     }
                                     Err(e) => app.display_error(SurfBoredError::BoredError(e)),
                                 }
                             }
+                            app.revert_view();
                         }
                         _ => {}
                     },
@@ -239,19 +245,41 @@ async fn run_app<B: Backend>(
                                 app.change_view(View::Waiting(
                                     "Creating bored on antnet".to_string(),
                                 ));
-                                terminal.draw(|f| ui(f, app))?;
-                                let new_bored = app
-                                    .create_bored_on_network(
-                                        &app.name_input.clone(),
-                                        &app.key_input.clone(),
-                                        Coordinate { x: 120, y: 40 },
-                                    )
-                                    .await;
-                                app.revert_view();
-                                match new_bored {
+                                let (name_input, key_input) =
+                                    (app.name_input.clone(), app.key_input.clone());
+                                // terminal.draw(|f| ui(f, app))?;
+                                let theme = app.theme.clone();
+                                let creating_bored = app.create_bored_on_network(
+                                    &name_input,
+                                    &key_input,
+                                    Coordinate { x: 120, y: 40 },
+                                );
+                                match wait_pop_up(
+                                    terminal,
+                                    previous_buffer,
+                                    creating_bored,
+                                    "Creating bored on antnet.",
+                                    theme,
+                                )
+                                .await
+                                {
                                     Err(e) => app.display_error(e),
                                     _ => (),
                                 }
+                                // let new_bored = app
+                                //     .create_bored_on_network(
+                                //         &name_input,
+                                //         &key_input,
+                                //         // &app.name_input.clone(),
+                                //         // &app.key_input.clone(),
+                                //         Coordinate { x: 120, y: 40 },
+                                //     )
+                                //     .await;
+                                app.revert_view();
+                                // match new_bored {
+                                //     Err(e) => app.display_error(e),
+                                //     _ => (),
+                                // }
                             }
                         },
                         _ => {}
@@ -331,13 +359,27 @@ async fn run_app<B: Backend>(
                                         app.change_view(View::Waiting(
                                             "Updating bored on antnet".to_string(),
                                         ));
-                                        terminal.draw(|f| ui(f, app))?;
-                                        match app.add_draft_to_bored().await {
-                                            Err(bored_error) => app.change_view(View::ErrorView(
-                                                SurfBoredError::BoredError(bored_error),
-                                            )),
+                                        let theme = app.theme.clone();
+                                        let going_onto_bored = app.add_draft_to_bored();
+                                        match wait_pop_up(
+                                            terminal,
+                                            previous_buffer,
+                                            going_onto_bored,
+                                            "Updating bored on antnet.",
+                                            theme,
+                                        )
+                                        .await
+                                        {
+                                            Err(e) => app.display_error(e),
                                             _ => (),
                                         }
+                                        // terminal.draw(|f| ui(f, app))?;
+                                        // match app.add_draft_to_bored().await {
+                                        //     Err(bored_error) => app.change_view(View::ErrorView(
+                                        //         SurfBoredError::BoredError(bored_error),
+                                        //     )),
+                                        //     _ => (),
+                                        // }
                                         app.revert_view();
                                         app.content_input = String::new();
                                         app.change_view(View::BoredView);

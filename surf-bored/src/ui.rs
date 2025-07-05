@@ -1,6 +1,6 @@
 use bored::bored_client::{BoredClient, ConnectionType};
 use bored::notice::{self, Display, Notice, NoticeHyperlinkMap, get_display, get_hyperlinks};
-use bored::{Bored, BoredAddress, BoredError, Coordinate};
+use bored::{Bored, BoredAddress, BoredError, BoredHyperlinkMap, Coordinate};
 use ratatui::buffer::Buffer;
 use ratatui::style::{Styled, Stylize};
 use ratatui::widgets::{BorderType, Widget};
@@ -28,8 +28,8 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
     let area = frame.area();
     let mut title_text = String::new();
     let mut status_text = format!(
-        "Current: {:?} previous: {:?} interupted: {:?} notice: {:?} {}",
-        app.current_view, app.previous_view, app.interupted_view, app.selected_notice, app.status
+        "Current: {:?} previous: {:?} {}",
+        app.current_view, app.previous_view, app.status
     ); //"Connected, no bored loaded";
     // let mut status_text = "Connected, no bored loaded";
     let ui_chunks = Layout::default()
@@ -321,7 +321,7 @@ pub async fn wait_pop_up<B: Backend>(
 ) -> Result<(), SurfBoredError> {
     let mut count = 0;
     let animate = async {
-        while count < 10 {
+        while count < 1200 {
             terminal
                 .draw(|frame| {
                     frame.buffer_mut().merge(&previous_buffer);
@@ -345,9 +345,8 @@ pub async fn wait_pop_up<B: Backend>(
             sleep(Duration::from_secs(1)).await;
         }
     };
-
     tokio::select! {
-        _ = animate => { }
+        _ = animate => { return Err(SurfBoredError::StillWaiting) }
         f = future => {
           f?;
         }
