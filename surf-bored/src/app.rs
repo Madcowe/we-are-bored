@@ -1,6 +1,7 @@
 use bored::bored_client::{BoredClient, ConnectionType};
 use bored::notice::{self, Hyperlink, Notice, NoticeHyperlinkMap, get_hyperlinks};
 use bored::{Bored, BoredAddress, BoredError, Coordinate, Direction};
+use rand::distr::uniform::Error;
 use ratatui::style::{Color, Style, Stylize};
 use serde::{Deserialize, Serialize};
 use std::fs;
@@ -211,7 +212,9 @@ impl App {
     pub fn display_error(&mut self, surf_bored_error: SurfBoredError) {
         // self.previous_view = self.current_view.clone();
         // self.current_view = View::ErrorView(surf_bored_error);
-        self.change_view(View::ErrorView(surf_bored_error));
+        self.status = "In display_error method".to_string();
+        self.current_view = View::ErrorView(surf_bored_error);
+        // self.change_view(View::ErrorView(surf_bored_error));
     }
 
     /// set previous view so can allways go back

@@ -29,8 +29,8 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
     let area = frame.area();
     let mut title_text = String::new();
     let mut status_text = format!(
-        "Current: {:?} previous: {:?} {}",
-        app.current_view, app.previous_view, app.status
+        "Current: {:?} previous: {:?} interuppted: {:?} {}",
+        app.current_view, app.previous_view, app.interupted_view, app.status
     ); //"Connected, no bored loaded";
     // let mut status_text = "Connected, no bored loaded";
     let ui_chunks = Layout::default()

@@ -193,7 +193,6 @@ async fn run_app<B: Backend>(
                         KeyCode::Enter => {
                             // if let Some(hyperlinks_index) = hyperlinks_index {
                             if let Some(hyperlink) = app.get_selected_hyperlink() {
-                                app.status = format!("{:?}", hyperlink);
                                 match BoredAddress::from_string(hyperlink.get_link()) {
                                     Ok(bored_address) => {
                                         app.change_view(View::Waiting(
@@ -213,11 +212,13 @@ async fn run_app<B: Backend>(
                                             Err(e) => app.display_error(e),
                                             _ => (),
                                         }
+                                        app.revert_view();
                                     }
-                                    Err(e) => app.display_error(SurfBoredError::BoredError(e)),
+                                    Err(e) => {
+                                        app.display_error(SurfBoredError::BoredError(e));
+                                    }
                                 }
                             }
-                            app.revert_view();
                         }
                         _ => {}
                     },
@@ -266,20 +267,6 @@ async fn run_app<B: Backend>(
                                     Err(e) => app.display_error(e),
                                     _ => (),
                                 }
-                                // let new_bored = app
-                                //     .create_bored_on_network(
-                                //         &name_input,
-                                //         &key_input,
-                                //         // &app.name_input.clone(),
-                                //         // &app.key_input.clone(),
-                                //         Coordinate { x: 120, y: 40 },
-                                //     )
-                                //     .await;
-                                app.revert_view();
-                                // match new_bored {
-                                //     Err(e) => app.display_error(e),
-                                //     _ => (),
-                                // }
                             }
                         },
                         _ => {}
@@ -373,14 +360,6 @@ async fn run_app<B: Backend>(
                                             Err(e) => app.display_error(e),
                                             _ => (),
                                         }
-                                        // terminal.draw(|f| ui(f, app))?;
-                                        // match app.add_draft_to_bored().await {
-                                        //     Err(bored_error) => app.change_view(View::ErrorView(
-                                        //         SurfBoredError::BoredError(bored_error),
-                                        //     )),
-                                        //     _ => (),
-                                        // }
-                                        app.revert_view();
                                         app.content_input = String::new();
                                         app.change_view(View::BoredView);
                                     }
@@ -414,7 +393,7 @@ fn try_select_notice(app: &mut App, notice_selection: NoticeSelection) {
             notice.get_top_left().add(&notice.get_dimensions()),
         ) {
             //if at bottom right show as much of bored as possible
-            //otherwise in middle of screen
+            // otherwise in middle of screen
             // otherwise at notices top left
             let new_view_position = bored_view_port.get_view_for_notice(&notice);
             bored_view_port.move_view(new_view_position);
