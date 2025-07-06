@@ -110,20 +110,6 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
                     .alignment(Alignment::Center);
             frame.render_widget(navigation_text, pop_up_chunks[1]);
         }
-        // View::Waiting(message) => {
-        //     let pop_up_rect = area.inner(Margin::new(area.width / 4, area.height / 4));
-        //     Clear.render(pop_up_rect, frame.buffer_mut());
-        //     let pop_up_block = Block::default()
-        //         .title("Working...")
-        //         .borders(Borders::ALL)
-        //         .border_type(BorderType::Thick)
-        //         .style(app.theme.text_style());
-        //     // frame.render_widget(pop_up_block, pop_up_rect);
-        //     let pop_up_text = Paragraph::new(Text::styled(format!("{message}"), Style::default()))
-        //         .block(pop_up_block);
-        //     // .wrap(Wrap { trim: false });
-        //     frame.render_widget(pop_up_text, pop_up_rect);
-        // }
         View::CreateView(create_mode) => {
             let pop_up_rect = area.inner(Margin::new(area.width / 8, area.height / 5));
             let navigation_text =
@@ -322,6 +308,7 @@ pub async fn wait_pop_up<B: Backend>(
 ) -> Result<(), SurfBoredError> {
     let mut count = 0;
     let animate = async {
+        let mut antimation = Antimation::new();
         while count < 1200 {
             let result = terminal.draw(|frame| {
                 frame.buffer_mut().merge(&previous_buffer);
@@ -332,16 +319,17 @@ pub async fn wait_pop_up<B: Backend>(
                     .title("Working...")
                     .borders(Borders::ALL)
                     .border_type(BorderType::Thick)
-                    .style(theme.text_style());
+                    .style(theme.header_style());
+                let ant_frame = antimation.next_frame();
                 let pop_up_text = Paragraph::new(Text::styled(
-                    format!("{message} Wait: {count}"),
+                    format!("{message}\n {ant_frame}"),
                     Style::default(),
                 ))
                 .block(pop_up_block);
                 frame.render_widget(pop_up_text, pop_up_rect);
             });
             count += 1;
-            sleep(Duration::from_secs(1)).await;
+            sleep(Duration::from_millis(500)).await;
             match result {
                 Err(_) => return Err::<(), SurfBoredError>(SurfBoredError::CannotRenderWait),
                 _ => (),
@@ -354,6 +342,31 @@ pub async fn wait_pop_up<B: Backend>(
         f = future => { f? }
     }
     Ok(())
+}
+
+pub struct Antimation {
+    count: usize,
+}
+impl Antimation {
+    fn new() -> Antimation {
+        Antimation { count: 0 }
+    }
+
+    fn next_frame(&mut self) -> String {
+        let frame = if self.count == 0 {
+            "o o    \n  \\ \\ \n  (\"\")".to_string()
+        } else if self.count == 2 {
+            "   o o\n   / /\n  (\"\")".to_string()
+        } else {
+            "  oo  \n   ||  \n  (\'\')".to_string()
+        };
+        if self.count >= 3 {
+            self.count = 0
+        } else {
+            self.count += 1;
+        }
+        frame
+    }
 }
 
 #[cfg(test)]

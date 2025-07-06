@@ -100,10 +100,8 @@ async fn run_app<B: Backend>(
     }
 
     loop {
-        // terminal.draw(|f| ui(f, app))?;
         let previous_buffer = terminal.draw(|f| ui(f, app))?.buffer.clone();
         if let Event::Key(key) = event::read()? {
-            // app.status = format!("{:?}", key);
             if key.kind == event::KeyEventKind::Release {
                 // Skip events that are not KeyEvenKind::Press
                 continue;
@@ -191,20 +189,16 @@ async fn run_app<B: Backend>(
                         KeyCode::Tab => app.next_hyperlink(),
                         KeyCode::BackTab => app.previous_hyperlink(),
                         KeyCode::Enter => {
-                            // if let Some(hyperlinks_index) = hyperlinks_index {
                             if let Some(hyperlink) = app.get_selected_hyperlink() {
                                 match BoredAddress::from_string(hyperlink.get_link()) {
                                     Ok(bored_address) => {
-                                        app.change_view(View::Waiting(
-                                            "Loading bored from antnet".to_string(),
-                                        ));
                                         let theme = app.theme.clone();
                                         let going_to_bored = app.goto_bored(bored_address);
                                         match wait_pop_up(
                                             terminal,
                                             previous_buffer,
                                             going_to_bored,
-                                            "Loading bored from antnet.",
+                                            "Loading bored from antnet...",
                                             theme,
                                         )
                                         .await
@@ -243,12 +237,11 @@ async fn run_app<B: Backend>(
                                 app.current_view = View::CreateView(CreateMode::PrivateKey)
                             }
                             CreateMode::PrivateKey => {
-                                app.change_view(View::Waiting(
-                                    "Creating bored on antnet".to_string(),
-                                ));
+                                // app.change_view(View::Waiting(
+                                //     "Creating bored on antnet".to_string(),
+                                // ));
                                 let (name_input, key_input) =
                                     (app.name_input.clone(), app.key_input.clone());
-                                // terminal.draw(|f| ui(f, app))?;
                                 let theme = app.theme.clone();
                                 let creating_bored = app.create_bored_on_network(
                                     &name_input,
@@ -259,7 +252,7 @@ async fn run_app<B: Backend>(
                                     terminal,
                                     previous_buffer,
                                     creating_bored,
-                                    "Creating bored on antnet.",
+                                    "Creating bored on antnet...",
                                     theme,
                                 )
                                 .await
@@ -343,25 +336,21 @@ async fn run_app<B: Backend>(
                                         (1, 0),
                                     ),
                                     KeyCode::Enter => {
-                                        app.change_view(View::Waiting(
-                                            "Updating bored on antnet".to_string(),
-                                        ));
                                         let theme = app.theme.clone();
                                         let going_onto_bored = app.add_draft_to_bored();
                                         match wait_pop_up(
                                             terminal,
                                             previous_buffer,
                                             going_onto_bored,
-                                            "Updating bored on antnet.",
+                                            "Updating bored on antnet...",
                                             theme,
                                         )
                                         .await
                                         {
                                             Err(e) => app.display_error(e),
-                                            _ => (),
+                                            _ => app.change_view(View::BoredView),
                                         }
                                         app.content_input = String::new();
-                                        app.change_view(View::BoredView);
                                     }
                                     _ => {}
                                 }

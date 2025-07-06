@@ -39,7 +39,6 @@ impl From<BoredError> for SurfBoredError {
 #[derive(Clone, Debug, PartialEq)]
 pub enum View {
     ErrorView(SurfBoredError),
-    Waiting(String),
     BoredView,
     NoticeView { hyperlinks_index: Option<usize> },
     DraftView(DraftMode),
@@ -213,15 +212,14 @@ impl App {
         // self.previous_view = self.current_view.clone();
         // self.current_view = View::ErrorView(surf_bored_error);
         self.status = "In display_error method".to_string();
-        self.current_view = View::ErrorView(surf_bored_error);
-        // self.change_view(View::ErrorView(surf_bored_error));
+        // self.current_view = View::ErrorView(surf_bored_error);
+        self.change_view(View::ErrorView(surf_bored_error));
     }
 
     /// set previous view so can allways go back
     pub fn change_view(&mut self, view: View) {
         match view {
             View::ErrorView(_) => self.interupted_view(self.current_view.clone()),
-            View::Waiting(_) => self.interupted_view(self.current_view.clone()),
             _ => {
                 self.previous_view = self.current_view.clone();
             }
@@ -232,8 +230,8 @@ impl App {
     /// only sets interupted view if it is not an error/waiting
     fn interupted_view(&mut self, view: View) {
         match view {
+            // View::ErrorView()
             View::ErrorView(_) => (),
-            View::Waiting(_) => (),
             _ => self.interupted_view = self.current_view.clone(),
         }
     }
@@ -241,8 +239,10 @@ impl App {
     /// go back to previous view
     pub fn revert_view(&mut self) {
         match self.current_view {
+            View::ErrorView(SurfBoredError::BoredError(BoredError::MoreRecentVersionExists(
+                ..,
+            ))) => self.current_view = View::BoredView,
             View::ErrorView(_) => self.current_view = self.interupted_view.clone(),
-            View::Waiting(_) => self.current_view = self.interupted_view.clone(),
             _ => self.current_view = self.previous_view.clone(),
         }
     }
@@ -266,7 +266,6 @@ impl App {
     }
 
     pub async fn goto_bored(&mut self, bored_address: BoredAddress) -> Result<(), SurfBoredError> {
-        self.change_view(View::Waiting("Downloading bored from antnet".to_string()));
         let Some(ref mut client) = self.client else {
             return Err(SurfBoredError::BoredError(
                 BoredError::ClientConnectionError,
