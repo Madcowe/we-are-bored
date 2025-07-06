@@ -1,6 +1,7 @@
 use bored::bored_client::{BoredClient, ConnectionType};
 use bored::notice::{self, Display, Notice, NoticeHyperlinkMap, get_display, get_hyperlinks};
 use bored::{Bored, BoredAddress, BoredError, BoredHyperlinkMap, Coordinate};
+use core::panic;
 use ratatui::buffer::Buffer;
 use ratatui::style::{Styled, Stylize};
 use ratatui::widgets::{BorderType, Widget};
@@ -322,34 +323,35 @@ pub async fn wait_pop_up<B: Backend>(
     let mut count = 0;
     let animate = async {
         while count < 1200 {
-            terminal
-                .draw(|frame| {
-                    frame.buffer_mut().merge(&previous_buffer);
-                    let area = frame.area();
-                    let pop_up_rect = area.inner(Margin::new(area.width / 4, area.height / 4));
-                    Clear.render(pop_up_rect, frame.buffer_mut());
-                    let pop_up_block = Block::default()
-                        .title("Working...")
-                        .borders(Borders::ALL)
-                        .border_type(BorderType::Thick)
-                        .style(theme.text_style());
-                    let pop_up_text = Paragraph::new(Text::styled(
-                        format!("{message} Wait: {count}"),
-                        Style::default(),
-                    ))
-                    .block(pop_up_block);
-                    frame.render_widget(pop_up_text, pop_up_rect);
-                })
-                .unwrap();
+            let result = terminal.draw(|frame| {
+                frame.buffer_mut().merge(&previous_buffer);
+                let area = frame.area();
+                let pop_up_rect = area.inner(Margin::new(area.width / 4, area.height / 4));
+                Clear.render(pop_up_rect, frame.buffer_mut());
+                let pop_up_block = Block::default()
+                    .title("Working...")
+                    .borders(Borders::ALL)
+                    .border_type(BorderType::Thick)
+                    .style(theme.text_style());
+                let pop_up_text = Paragraph::new(Text::styled(
+                    format!("{message} Wait: {count}"),
+                    Style::default(),
+                ))
+                .block(pop_up_block);
+                frame.render_widget(pop_up_text, pop_up_rect);
+            });
             count += 1;
             sleep(Duration::from_secs(1)).await;
+            match result {
+                Err(_) => return Err::<(), SurfBoredError>(SurfBoredError::CannotRenderWait),
+                _ => (),
+            }
         }
+        Err(SurfBoredError::StillWaiting)
     };
     tokio::select! {
-        _ = animate => { return Err(SurfBoredError::StillWaiting) }
-        f = future => {
-          f?;
-        }
+        e = animate => { e? }
+        f = future => { f? }
     }
     Ok(())
 }

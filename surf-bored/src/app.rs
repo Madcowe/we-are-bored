@@ -25,6 +25,8 @@ pub enum SurfBoredError {
     DirectoryDeserialzationError,
     #[error("Antnet call timed out as never returned")]
     StillWaiting,
+    #[error("Failed to render waiting pop up")]
+    CannotRenderWait,
 }
 
 impl From<BoredError> for SurfBoredError {
@@ -515,7 +517,7 @@ impl App {
                     .get(notice_index)
                     .map(|n| n.get_display().map(|d| d.get_hyperlink_locations()))
                 {
-                    self.status = format!("hyperlinks: {:?}", hyperlinks);
+                    // self.status = format!("hyperlinks: {:?}", hyperlinks);
                     self.current_view = if hyperlinks_index.is_none() && !hyperlinks.is_empty() {
                         View::NoticeView {
                             hyperlinks_index: Some(hyperlinks.len() - 1),
