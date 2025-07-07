@@ -1,6 +1,7 @@
 use crate::notice::{Display, Notice};
 use crate::{Bored, BoredAddress, BoredError, Coordinate};
 use autonomi::client::payment::PaymentOption;
+use autonomi::scratchpad::ScratchpadError;
 use autonomi::{Bytes, Client, Network, Scratchpad, SecretKey, Wallet};
 use std::clone;
 use std::error::Error;
@@ -145,6 +146,7 @@ impl BoredClient {
 
     /// Updates the current bored, if there is a newer version of the bored on th antnet it
     /// returns it within the error so that the local version can be updated
+    /// if bored to big for scratchpad it will try and remove the oldest notice from the bored
     pub async fn update_bored(&mut self) -> Result<(), BoredError> {
         let Some(bored_address) = &self.bored_address else {
             return Err(BoredError::NoBored);
@@ -162,9 +164,23 @@ impl BoredClient {
         }
         let serialized_bored = serde_json::to_vec(&self.current_bored)?;
         let content = Bytes::from(serialized_bored);
-        self.client
+        match self
+            .client
             .scratchpad_update(bored_address.get_key(), 27, &content)
-            .await?;
+            .await
+        {
+            Err(ScratchpadError::ScratchpadTooBig(_)) => {
+                if let Some(current_bored) = &mut self.current_bored {
+                    // remove the notice that was just added making it to big
+                    current_bored.remove_newest_notice();
+                    // remove the oldest notice so there may be room to add more
+                    current_bored.remove_oldest_notice();
+                }
+                Err(BoredError::BoredTooBig)
+            }
+            Err(e) => Err(e.into()),
+            Ok(()) => Ok(()),
+        }?;
         // wait for the scratchpad to be replicated
         tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
         self.refresh_bored().await?; // local bored is update by downloading to make sure in sync
@@ -223,7 +239,7 @@ impl BoredClient {
         Ok(())
     }
 
-    /// Add notice to bored
+    /// Add draft notice to bored
     pub async fn add_draft_to_bored(&mut self) -> Result<(), BoredError> {
         let Some(bored) = &mut self.current_bored else {
             return Err(BoredError::NoBored);
@@ -234,7 +250,7 @@ impl BoredClient {
         }
         match self.update_bored().await {
             Err(bored_error) => match bored_error {
-                // if nore recetn version update to new version but also pass error
+                // if more recent version update to new version but also pass error
                 // so ui can out put message
                 BoredError::MoreRecentVersionExists(ref bored, scratchpad_counter) => {
                     self.current_bored = Some(bored.clone());
@@ -267,6 +283,8 @@ async fn get_funded_wallet(
 
 #[cfg(test)]
 mod tests {
+
+    use std::ops::DerefMut;
 
     use super::*;
 
@@ -398,6 +416,47 @@ mod tests {
         assert_eq!(
             bored_client.draft_notice.as_ref().unwrap().get_content(),
             "I am [BORED](NOT)"
+        );
+        Ok(())
+    }
+
+    #[tokio::test]
+    #[ignore]
+    async fn test_adding_notice_too_big_for_scratchpad() -> Result<(), BoredError> {
+        let mut bored_client = BoredClient::init(ConnectionType::Local).await?;
+        bored_client
+            .create_bored("", Coordinate { x: 10000, y: 10000 }, "")
+            .await?;
+        bored_client
+            .create_draft(Coordinate { x: 4000, y: 4000 })
+            .unwrap();
+        // this string should be about half the max a scratchpad can store
+        // so one should be fine but two is two many
+        let realy_long_string = "a".repeat(2 * 1024 * 1024);
+        bored_client.edit_draft(&realy_long_string).unwrap();
+        assert_eq!(bored_client.add_draft_to_bored().await, Ok(()));
+        assert_eq!(bored_client.get_current_bored().unwrap().notices.len(), 1);
+        bored_client
+            .create_draft(Coordinate { x: 4000, y: 4000 })
+            .unwrap();
+        let realy_long_string = "b".repeat(2 * 1024 * 1024);
+        bored_client.edit_draft(&realy_long_string).unwrap();
+        assert_eq!(
+            bored_client.add_draft_to_bored().await,
+            Err(BoredError::BoredTooBig)
+        );
+        // check oldest (and only) notice has been removed
+        assert_eq!(bored_client.get_current_bored().unwrap().notices.len(), 0);
+        bored_client
+            .create_draft(Coordinate { x: 4000, y: 4000 })
+            .unwrap();
+        let realy_long_string = "b".repeat(2 * 1024 * 1024);
+        bored_client.edit_draft(&realy_long_string).unwrap();
+        assert_eq!(bored_client.add_draft_to_bored().await, Ok(()));
+        assert_eq!(bored_client.get_current_bored().unwrap().notices.len(), 1);
+        assert_eq!(
+            bored_client.get_current_bored().unwrap().notices[0].get_content(),
+            realy_long_string
         );
         Ok(())
     }

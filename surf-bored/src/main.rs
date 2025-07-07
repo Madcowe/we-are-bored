@@ -28,6 +28,7 @@ use std::{
 use tokio::time::sleep;
 
 mod app;
+mod directory;
 mod display_bored;
 mod theme;
 mod ui;

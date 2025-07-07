@@ -1,4 +1,5 @@
 use autonomi::SecretKey;
+use autonomi::scratchpad::ScratchpadError;
 use notice::{Display, Notice, NoticeHyperlinkMap};
 use serde::{Deserialize, Serialize};
 use std::fmt::{self};
@@ -70,7 +71,7 @@ pub enum BoredError {
     #[error("Cannot updated bored as it has not be downloaded this session")]
     BoredNotYetDownloaded,
     #[error(
-        "A more recent version of the bored exists so cannot add notice, the bored has now been refreshed so please try again."
+        "A more recent version of the bored so notice cannot be added, the bored has now been refreshed so please try again."
     )]
     MoreRecentVersionExists(Bored, u64),
     #[error("Hyperlink url is too long at max is {}", notice::MAX_URL_LENGTH)]
@@ -85,6 +86,10 @@ pub enum BoredError {
     NoBored,
     #[error("Non Bored URL:\n{0}")]
     NotBoredURL(String),
+    #[error(
+        "Bored to big to store in scratchpad, oldest notice has been removed to make room, please try again."
+    )]
+    BoredTooBig,
 }
 
 impl From<serde_json::Error> for BoredError {
@@ -95,8 +100,13 @@ impl From<serde_json::Error> for BoredError {
 
 impl From<autonomi::scratchpad::ScratchpadError> for BoredError {
     fn from(e: autonomi::scratchpad::ScratchpadError) -> Self {
-        let message = format!("{e}");
-        BoredError::ScratchpadError(message)
+        match e {
+            ScratchpadError::ScratchpadTooBig(_) => BoredError::BoredTooBig,
+            _ => {
+                let message = format!("{e}");
+                BoredError::ScratchpadError(message)
+            }
+        }
     }
 }
 
@@ -432,6 +442,18 @@ impl Bored {
 
     pub fn get_name(&self) -> &str {
         &self.name
+    }
+
+    pub fn remove_newest_notice(&mut self) {
+        if !self.notices.is_empty() {
+            let _ = self.notices.pop();
+        }
+    }
+
+    pub fn remove_oldest_notice(&mut self) {
+        if !self.notices.is_empty() {
+            self.notices.remove(0);
+        }
     }
 
     /// Removes any notices that are entirely occluded by notices above them

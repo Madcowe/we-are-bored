@@ -228,13 +228,14 @@ impl Notice {
     // If you wanted to handle some other langauge you might need to work out hot to implement
     // for graphem clusters instead
     pub fn get_max_chars(&self) -> usize {
-        let area = self.dimensions.x * self.dimensions.y;
+        let area = self.dimensions.x as usize * self.dimensions.y as usize;
         if area < 9 {
             // 3 * 3 is the smallest dimension with any space
             return 0;
         } else {
             // area minus border
-            (area - ((2 * self.dimensions.x) + (2 * (self.dimensions.y - 2)))).into()
+            (area - ((2 * self.dimensions.x as usize) + (2 * (self.dimensions.y as usize - 2))))
+                .into()
         }
     }
 
