@@ -28,10 +28,12 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
     // setup base interface
     let area = frame.area();
     let mut title_text = String::new();
-    let mut status_text = format!(
-        "Current: {:?} previous: {:?} interuppted: {:?} {}",
-        app.current_view, app.previous_view, app.interupted_view, app.status
-    ); //"Connected, no bored loaded";
+    let mut status_text = "";
+    // format!(
+    // "Current: {:?} previous: {:?} interuppted: {:?} {}",
+    // app.current_view, app.previous_view, app.interupted_view, app.status
+    // );
+    //"Connected, no bored loaded";
     // let mut status_text = "Connected, no bored loaded";
     let ui_chunks = Layout::default()
         .direction(Direction::Vertical)
@@ -85,6 +87,7 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
     // modify based on current_view
     match &app.current_view {
         View::ErrorView(e) => {
+            status_text = "Press (enter) to contunue or (q) to quit";
             let pop_up_rect = area.inner(Margin::new(area.width / 4, area.height / 4)); //centered_rect(60, 60, area);
             let navigation_text = "Press (enter) to contiune or (q) to quit.";
             Clear.render(pop_up_rect, frame.buffer_mut());
@@ -137,9 +140,12 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
                 .style(app.theme.text_style());
             match create_mode {
                 CreateMode::Name => {
+                    status_text =
+                        "Type to enter bored name, press (enter) to proceed or (esc) to go leave";
                     name_block = name_block.clone().style(app.theme.inverted_text_style())
                 }
                 CreateMode::PrivateKey => {
+                    status_text = "Type to enter key (or use termial emulator paste) (enter) to proceed, (tab) to edit name or (esc) to leave";
                     key_block = key_block.clone().style(app.theme.inverted_text_style())
                 }
             };
@@ -155,6 +161,7 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
                     .expect("There should not be a draft without a bored");
                 match draft_mode {
                     DraftMode::Content => {
+                        status_text = "Type to enter message, (ctrl + p) to position notice or (esc) to leave";
                         let display = draft.get_display().unwrap();
                         let display_text = display.get_display_text();
                         let display_text = character_wrap(display_text, draft.get_text_width());
@@ -183,6 +190,7 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
                         frame.buffer_mut().merge(&draft_buffer);
                     }
                     DraftMode::Position => {
+                        status_text = "Use (the arrow keys) to postion the notice and (enter) to place or (esc) to edit text";
                         let display = draft.get_display().unwrap();
                         let display_text = display.get_display_text();
                         let display_text = character_wrap(display_text, draft.get_text_width());
@@ -213,9 +221,12 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
                 }
             }
         }
-        View::BoredView => {}
+        View::BoredView => {
+            status_text = "Use (the arrow keys) to select a notice in that direction, (tab) to cycle selection, (enter) to view notice, (n) to create new notice, (c) to create new bored or (q) to quit";
+        }
         View::NoticeView { hyperlinks_index } => {
             if let Some(notice) = app.get_selected_notice() {
+                status_text = "Press (tab) to cycle through hyperlinks, (enter) to activte selected hyperlink and (esc) to leave";
                 let pop_up_rect = area.inner(Margin::new(
                     safe_subtract_u16(area.width, notice.get_dimensions().x) / 2,
                     safe_subtract_u16(area.height, notice.get_dimensions().y) / 2,

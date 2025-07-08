@@ -121,18 +121,18 @@ async fn run_app<B: Backend>(
                         KeyCode::Char('q') => break,
                         KeyCode::Tab => try_select_notice(app, NoticeSelection::Next),
                         KeyCode::BackTab => try_select_notice(app, NoticeSelection::Previous),
-                        KeyCode::Char('w') => {
+                        KeyCode::Up => {
                             try_select_notice(app, NoticeSelection::Direction(bored::Direction::Up))
                         }
-                        KeyCode::Char('a') => try_select_notice(
+                        KeyCode::Left => try_select_notice(
                             app,
                             NoticeSelection::Direction(bored::Direction::Left),
                         ),
-                        KeyCode::Char('s') => try_select_notice(
+                        KeyCode::Down => try_select_notice(
                             app,
                             NoticeSelection::Direction(bored::Direction::Down),
                         ),
-                        KeyCode::Char('d') => try_select_notice(
+                        KeyCode::Right => try_select_notice(
                             app,
                             NoticeSelection::Direction(bored::Direction::Right),
                         ),
