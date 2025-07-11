@@ -71,7 +71,7 @@ pub enum BoredError {
     #[error("Cannot updated bored as it has not be downloaded this session")]
     BoredNotYetDownloaded,
     #[error(
-        "A more recent version of the bored so notice cannot be added, the bored has now been refreshed so please try again."
+        "A more recent version of the bored exists so notice cannot be added, the bored has now been refreshed so please try again."
     )]
     MoreRecentVersionExists(Bored, u64),
     #[error("Hyperlink url is too long at max is {}", notice::MAX_URL_LENGTH)]

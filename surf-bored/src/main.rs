@@ -3,6 +3,7 @@ use bored::{
     Bored, BoredAddress, BoredError, Coordinate, Direction, bored_client,
     notice::{self, MAX_URL_LENGTH},
 };
+use directory::Directory;
 use rand::Rng;
 use ratatui::{
     Terminal,
@@ -76,7 +77,8 @@ async fn run_app<B: Backend>(
     // terminal.draw(|f| ui(f, app))?;
     let previous_buffer = terminal.draw(|f| ui(f, app))?.buffer.clone();
     if let Err(e) = app.load_directory() {
-        app.display_error(e);
+        app.directory = Directory::default();
+        // app.display_error(e);
     }
     if let Some(home_address) = app.directory.get_home() {
         match BoredAddress::from_string(home_address.to_string()) {

@@ -17,6 +17,21 @@ impl Directory {
         }
     }
 
+    pub fn default() -> Directory {
+        let mut directory = Directory::new();
+        let listing = Listing::new(
+            "Test1",
+            "bored://31522b246dd5c51b5f953a1bfb89151c0366f632a561ec85878743c1e53a8727",
+        );
+        directory.bored_addresses.push(listing);
+        let listing = Listing::new(
+            "Test1",
+            "bored://508324f7d39ed13cd1236e57336f952fc2bb8ac126eed1e980843a1f1b8ff5d7",
+        );
+        directory.bored_addresses.push(listing);
+        directory
+    }
+
     pub fn load_file(path: &str) -> Result<Directory, SurfBoredError> {
         if let Ok(directory_string) = fs::read_to_string(path) {
             if let Ok(directory) = toml::from_str(&directory_string) {
@@ -74,4 +89,12 @@ impl History {
 pub struct Listing {
     pub name: String,
     pub bored_address: String,
+}
+impl Listing {
+    pub fn new(name: &str, bored_address: &str) -> Listing {
+        Listing {
+            name: name.to_string(),
+            bored_address: bored_address.to_string(),
+        }
+    }
 }

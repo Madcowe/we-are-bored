@@ -365,11 +365,11 @@ impl Antimation {
 
     fn next_frame(&mut self) -> String {
         let frame = if self.count == 0 {
-            "o o    \n  \\\\\n  (\"\")".to_string()
+            "o o    \n  \\\\\n  (\"\")\n  >||<\n   /\\".to_string()
         } else if self.count == 2 {
-            "   o o\n    //\n  (\"\")".to_string()
+            "   o o\n    //\n  (\"\")\n  >||<\n   /\\".to_string()
         } else {
-            "  oo  \n   ||  \n  (\'\')".to_string()
+            "  oo  \n   ||  \n  (\'\')\n  >||<  \n   /\\  ".to_string()
         };
         if self.count >= 3 {
             self.count = 0
