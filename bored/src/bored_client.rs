@@ -129,6 +129,9 @@ impl BoredClient {
         };
         // probably should do check that it is valud bored protcol
         // if not reset as new bored with same name to deal with scratchpad hijacking
+        // if bored.protocol_version.get_version() < 1 {
+        //     return Err(BoredError::MethodNotInProtocol);
+        // }
         Ok((bored, got.counter()))
     }
 

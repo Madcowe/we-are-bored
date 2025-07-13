@@ -19,7 +19,7 @@ use std::time::Duration;
 use tokio::task;
 use tokio::time::sleep;
 
-use crate::app::{App, CreateMode, DraftMode, GoToMode, HyperlinkMode, SurfBoredError, View};
+use crate::app::{App, CreateMode, DraftMode, SurfBoredError, View};
 use crate::display_bored::{BoredViewPort, DisplayBored};
 use crate::display_bored::{character_wrap, style_notice_hyperlinks};
 use crate::theme::Theme;

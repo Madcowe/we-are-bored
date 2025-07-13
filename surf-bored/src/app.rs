@@ -44,7 +44,8 @@ pub enum View {
     NoticeView { hyperlinks_index: Option<usize> },
     DraftView(DraftMode),
     CreateView(CreateMode),
-    GoToView(GoToMode),
+    GoToView,
+    DirectoryView,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -74,11 +75,11 @@ pub enum HyperlinkMode {
     URL,
 }
 
-#[derive(Clone, Debug, PartialEq)]
-pub enum GoToMode {
-    Directory,
-    PasteAddress,
-}
+// #[derive(Clone, Debug, PartialEq)]
+// pub enum GoToMode {
+//     Directory,
+//     PasteAddress,
+// }
 
 pub enum NoticeSelection {
     Direction(Direction),
@@ -178,20 +179,20 @@ impl App {
     pub fn goto(&mut self) {
         // self.previous_view = self.current_view.clone();
         // self.current_view = View::GoToView(GoToMode::PasteAddress)
-        self.change_view(View::GoToView(GoToMode::PasteAddress));
+        // self.change_view(View::GoToView(GoToMode::PasteAddress));
     }
 
-    pub fn goto_view_toggle(&mut self) {
-        match &self.current_view {
-            View::GoToView(goto_mode) => {
-                self.current_view = View::GoToView(match goto_mode {
-                    GoToMode::Directory => GoToMode::PasteAddress,
-                    GoToMode::PasteAddress => GoToMode::PasteAddress,
-                })
-            }
-            _ => (),
-        }
-    }
+    // pub fn goto_view_toggle(&mut self) {
+    //     match &self.current_view {
+    //         View::GoToView(goto_mode) => {
+    //             self.current_view = View::GoToView(match goto_mode {
+    //                 GoToMode::Directory => GoToMode::PasteAddress,
+    //                 GoToMode::PasteAddress => GoToMode::PasteAddress,
+    //             })
+    //         }
+    //         _ => (),
+    //     }
+    // }
 
     pub async fn goto_bored(&mut self, bored_address: BoredAddress) -> Result<(), SurfBoredError> {
         let Some(ref mut client) = self.client else {

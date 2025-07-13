@@ -13,7 +13,7 @@ use ratatui::{
 };
 use std::cmp::{max, min};
 
-use crate::app::{App, CreateMode, DraftMode, GoToMode, HyperlinkMode, View};
+use crate::app::{App, CreateMode, DraftMode, View};
 use crate::theme::Theme;
 use crate::ui::safe_subtract_u16;
 

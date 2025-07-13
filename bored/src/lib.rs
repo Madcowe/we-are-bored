@@ -147,8 +147,8 @@ impl BoredAddress {
     }
 
     /// Tries to create bored URL from string, will remove protocol part of URL if it exists
-    /// attempt to create with that text, fails if it doesn;t make valid secret key
-    /// this doesn't neccsiarily imply it is an exist bored address
+    /// attempt to create with that text, fails if it doesn't make valid secret key
+    /// this doesn't neccsiarily imply it is an existing bored address
     pub fn from_string(mut s: String) -> Result<Self, BoredError> {
         if s.len() == 72 {
             if &s[0..8] == "bored://" {
@@ -358,29 +358,29 @@ impl WhatsOnTheBored {
         WhatsOnTheBored { visible }
     }
 
-    fn get_x_len(&self) -> usize {
-        self.visible[0].len()
-    }
+    // fn get_x_len(&self) -> usize {
+    //     self.visible[0].len()
+    // }
 
-    fn get_y_len(&self) -> usize {
-        self.visible.len()
-    }
+    // fn get_y_len(&self) -> usize {
+    //     self.visible.len()
+    // }
 
-    fn rotate_horizontally(&mut self) {
-        let mut visible: Vec<Vec<Option<usize>>> =
-            vec![vec![None; self.visible.len()]; self.visible[0].len()];
-        for (y, row) in self.visible.iter().enumerate() {
-            for (x, cell) in row.iter().enumerate() {
-                visible[x][y] = *cell;
-            }
-        }
-        self.visible = visible;
-        self.visible.iter_mut().for_each(|r| r.reverse());
-    }
+    // fn rotate_horizontally(&mut self) {
+    //     let mut visible: Vec<Vec<Option<usize>>> =
+    //         vec![vec![None; self.visible.len()]; self.visible[0].len()];
+    //     for (y, row) in self.visible.iter().enumerate() {
+    //         for (x, cell) in row.iter().enumerate() {
+    //             visible[x][y] = *cell;
+    //         }
+    //     }
+    //     self.visible = visible;
+    //     self.visible.iter_mut().for_each(|r| r.reverse());
+    // }
 
-    fn flip_vertically(&mut self) {
-        self.visible.reverse();
-    }
+    // fn flip_vertically(&mut self) {
+    //     self.visible.reverse();
+    // }
 
     /// flattens into a one dimesonal vectors
     pub fn get_1d(&self) -> Vec<Option<usize>> {

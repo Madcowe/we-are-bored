@@ -33,7 +33,7 @@ mod directory;
 mod display_bored;
 mod theme;
 mod ui;
-use crate::app::{App, CreateMode, DraftMode, GoToMode, HyperlinkMode, View};
+use crate::app::{App, CreateMode, DraftMode, HyperlinkMode, View};
 use crate::ui::{safe_subtract_u16, ui, wait_pop_up};
 
 #[tokio::main]
