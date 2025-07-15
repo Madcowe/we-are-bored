@@ -1,10 +1,12 @@
 use app::{NoticeSelection, SurfBoredError};
 use bored::{
     Bored, BoredAddress, BoredError, Coordinate, Direction, bored_client,
+    bored_client::ConnectionType,
     notice::{self, MAX_URL_LENGTH},
 };
+use core::arch;
 use directory::Directory;
-use rand::Rng;
+use rand::{Rng, seq::IndexedRandom};
 use ratatui::{
     Terminal,
     backend::{Backend, CrosstermBackend},
@@ -39,9 +41,16 @@ use crate::ui::{safe_subtract_u16, ui, wait_pop_up};
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     // create app and try to init client if fail error will stop program
+    let args: Vec<String> = std::env::args().collect();
     let mut app = App::new();
     println!("Trying to connect to antnet...");
-    app.init_client().await?;
+    let mut connection_type = ConnectionType::Antnet;
+    if args.len() > 1 {
+        if &args[1] == "local" {
+            connection_type = ConnectionType::Local;
+        }
+    }
+    app.init_client(connection_type).await?;
     // setup terminal
     enable_raw_mode()?;
     let mut stdout = io::stdout();

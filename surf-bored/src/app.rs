@@ -127,8 +127,8 @@ impl App {
         }
     }
 
-    pub async fn init_client(&mut self) -> Result<(), BoredError> {
-        self.client = Some(BoredClient::init(ConnectionType::Local).await?);
+    pub async fn init_client(&mut self, connection_type: ConnectionType) -> Result<(), BoredError> {
+        self.client = Some(BoredClient::init(connection_type).await?);
         Ok(())
     }
 

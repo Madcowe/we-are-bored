@@ -24,10 +24,17 @@ pub struct BoredClient {
 
 impl BoredClient {
     pub async fn init(connection_type: ConnectionType) -> Result<BoredClient, BoredError> {
-        let connection_type = connection_type;
-        let client = match Client::init_local().await {
-            Err(_) => return Err(BoredError::ClientConnectionError),
-            Ok(client) => client,
+        // let connection_type = connection_type;
+        let client = match connection_type {
+            ConnectionType::Antnet => match Client::init().await {
+                Err(_) => return Err(BoredError::ClientConnectionError),
+                Ok(client) => client,
+            },
+
+            ConnectionType::Local => match Client::init_local().await {
+                Err(_) => return Err(BoredError::ClientConnectionError),
+                Ok(client) => client,
+            },
         };
         Ok(BoredClient {
             connection_type,
