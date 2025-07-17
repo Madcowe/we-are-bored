@@ -98,7 +98,7 @@ async fn run_app<B: Backend>(
                     terminal,
                     previous_buffer,
                     going_to_bored,
-                    "Loading bored from antnet.",
+                    "Loading bored from antnet...",
                     theme,
                 )
                 .await
@@ -270,8 +270,9 @@ async fn run_app<B: Backend>(
                                 .await
                                 {
                                     Err(e) => app.display_error(e),
-                                    _ => (),
+                                    _ => app.name_input = String::new(),
                                 }
+                                app.key_input = String::new();
                             }
                         },
                         _ => {}

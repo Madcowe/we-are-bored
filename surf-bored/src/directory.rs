@@ -20,13 +20,13 @@ impl Directory {
     pub fn default() -> Directory {
         let mut directory = Directory::new();
         let listing = Listing::new(
-            "Test1",
-            "bored://31522b246dd5c51b5f953a1bfb89151c0366f632a561ec85878743c1e53a8727",
+            "The genesis bored",
+            "bored://00a477e5e70ba4c1b8943db7b68c848f358a6059c8b6c514b5c47fcaeacbb3d0",
         );
         directory.bored_addresses.push(listing);
         let listing = Listing::new(
-            "Test1",
-            "bored://508324f7d39ed13cd1236e57336f952fc2bb8ac126eed1e980843a1f1b8ff5d7",
+            "Bored of Phil Collins",
+            "bored://0ea6aa74936fcf6afc1fcd75391b7bcbcf26a20e7e2c50583f8f1d61dc9fa28a",
         );
         directory.bored_addresses.push(listing);
         directory

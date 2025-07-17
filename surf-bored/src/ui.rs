@@ -284,7 +284,7 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
         .style(app.theme.header_style())
         .bold();
     // let status_rect = Rect::new(0, area.height - 5, area.width, 5);
-    status_text = format!("{:?}\n{}", app.status, status_text);
+    // status_text = format!("{:?}\n{}", app.status, status_text);
     let status = Paragraph::new(Text::styled(status_text, Style::default()))
         .wrap(Wrap { trim: false })
         .block(status_block);
