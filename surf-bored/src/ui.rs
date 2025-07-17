@@ -28,7 +28,7 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
     // setup base interface
     let area = frame.area();
     let mut title_text = String::new();
-    let mut status_text = "";
+    let mut status_text = String::new();
     // format!(
     // "Current: {:?} previous: {:?} interuppted: {:?} {}",
     // app.current_view, app.previous_view, app.interupted_view, app.status
@@ -87,7 +87,7 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
     // modify based on current_view
     match &app.current_view {
         View::ErrorView(e) => {
-            status_text = "Press (enter) to contunue or (q) to quit";
+            status_text = "Press (enter) to contunue or (q) to quit".to_string();
             let pop_up_rect = area.inner(Margin::new(area.width / 4, area.height / 4)); //centered_rect(60, 60, area);
             let navigation_text = "Press (enter) to contiune or (q) to quit.";
             Clear.render(pop_up_rect, frame.buffer_mut());
@@ -141,11 +141,12 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
             match create_mode {
                 CreateMode::Name => {
                     status_text =
-                        "Type to enter bored name, press (enter) to proceed or (esc) to go leave";
+                        "Type to enter bored name, press (enter) to proceed or (esc) to go leave"
+                            .to_string();
                     name_block = name_block.clone().style(app.theme.inverted_text_style())
                 }
                 CreateMode::PrivateKey => {
-                    status_text = "Type to enter key (or use termial emulator paste) (enter) to proceed, (tab) to edit name or (esc) to leave";
+                    status_text = "Type to enter key (or use termial emulator paste) (enter) to proceed, (tab) to edit name or (esc) to leave".to_string();
                     key_block = key_block.clone().style(app.theme.inverted_text_style())
                 }
             };
@@ -161,7 +162,7 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
                     .expect("There should not be a draft without a bored");
                 match draft_mode {
                     DraftMode::Content => {
-                        status_text = "Type to enter message, (ctrl + p) to position notice or (esc) to leave";
+                        status_text = "Type to enter message, (ctrl + p) to position notice or (esc) to leave".to_string();
                         let display = draft.get_display().unwrap();
                         let display_text = display.get_display_text();
                         let display_text = character_wrap(display_text, draft.get_text_width());
@@ -190,7 +191,7 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
                         frame.buffer_mut().merge(&draft_buffer);
                     }
                     DraftMode::Position => {
-                        status_text = "Use (the arrow keys) to postion the notice and (enter) to place or (esc) to edit text";
+                        status_text = "Use (the arrow keys) to postion the notice and (enter) to place or (esc) to edit text".to_string();
                         let display = draft.get_display().unwrap();
                         let display_text = display.get_display_text();
                         let display_text = character_wrap(display_text, draft.get_text_width());
@@ -222,11 +223,12 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
             }
         }
         View::BoredView => {
-            status_text = "Use (the arrow keys) to select a notice in that direction, (tab) to cycle selection, (enter) to view notice, (n) to create new notice, (c) to create new bored or (q) to quit";
+            status_text = "Use (the arrow keys) to select a notice in that direction, (tab) to cycle selection, (enter) to view notice, (n) to create new notice, (c) to create new bored or (q) to quit".to_string();
         }
         View::NoticeView { hyperlinks_index } => {
             if let Some(notice) = app.get_selected_notice() {
-                status_text = "Press (tab) to cycle through hyperlinks, (enter) to activte selected hyperlink and (esc) to leave";
+                status_text = "Press (tab) to cycle through hyperlinks, (enter) to activte selected hyperlink and (esc) to leave".to_string();
+
                 let pop_up_rect = area.inner(Margin::new(
                     safe_subtract_u16(area.width, notice.get_dimensions().x) / 2,
                     safe_subtract_u16(area.height, notice.get_dimensions().y) / 2,
@@ -282,6 +284,7 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
         .style(app.theme.header_style())
         .bold();
     // let status_rect = Rect::new(0, area.height - 5, area.width, 5);
+    status_text = format!("{:?}\n{}", app.status, status_text);
     let status = Paragraph::new(Text::styled(status_text, Style::default()))
         .wrap(Wrap { trim: false })
         .block(status_block);

@@ -81,6 +81,7 @@ pub enum HyperlinkMode {
 //     PasteAddress,
 // }
 
+#[derive(Debug)]
 pub enum NoticeSelection {
     Direction(Direction),
     Next,
@@ -263,12 +264,9 @@ impl App {
                 BoredError::ClientConnectionError,
             ));
         };
-        // self.interupted_view = self.current_view.clone();
-        // self.current_view = View::Waiting("Creating bored on antnet".to_string());
-        client.create_bored(name, dimensions, private_key).await?;
-        // if let View::Waiting(_) = self.current_view {
-        //     self.current_view = self.interupted_view.clone();
-        // }
+        client
+            .create_bored(name, dimensions, private_key.trim())
+            .await?;
         let bored = client.get_current_bored()?;
         self.selected_notice = None;
         self.current_view = View::BoredView;
@@ -330,7 +328,7 @@ impl App {
         if let Some(bored) = self.get_current_bored() {
             if bored.get_notices().len() > 0 {
                 if self.selected_notice.is_none() {
-                    self.selected_notice = bored.get_upper_left_most_notice()
+                    self.selected_notice = bored.get_upper_left_most_notice();
                 } else {
                     self.selected_notice =
                         match bored.get_cardinal_notice(self.selected_notice.unwrap(), direction) {
@@ -499,7 +497,7 @@ mod tests {
         {
             let mut app = App::new();
             app.directory_path = "test_directory.toml".to_string();
-            app.init_client().await?;
+            app.init_client(ConnectionType::Local).await?;
             app.create_bored_on_network("I am bored", "", Coordinate { x: 120, y: 40 })
                 .await?;
             directory = app.directory.clone();
@@ -507,7 +505,7 @@ mod tests {
         {
             let mut app = App::new();
             app.directory_path = "test_directory.toml".to_string();
-            app.init_client().await?;
+            app.init_client(ConnectionType::Local).await?;
             app.load_directory()?;
             assert_eq!(directory, app.directory);
             app.create_bored_on_network("We are bored", "", Coordinate { x: 120, y: 40 })
@@ -516,7 +514,7 @@ mod tests {
         }
         let mut app = App::new();
         app.directory_path = "test_directory.toml".to_string();
-        app.init_client().await?;
+        app.init_client(ConnectionType::Local).await?;
         app.load_directory()?;
         assert_eq!(directory, app.directory);
         Ok(())

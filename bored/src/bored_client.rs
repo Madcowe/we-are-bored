@@ -5,6 +5,7 @@ use autonomi::scratchpad::ScratchpadError;
 use autonomi::{Bytes, Client, Network, Scratchpad, SecretKey, Wallet};
 use std::clone;
 use std::error::Error;
+use std::fmt::Debug;
 
 #[derive(Clone, Copy)]
 pub enum ConnectionType {
@@ -67,9 +68,14 @@ impl BoredClient {
         self.bored_address = Some(BoredAddress::new());
         let serialized_bored = serde_json::to_vec(&bored)?;
         let content = Bytes::from(serialized_bored);
-        let wallet = match get_funded_wallet(self.connection_type, private_key).await {
+        let wallet = match self.get_funded_wallet(private_key).await {
             Ok(wallet) => wallet,
-            Err(_) => return Err(BoredError::FailedToGetWallet),
+            Err(e) => {
+                return Err(BoredError::FailedToGetWallet(
+                    private_key.to_string(),
+                    format!("{:?}", e),
+                ));
+            }
         };
         let payment_option = PaymentOption::from(&wallet);
         let (..) = self
@@ -273,23 +279,34 @@ impl BoredClient {
         }
         Ok(())
     }
+
+    async fn get_funded_wallet(&self, private_key: &str) -> Result<Wallet, Box<dyn Error>> {
+        let private_key = match self.connection_type {
+            ConnectionType::Antnet => private_key,
+            ConnectionType::Local => {
+                "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
+            }
+        };
+        let wallet = Wallet::new_from_private_key(self.client.evm_network().clone(), private_key)?;
+        Ok(wallet)
+    }
 }
 
-async fn get_funded_wallet(
-    connection_type: ConnectionType,
-    private_key: &str,
-) -> Result<Wallet, Box<dyn Error>> {
-    let (local, private_key) = match connection_type {
-        ConnectionType::Antnet => (false, private_key),
-        ConnectionType::Local => (
-            true,
-            "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80",
-        ),
-    };
-    let network = Network::new(local)?;
-    let wallet = Wallet::new_from_private_key(network, private_key)?;
-    Ok(wallet)
-}
+// async fn get_funded_wallet(
+//     connection_type: ConnectionType,
+//     private_key: &str,
+// ) -> Result<Wallet, Box<dyn Error>> {
+//     let (local, private_key) = match connection_type {
+//         ConnectionType::Antnet => (false, private_key),
+//         ConnectionType::Local => (
+//             true,
+//             "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80",
+//         ),
+//     };
+//     let network = Network::new(local)?;
+//     let wallet = Wallet::new_from_private_key(network, private_key)?;
+//     Ok(wallet)
+// }
 
 #[cfg(test)]
 mod tests {

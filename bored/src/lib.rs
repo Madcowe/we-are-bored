@@ -58,8 +58,8 @@ pub enum BoredError {
     TooMuchText,
     #[error("Could initiate autonomi client")]
     ClientConnectionError,
-    #[error("Could not get funded wallet")]
-    FailedToGetWallet,
+    #[error("Could not get funded wallet with key: |{0}| {1}")]
+    FailedToGetWallet(String, String),
     #[error("JSON serializing/deserializing error")]
     JSONError,
     #[error("Binary serializing/deserializing error")]
@@ -176,7 +176,7 @@ impl BoredAddress {
 
 /// A coordiante on a board, the unit of mesauremeant is a character that might appear on screen
 // Unsigned as all notice must be within board space, u16 as no readablle board would be that big
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone, Copy, PartialOrd)]
 pub struct Coordinate {
     pub x: u16,
     pub y: u16,
@@ -230,6 +230,7 @@ impl Coordinate {
 }
 
 /// Indicate direction of movement
+#[derive(Debug)]
 pub enum Direction {
     Up,
     Down,
@@ -664,23 +665,27 @@ impl Bored {
         if self.notices.is_empty() {
             return None;
         } else {
-            let mut notices_index = 0;
-            let mut next_notice_index = Some(0);
-            while next_notice_index.is_some() {
-                next_notice_index = self.get_cardinal_notice(notices_index, Direction::Left);
-                if let Some(index) = next_notice_index {
-                    notices_index = index;
+            let mut upper_left_most_index = 0;
+            let mut previous_top_left = self.notices[0].get_top_left();
+            for (index, notice) in self.notices.iter().enumerate() {
+                if notice.get_top_left().x + notice.get_top_left().y
+                    < previous_top_left.x + previous_top_left.y
+                {
+                    upper_left_most_index = index;
                 }
+                previous_top_left = notice.get_top_left();
             }
-            // not required now get_cardinal_notice tries the next anticlockwise direction as well
-            // next_notice_index = Some(notices_index);
-            // while next_notice_index.is_some() {
-            //     next_notice_index = self.get_cardinal_notice(notices_index, Direction::Up);
-            //     if let Some(index) = next_notice_index {
-            //         notices_index = index;
+            Some(upper_left_most_index)
+            //     let mut notices_index = 0;
+            //     let mut next_notice_index = Some(0);
+            //     while next_notice_index.is_some() {
+            //         next_notice_index = self.get_cardinal_notice(notices_index, Direction::Left);
+            //         eprintln!("Next notice index: {next_notice_index:?}");
+            //         if let Some(index) = next_notice_index {
+            //             notices_index = index;
+            //         }
             //     }
-            // }
-            Some(notices_index)
+            //     Some(notices_index)
         }
     }
 }
