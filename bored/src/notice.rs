@@ -99,9 +99,11 @@ impl NoticeHyperlinkMap {
                     }
                 }
             }
-            if char == '\n' {
+            if char == '\n' && x != 0 {
                 y += 1;
                 x = 0;
+            // do nothing if newline type at end of line
+            } else if char == '\n' && x == 0 {
             } else if x < notice.get_text_width() as usize - 1 {
                 x += 1;
             } else {
@@ -510,6 +512,22 @@ mod tests {
 "#;
         assert_eq!(expected_output, format!("{}", notice_hyperlink_map));
         eprintln!("{}", notice_hyperlink_map);
+        notice.write("Fullstop\n. [link](url)")?;
+        let notice_hyperlink_map = NoticeHyperlinkMap::create(&notice)?;
+        let expected_output = r#"********
+**0000**
+********
+********
+********
+********
+********
+********
+********
+********
+********
+"#;
+        eprintln!("{}", notice_hyperlink_map);
+        assert_eq!(expected_output, format!("{}", notice_hyperlink_map));
         Ok(())
     }
 }

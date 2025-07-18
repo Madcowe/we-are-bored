@@ -25,7 +25,7 @@ use std::{
     cmp::{max, min},
     env::Args,
     error::Error,
-    io,
+    fs, io,
     time::Duration,
 };
 use tokio::time::sleep;
@@ -54,11 +54,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // setup terminal
     enable_raw_mode()?;
     let mut stdout = io::stdout();
-    execute!(
-        stdout,
-        EnterAlternateScreen,
-        PushKeyboardEnhancementFlags(KeyboardEnhancementFlags::DISAMBIGUATE_ESCAPE_CODES)
-    )?;
+    execute!(stdout, EnterAlternateScreen,)?;
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
 
@@ -225,6 +221,9 @@ async fn run_app<B: Backend>(
                                     }
                                 }
                             }
+                        }
+                        KeyCode::Char('o') => {
+                            fs::write("notice", format!("{:?}", app.get_selected_notice()))?;
                         }
                         _ => {}
                     },

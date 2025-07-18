@@ -74,6 +74,9 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
             frame.buffer_mut().merge(&bored_view_buffer);
         }
         app.bored_view_port = Some(bored_view_port);
+    } else {
+        let view_port_block = Block::default().style(app.theme.text_style());
+        frame.render_widget(view_port_block, ui_chunks[1]);
     }
     let title_block = Block::default()
         .borders(Borders::ALL)
