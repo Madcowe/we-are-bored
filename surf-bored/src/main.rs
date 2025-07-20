@@ -1,3 +1,20 @@
+/*
+Copyright (C) 2025 We are bored
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
+*/
+
 use app::{NoticeSelection, SurfBoredError};
 use bored::{
     Bored, BoredAddress, BoredError, Coordinate, Direction, bored_client,
@@ -67,7 +84,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
         terminal.backend_mut(),
         LeaveAlternateScreen,
         DisableMouseCapture,
-        PopKeyboardEnhancementFlags
     )?;
     terminal.show_cursor()?;
 
@@ -83,6 +99,7 @@ async fn run_app<B: Backend>(
     let previous_buffer = terminal.draw(|f| ui(f, app))?.buffer.clone();
     if let Err(e) = app.load_directory() {
         app.directory = Directory::default();
+        app.save_directory()?;
         // app.display_error(e);
     }
     if let Some(home_address) = app.directory.get_home() {

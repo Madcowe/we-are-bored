@@ -1,3 +1,20 @@
+/*
+Copyright (C) 2025 We are bored
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
+*/
+
 use crate::app::SurfBoredError;
 use bored::Bored;
 use serde::{Deserialize, Serialize};
@@ -44,10 +61,7 @@ impl Directory {
         }
     }
 
-    pub fn add(&mut self, listing: Listing, path: &str) -> Result<(), SurfBoredError> {
-        self.bored_addresses.push(listing);
-        // this is only for convience in testing remove once working
-        self.home_bored = self.bored_addresses.len() - 1;
+    pub fn save_file(&self, path: &str) -> Result<(), SurfBoredError> {
         if let Ok(directory_string) = toml::to_string(&self) {
             let Ok(()) = fs::write(path, &directory_string) else {
                 return Err(SurfBoredError::DirectoryFileWriteError);
@@ -55,6 +69,14 @@ impl Directory {
         } else {
             return Err(SurfBoredError::DirectorySerialzationError);
         }
+        Ok(())
+    }
+
+    pub fn add(&mut self, listing: Listing, path: &str) -> Result<(), SurfBoredError> {
+        self.bored_addresses.push(listing);
+        // this is only for convience in testing remove once working
+        self.home_bored = self.bored_addresses.len() - 1;
+        self.save_file(path)?;
         Ok(())
     }
 

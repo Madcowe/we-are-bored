@@ -1,3 +1,20 @@
+/*
+Copyright (C) 2025 We are bored
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
+*/
+
 use bored::bored_client::{BoredClient, ConnectionType};
 use bored::notice::{self, Hyperlink, Notice, NoticeHyperlinkMap, get_hyperlinks};
 use bored::{Bored, BoredAddress, BoredError, Coordinate, Direction};
@@ -135,6 +152,11 @@ impl App {
 
     pub fn load_directory(&mut self) -> Result<(), SurfBoredError> {
         self.directory = Directory::load_file(&self.directory_path)?;
+        Ok(())
+    }
+
+    pub fn save_directory(&self) -> Result<(), SurfBoredError> {
+        self.directory.save_file(&self.directory_path)?;
         Ok(())
     }
 
