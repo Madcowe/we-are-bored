@@ -306,6 +306,21 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
         View::GoToView => {
             status_text = "Type to enter URL (or use terminal emulator paste) (enter) to go to address (esc) to leave".to_string();
         }
+        View::DirectoryView(directory_index) => {
+            let pop_up_rect = area.inner(Margin::new(area.width / 8, area.height / 5));
+            status_text =
+                "Press up and down to select, (enter) to confirm selection and (esc) to cancel"
+                    .to_string();
+            Clear.render(pop_up_rect, frame.buffer_mut());
+            let text = format!("directory_index: {directory_index}");
+            let pop_up_block = Block::default()
+                .title(text)
+                .borders(Borders::ALL)
+                .border_type(BorderType::Thick)
+                .style(app.theme.text_style());
+            // .bg(Color::Black);
+            frame.render_widget(pop_up_block, pop_up_rect);
+        }
         _ => (),
     }
     // setup status area
@@ -315,7 +330,7 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
         .style(app.theme.header_style())
         .bold();
     // let status_rect = Rect::new(0, area.height - 5, area.width, 5);
-    // status_text = format!("{:?}\n{}", app.status, status_text);
+    status_text = format!("{:?}\n{}", app.status, status_text);
     let status = Paragraph::new(Text::styled(status_text, Style::default()))
         .wrap(Wrap { trim: false })
         .block(status_block);

@@ -15,16 +15,17 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-use bored::bored_client::{BoredClient, ConnectionType};
+use bored::bored_client::{self, BoredClient, ConnectionType};
 use bored::notice::{self, Hyperlink, Notice, NoticeHyperlinkMap, get_hyperlinks};
 use bored::{Bored, BoredAddress, BoredError, Coordinate, Direction};
 use rand::distr::uniform::Error;
+use rand::seq::IndexedRandom;
 use ratatui::style::{Color, Style, Stylize};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::fs::File;
 use std::io::Write;
-use std::path::{Path, PathBuf};
+use std::path::{Path, PathBuf, StripPrefixError};
 
 use crate::directory::{Directory, History, Listing};
 use crate::display_bored::BoredViewPort;
@@ -46,6 +47,10 @@ pub enum SurfBoredError {
     StillWaiting,
     #[error("Failed to render waiting pop up")]
     CannotRenderWait,
+    #[error("The directory of boreds is currently empty")]
+    DirectoryIsEmpty,
+    #[error("The index: {0} is out of bounds of directory of len {1}")]
+    DirectoryOutOfBounds(usize, usize),
 }
 
 impl From<BoredError> for SurfBoredError {
@@ -62,7 +67,7 @@ pub enum View {
     DraftView(DraftMode),
     CreateView(CreateMode),
     GoToView,
-    DirectoryView,
+    DirectoryView(usize),
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -92,12 +97,6 @@ pub enum HyperlinkMode {
     URL,
 }
 
-// #[derive(Clone, Debug, PartialEq)]
-// pub enum GoToMode {
-//     Directory,
-//     PasteAddress,
-// }
-
 #[derive(Debug)]
 pub enum NoticeSelection {
     Direction(Direction),
@@ -123,6 +122,7 @@ pub struct App {
     pub link_text_input: String,
     pub link_url_input: String,
     pub goto_input: String,
+    pub address_clipbored: String,
 }
 impl App {
     pub fn new() -> App {
@@ -144,6 +144,7 @@ impl App {
             link_text_input: String::new(),
             link_url_input: String::new(),
             goto_input: String::new(),
+            address_clipbored: String::new(),
         }
     }
 
@@ -162,11 +163,30 @@ impl App {
         Ok(())
     }
 
+    pub fn next_directory_item(&mut self, directory_index: usize) -> Result<usize, SurfBoredError> {
+        let bored_addresses = self.directory.get_bored_addresses();
+        if bored_addresses.is_empty() {
+            return Err(SurfBoredError::DirectoryIsEmpty);
+        } else if directory_index + 1 > bored_addresses.len() - 1 {
+            return Ok(0);
+        }
+        Ok(directory_index + 1)
+    }
+
+    pub fn previous_directory_item(
+        &mut self,
+        directory_index: usize,
+    ) -> Result<usize, SurfBoredError> {
+        let bored_addresses = self.directory.get_bored_addresses();
+        if bored_addresses.is_empty() {
+            return Err(SurfBoredError::DirectoryIsEmpty);
+        } else if directory_index >= 1 {
+            return Ok(directory_index - 1);
+        }
+        Ok(bored_addresses.len() - 1)
+    }
+
     pub fn display_error(&mut self, surf_bored_error: SurfBoredError) {
-        // self.previous_view = self.current_view.clone();
-        // self.current_view = View::ErrorView(surf_bored_error);
-        // self.status = "In display_error method".to_string();
-        // self.current_view = View::ErrorView(surf_bored_error);
         self.change_view(View::ErrorView(surf_bored_error));
     }
 
@@ -174,6 +194,10 @@ impl App {
     pub fn change_view(&mut self, view: View) {
         match view {
             View::ErrorView(_) => self.interupted_view(self.current_view.clone()),
+            View::DirectoryView(_) => match self.current_view {
+                View::DirectoryView(_) => (),
+                _ => self.interupted_view(self.current_view.clone()),
+            },
             _ => {
                 self.previous_view = self.current_view.clone();
             }
@@ -197,6 +221,7 @@ impl App {
                 ..,
             ))) => self.current_view = View::BoredView,
             View::ErrorView(_) => self.current_view = self.interupted_view.clone(),
+            View::DirectoryView(_) => self.current_view = self.interupted_view.clone(),
             _ => self.current_view = self.previous_view.clone(),
         }
     }
@@ -206,18 +231,6 @@ impl App {
         // self.current_view = View::GoToView(GoToMode::PasteAddress)
         // self.change_view(View::GoToView(GoToMode::PasteAddress));
     }
-
-    // pub fn goto_view_toggle(&mut self) {
-    //     match &self.current_view {
-    //         View::GoToView(goto_mode) => {
-    //             self.current_view = View::GoToView(match goto_mode {
-    //                 GoToMode::Directory => GoToMode::PasteAddress,
-    //                 GoToMode::PasteAddress => GoToMode::PasteAddress,
-    //             })
-    //         }
-    //         _ => (),
-    //     }
-    // }
 
     pub async fn goto_bored(&mut self, bored_address: BoredAddress) -> Result<(), SurfBoredError> {
         let Some(ref mut client) = self.client else {

@@ -76,7 +76,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let mut terminal = Terminal::new(backend)?;
 
     // create app and run it
-    let res = run_app(&mut terminal, &mut app).await;
+    let res = run_app(&mut terminal, &mut app).await?;
 
     // restore terminal
     disable_raw_mode()?;
@@ -207,6 +207,7 @@ async fn run_app<B: Backend>(
                             }
                         }
                         KeyCode::Char('g') => app.change_view(View::GoToView),
+                        KeyCode::Char('d') => app.change_view(View::DirectoryView(0)),
                         _ => {}
                     },
                     View::NoticeView { .. } => match key.code {
@@ -271,6 +272,53 @@ async fn run_app<B: Backend>(
                                 }
                                 Err(e) => app.display_error(app::SurfBoredError::BoredError(e)),
                             };
+                        }
+                        _ => {}
+                    },
+                    &View::DirectoryView(directory_index) => match key.code {
+                        KeyCode::Esc => app.revert_view(),
+                        KeyCode::Up => {
+                            let new_directroy_index =
+                                app.previous_directory_item(directory_index)?;
+                            app.change_view(View::DirectoryView(new_directroy_index));
+                        }
+                        KeyCode::Down => {
+                            let new_directroy_index = app.next_directory_item(directory_index)?;
+                            app.change_view(View::DirectoryView(new_directroy_index));
+                        }
+                        KeyCode::Enter => {
+                            // app.address_clipbored = app.directory.get_bored_addresses()
+                            //     [directory_index]
+                            //     .bored_address
+                            //     .to_string();
+                            let bored_address = app.directory.get_bored_address(directory_index)?;
+                            app.status = format!("{:?}", app.interupted_view);
+                            match app.interupted_view {
+                                View::BoredView => {
+                                    match BoredAddress::from_string(bored_address.bored_address) {
+                                        Ok(address) => {
+                                            let theme = app.theme.clone();
+                                            let going_to_bored = app.goto_bored(address);
+                                            match wait_pop_up(
+                                                terminal,
+                                                previous_buffer,
+                                                going_to_bored,
+                                                "Loading bored from antnet...",
+                                                theme,
+                                            )
+                                            .await
+                                            {
+                                                Err(e) => app.display_error(e),
+                                                _ => app.goto_input = String::new(),
+                                            }
+                                        }
+                                        Err(e) => {
+                                            app.display_error(app::SurfBoredError::BoredError(e))
+                                        }
+                                    };
+                                }
+                                _ => {}
+                            }
                         }
                         _ => {}
                     },

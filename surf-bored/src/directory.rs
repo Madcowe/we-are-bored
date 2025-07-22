@@ -16,7 +16,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 use crate::app::SurfBoredError;
-use bored::Bored;
+use bored::{Bored, notice::Display};
+use rand::seq::IndexedRandom;
 use serde::{Deserialize, Serialize};
 use std::fs;
 
@@ -90,6 +91,22 @@ impl Directory {
         } else {
             None
         }
+    }
+
+    pub fn get_bored_addresses(&self) -> &Vec<Listing> {
+        &self.bored_addresses
+    }
+
+    pub fn get_bored_address(&self, directory_index: usize) -> Result<Listing, SurfBoredError> {
+        if self.bored_addresses.is_empty() {
+            return Err(SurfBoredError::DirectoryIsEmpty);
+        } else if self.bored_addresses.len() < directory_index + 1 {
+            return Err(SurfBoredError::DirectoryOutOfBounds(
+                directory_index,
+                self.bored_addresses.len(),
+            ));
+        }
+        Ok(self.bored_addresses[directory_index].clone())
     }
 }
 
