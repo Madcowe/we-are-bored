@@ -2,16 +2,16 @@
 Copyright (C) 2025 We are bored
 
 This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
+it under the terms of the GNU Affero General Public License as
+published by the Free Software Foundation, either version 3 of the
+License, or (at your option) any later version.
 
 This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+GNU Affero General Public License for more details.
 
-You should have received a copy of the GNU General Public License
+You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
@@ -122,6 +122,7 @@ pub struct App {
     pub content_input: String,
     pub link_text_input: String,
     pub link_url_input: String,
+    pub goto_input: String,
 }
 impl App {
     pub fn new() -> App {
@@ -142,6 +143,7 @@ impl App {
             content_input: String::new(),
             link_text_input: String::new(),
             link_url_input: String::new(),
+            goto_input: String::new(),
         }
     }
 
@@ -163,7 +165,7 @@ impl App {
     pub fn display_error(&mut self, surf_bored_error: SurfBoredError) {
         // self.previous_view = self.current_view.clone();
         // self.current_view = View::ErrorView(surf_bored_error);
-        self.status = "In display_error method".to_string();
+        // self.status = "In display_error method".to_string();
         // self.current_view = View::ErrorView(surf_bored_error);
         self.change_view(View::ErrorView(surf_bored_error));
     }

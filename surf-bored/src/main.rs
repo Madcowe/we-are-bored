@@ -206,6 +206,7 @@ async fn run_app<B: Backend>(
                                 app.revert_view();
                             }
                         }
+                        KeyCode::Char('g') => app.change_view(View::GoToView),
                         _ => {}
                     },
                     View::NoticeView { .. } => match key.code {
@@ -241,6 +242,35 @@ async fn run_app<B: Backend>(
                         }
                         KeyCode::Char('o') => {
                             fs::write("notice", format!("{:?}", app.get_selected_notice()))?;
+                        }
+                        _ => {}
+                    },
+                    View::GoToView => match key.code {
+                        KeyCode::Esc => app.revert_view(),
+                        KeyCode::Backspace => {
+                            app.goto_input.pop();
+                        }
+                        KeyCode::Char(value) => app.goto_input.push(value),
+                        KeyCode::Enter => {
+                            match BoredAddress::from_string(app.goto_input.to_string()) {
+                                Ok(address) => {
+                                    let theme = app.theme.clone();
+                                    let going_to_bored = app.goto_bored(address);
+                                    match wait_pop_up(
+                                        terminal,
+                                        previous_buffer,
+                                        going_to_bored,
+                                        "Loading bored from antnet...",
+                                        theme,
+                                    )
+                                    .await
+                                    {
+                                        Err(e) => app.display_error(e),
+                                        _ => app.goto_input = String::new(),
+                                    }
+                                }
+                                Err(e) => app.display_error(app::SurfBoredError::BoredError(e)),
+                            };
                         }
                         _ => {}
                     },

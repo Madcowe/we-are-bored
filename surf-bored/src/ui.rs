@@ -21,6 +21,7 @@ use bored::{Bored, BoredAddress, BoredError, BoredHyperlinkMap, Coordinate};
 use core::panic;
 use ratatui::buffer::Buffer;
 use ratatui::style::{Styled, Stylize};
+use ratatui::symbols::border;
 use ratatui::widgets::{BorderType, Widget};
 use ratatui::{
     Frame, Terminal,
@@ -42,9 +43,9 @@ use crate::display_bored::{character_wrap, style_notice_hyperlinks};
 use crate::theme::Theme;
 
 pub fn ui(frame: &mut Frame, app: &mut App) {
-    // setup base interface
     let area = frame.area();
-    let mut title_text = String::new();
+    let mut bored_name = String::new();
+    let mut bored_url = String::new();
     let mut status_text = String::new();
     // format!(
     // "Current: {:?} previous: {:?} interuppted: {:?} {}",
@@ -62,12 +63,11 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
         .split(area);
     let bored = app.get_current_bored();
     if let Some(bored) = bored {
-        let bored_name = format!(
+        bored_url = format!(
             "{}",
             app.client.as_ref().unwrap().get_bored_address().unwrap()
         );
-        title_text = bored.get_name().to_owned() + "\n" + &bored_name;
-        // status_text = "Connected, bored loded";
+        bored_name = bored.get_name().to_owned() + "\n";
         let mut bored_view_port = BoredViewPort::create(
             &bored,
             Coordinate {
@@ -87,7 +87,6 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
             }
             let mut bored_view_buffer = Buffer::empty(ui_chunks[1]);
             bored_view_port.render_view(&mut bored_view_buffer, app.theme.clone());
-            // eprintln!("{:?}", bored_view_buffer);
             frame.buffer_mut().merge(&bored_view_buffer);
         }
         app.bored_view_port = Some(bored_view_port);
@@ -100,8 +99,19 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
         .border_type(BorderType::QuadrantOutside)
         .style(app.theme.header_style())
         .bold();
-    // let title_rect = Rect::new(0, 0, area.width, 4);
-    let title = Paragraph::new(Text::raw(title_text)).block(title_block);
+    let mut url_style = app.theme.header_style();
+    if app.current_view == View::GoToView {
+        bored_url = app.goto_input.clone();
+        if bored_url.len() < 72 {
+            bored_url = bored_url.clone() + &str::repeat(" ", 72 - bored_url.len());
+        }
+        url_style = app.theme.text_style();
+    }
+    let name_span = Span::styled(bored_name, app.theme.header_style());
+    let url_span = Span::styled(bored_url, url_style);
+    let title_text = Text::from_iter(vec![name_span, url_span]);
+    // let title_text = bored_name + "\n" + &bored_url;
+    let title = Paragraph::new(title_text).block(title_block);
     frame.render_widget(title, ui_chunks[0]);
 
     // modify based on current_view
@@ -112,7 +122,6 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
             let navigation_text = "Press (enter) to contiune or (q) to quit.";
             Clear.render(pop_up_rect, frame.buffer_mut());
             let pop_up_block = Block::default()
-                // .title("Error")
                 .borders(Borders::ALL)
                 .border_type(BorderType::Thick)
                 .style(app.theme.text_style());
@@ -166,7 +175,7 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
                     name_block = name_block.clone().style(app.theme.inverted_text_style())
                 }
                 CreateMode::PrivateKey => {
-                    status_text = "Type to enter key (or use termial emulator paste) (enter) to proceed, (tab) to edit name or (esc) to leave".to_string();
+                    status_text = "Type to enter key (or use terminal emulator paste) (enter) to proceed, (tab) to edit name or (esc) to leave".to_string();
                     key_block = key_block.clone().style(app.theme.inverted_text_style())
                 }
             };
@@ -243,12 +252,11 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
             }
         }
         View::BoredView => {
-            status_text = "Use (the arrow keys) to select a notice in that direction, (tab) to cycle selection, (enter) to view notice, (n) to create new notice, (c) to create new bored or (q) to quit".to_string();
+            status_text = "Use (the arrow keys) to select a notice in that direction, (tab) to cycle selection, (enter) to view notice, (n) to create new notice, (g) to goto url (c) to create new bored or (q) to quit".to_string();
         }
         View::NoticeView { hyperlinks_index } => {
             if let Some(notice) = app.get_selected_notice() {
                 status_text = "Press (tab) to cycle through hyperlinks, (enter) to activte selected hyperlink and (esc) to leave".to_string();
-
                 let pop_up_rect = area.inner(Margin::new(
                     safe_subtract_u16(area.width, notice.get_dimensions().x) / 2,
                     safe_subtract_u16(area.height, notice.get_dimensions().y) / 2,
@@ -294,6 +302,9 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
                 }
                 frame.buffer_mut().merge(&pop_up_buffer);
             }
+        }
+        View::GoToView => {
+            status_text = "Type to enter URL (or use terminal emulator paste) (enter) to go to address (esc) to leave".to_string();
         }
         _ => (),
     }
