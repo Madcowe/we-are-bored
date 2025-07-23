@@ -286,13 +286,13 @@ async fn run_app<B: Backend>(
                             let new_directroy_index = app.next_directory_item(directory_index)?;
                             app.change_view(View::DirectoryView(new_directroy_index));
                         }
+                        KeyCode::Char('h') => {
+                            if key.modifiers == KeyModifiers::CONTROL {
+                                app.directory.set_home(directory_index);
+                            }
+                        }
                         KeyCode::Enter => {
-                            // app.address_clipbored = app.directory.get_bored_addresses()
-                            //     [directory_index]
-                            //     .bored_address
-                            //     .to_string();
                             let bored_address = app.directory.get_bored_address(directory_index)?;
-                            app.status = format!("{:?}", app.interupted_view);
                             match app.interupted_view {
                                 View::BoredView => {
                                     match BoredAddress::from_string(bored_address.bored_address) {

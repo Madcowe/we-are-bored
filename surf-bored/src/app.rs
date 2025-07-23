@@ -194,10 +194,7 @@ impl App {
     pub fn change_view(&mut self, view: View) {
         match view {
             View::ErrorView(_) => self.interupted_view(self.current_view.clone()),
-            View::DirectoryView(_) => match self.current_view {
-                View::DirectoryView(_) => (),
-                _ => self.interupted_view(self.current_view.clone()),
-            },
+            View::DirectoryView(_) => self.interupted_view(self.current_view.clone()),
             _ => {
                 self.previous_view = self.current_view.clone();
             }
@@ -205,11 +202,11 @@ impl App {
         self.current_view = view.clone();
     }
 
-    /// only sets interupted view if it is not an error/waiting
+    /// only sets interupted view if it is not an error/diretory
     fn interupted_view(&mut self, view: View) {
         match view {
-            // View::ErrorView()
             View::ErrorView(_) => (),
+            View::DirectoryView(_) => (),
             _ => self.interupted_view = self.current_view.clone(),
         }
     }

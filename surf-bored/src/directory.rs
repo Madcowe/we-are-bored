@@ -108,6 +108,19 @@ impl Directory {
         }
         Ok(self.bored_addresses[directory_index].clone())
     }
+
+    pub fn as_table(&self) -> Vec<[String; 2]> {
+        let mut v = vec![];
+        for (i, listing) in self.bored_addresses.iter().enumerate() {
+            let home = if i == self.home_bored {
+                "*".to_string()
+            } else {
+                String::new()
+            };
+            v.push([listing.name.clone(), home]);
+        }
+        v
+    }
 }
 
 /// History of boreds surfed in current session

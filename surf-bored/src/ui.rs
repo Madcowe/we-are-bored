@@ -20,9 +20,10 @@ use bored::notice::{self, Display, Notice, NoticeHyperlinkMap, get_display, get_
 use bored::{Bored, BoredAddress, BoredError, BoredHyperlinkMap, Coordinate};
 use core::panic;
 use ratatui::buffer::Buffer;
+use ratatui::layout::Rows;
 use ratatui::style::{Styled, Stylize};
 use ratatui::symbols::border;
-use ratatui::widgets::{BorderType, Widget};
+use ratatui::widgets::{BorderType, Row, Table, TableState, Widget};
 use ratatui::{
     Frame, Terminal,
     backend::Backend,
@@ -307,19 +308,34 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
             status_text = "Type to enter URL (or use terminal emulator paste) (enter) to go to address (esc) to leave".to_string();
         }
         View::DirectoryView(directory_index) => {
-            let pop_up_rect = area.inner(Margin::new(area.width / 8, area.height / 5));
+            let mut table_state = TableState::default().with_selected(*directory_index);
+            let header = ["Bored name", "Home"]
+                .into_iter()
+                .map(Span::from)
+                .collect::<Row>()
+                .style(app.theme.text_style())
+                .bold()
+                .height(1);
+            let directory_table = app.directory.as_table();
+            let rows: Vec<Row> = directory_table
+                .iter()
+                .map(|r| Row::new(vec![r[0].clone(), r[1].clone()]).style(app.theme.text_style()))
+                .collect();
+            let pop_up_rect = area.inner(Margin::new(area.width / 8, area.height / 4));
+            let pop_up_block = Block::default()
+                .title("Diretory of boreds")
+                .style(app.theme.text_style())
+                .borders(Borders::ALL)
+                .border_type(BorderType::Thick);
+            let table = Table::new(rows, [Constraint::Fill(1), Constraint::Length(6)])
+                .header(header)
+                .row_highlight_style(app.theme.inverted_text_style())
+                .block(pop_up_block);
             status_text =
                 "Press up and down to select, (enter) to confirm selection and (esc) to cancel"
                     .to_string();
             Clear.render(pop_up_rect, frame.buffer_mut());
-            let text = format!("directory_index: {directory_index}");
-            let pop_up_block = Block::default()
-                .title(text)
-                .borders(Borders::ALL)
-                .border_type(BorderType::Thick)
-                .style(app.theme.text_style());
-            // .bg(Color::Black);
-            frame.render_widget(pop_up_block, pop_up_rect);
+            frame.render_stateful_widget(table, pop_up_rect, &mut table_state);
         }
         _ => (),
     }
@@ -330,7 +346,7 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
         .style(app.theme.header_style())
         .bold();
     // let status_rect = Rect::new(0, area.height - 5, area.width, 5);
-    status_text = format!("{:?}\n{}", app.status, status_text);
+    // status_text = format!("{:?}\n{}", app.status, status_text);
     let status = Paragraph::new(Text::styled(status_text, Style::default()))
         .wrap(Wrap { trim: false })
         .block(status_block);
