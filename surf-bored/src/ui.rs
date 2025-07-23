@@ -253,7 +253,7 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
             }
         }
         View::BoredView => {
-            status_text = "Use (the arrow keys) to select a notice in that direction, (tab) to cycle selection, (enter) to view notice, (n) to create new notice, (g) to goto url (c) to create new bored or (q) to quit".to_string();
+            status_text = "Use (the arrow keys) to select a notice in that direction, (tab) to cycle selection, (enter) to view notice, (n) to create new notice, (g) to goto url (d) to view directory (c) to create new bored or (q) to quit".to_string();
         }
         View::NoticeView { hyperlinks_index } => {
             if let Some(notice) = app.get_selected_notice() {
@@ -332,7 +332,7 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
                 .row_highlight_style(app.theme.inverted_text_style())
                 .block(pop_up_block);
             status_text =
-                "Press up and down to select, (enter) to confirm selection and (esc) to cancel"
+                "Press up and down to select, (enter) to confirm selection, (ctrl + h) to set as home bored and (esc) to cancel"
                     .to_string();
             Clear.render(pop_up_rect, frame.buffer_mut());
             frame.render_stateful_widget(table, pop_up_rect, &mut table_state);

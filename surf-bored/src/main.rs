@@ -288,7 +288,7 @@ async fn run_app<B: Backend>(
                         }
                         KeyCode::Char('h') => {
                             if key.modifiers == KeyModifiers::CONTROL {
-                                app.directory.set_home(directory_index);
+                                app.set_home(directory_index)?;
                             }
                         }
                         KeyCode::Enter => {

@@ -163,6 +163,12 @@ impl App {
         Ok(())
     }
 
+    pub fn set_home(&mut self, directory_index: usize) -> Result<(), SurfBoredError> {
+        self.directory.set_home(directory_index);
+        self.directory.save_file(&self.directory_path)?;
+        Ok(())
+    }
+
     pub fn next_directory_item(&mut self, directory_index: usize) -> Result<usize, SurfBoredError> {
         let bored_addresses = self.directory.get_bored_addresses();
         if bored_addresses.is_empty() {
@@ -223,12 +229,6 @@ impl App {
         }
     }
 
-    pub fn goto(&mut self) {
-        // self.previous_view = self.current_view.clone();
-        // self.current_view = View::GoToView(GoToMode::PasteAddress)
-        // self.change_view(View::GoToView(GoToMode::PasteAddress));
-    }
-
     pub async fn goto_bored(&mut self, bored_address: BoredAddress) -> Result<(), SurfBoredError> {
         let Some(ref mut client) = self.client else {
             return Err(SurfBoredError::BoredError(
@@ -250,18 +250,12 @@ impl App {
     }
 
     pub fn view_notice(&mut self) {
-        // self.previous_view = self.current_view.clone();
-        // self.current_view = View::NoticeView {
-        //     hyperlinks_index: None,
-        // };
         self.change_view(View::NoticeView {
             hyperlinks_index: None,
         });
     }
 
     pub fn create_bored(&mut self) {
-        // self.previous_view = self.current_view.clone();
-        // self.current_view = View::CreateView(CreateMode::Name);
         self.change_view(View::CreateView(CreateMode::Name));
     }
 
