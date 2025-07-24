@@ -34,6 +34,8 @@ use crate::theme::Theme;
 #[derive(Debug, thiserror::Error, Clone, PartialEq)]
 pub enum SurfBoredError {
     #[error("{0}")]
+    Message(String),
+    #[error("{0}")]
     BoredError(BoredError),
     #[error("Could not read directory file so directory is empty.")]
     DirectoryFileReadError,
@@ -95,6 +97,14 @@ pub enum DraftMode {
 pub enum HyperlinkMode {
     Text,
     URL,
+}
+impl HyperlinkMode {
+    pub fn toggle(&self) -> HyperlinkMode {
+        match self {
+            HyperlinkMode::Text => HyperlinkMode::URL,
+            HyperlinkMode::URL => HyperlinkMode::Text,
+        }
+    }
 }
 
 #[derive(Debug)]

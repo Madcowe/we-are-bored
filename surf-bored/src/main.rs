@@ -377,9 +377,23 @@ async fn run_app<B: Backend>(
                         DraftMode::Content => match key.code {
                             KeyCode::Esc => app.revert_view(),
                             KeyCode::Backspace => {
-                                app.content_input.pop();
-                                app.edit_draft(&app.content_input.clone())
-                                    .expect("Shoud never be more text as deleting")
+                                // If end of content is hyperlink remove it, as just emoving the
+                                // final ) may exceed the max length
+                                if let Some(mut draft) = app.get_draft() {
+                                    if Ok(true) == draft.remove_tail_link() {
+                                        app.content_input = draft.get_content().to_string();
+                                    } else {
+                                        app.content_input.pop();
+                                    }
+                                    match app.edit_draft(&app.content_input.clone()) {
+                                        Err(e) => {
+                                            app.change_view(View::ErrorView(
+                                                SurfBoredError::BoredError(e),
+                                            ));
+                                        }
+                                        _ => (),
+                                    }
+                                }
                             }
                             KeyCode::Enter => {
                                 app.content_input.push('\n');
@@ -403,6 +417,7 @@ async fn run_app<B: Backend>(
                                 if app.current_view == View::DraftView(DraftMode::Content) {
                                     app.content_input.push(value);
                                     try_edit(app);
+                                    // app.status = app.content_input.clone();
                                 }
                             }
 
@@ -410,7 +425,61 @@ async fn run_app<B: Backend>(
                         },
                         DraftMode::Hyperlink(hyperlink_mode) => match key.code {
                             KeyCode::Esc => app.current_view = View::DraftView(DraftMode::Content),
-                            _ => {}
+                            KeyCode::Tab => {
+                                app.current_view =
+                                    View::DraftView(DraftMode::Hyperlink(hyperlink_mode.toggle()));
+                            }
+                            KeyCode::Backspace => match hyperlink_mode {
+                                HyperlinkMode::Text => {
+                                    app.link_text_input.pop();
+                                }
+                                HyperlinkMode::URL => {
+                                    app.link_url_input.pop();
+                                }
+                            },
+                            KeyCode::Char(value) => match hyperlink_mode {
+                                HyperlinkMode::Text => app.link_text_input.push(value),
+                                HyperlinkMode::URL => app.link_url_input.push(value),
+                            },
+                            KeyCode::Enter => match hyperlink_mode {
+                                HyperlinkMode::Text => {
+                                    app.current_view =
+                                        View::DraftView(DraftMode::Hyperlink(HyperlinkMode::URL));
+                                }
+                                HyperlinkMode::URL => {
+                                    let content_with_hyperlink = format!(
+                                        "{}[{}]({})",
+                                        app.content_input, app.link_text_input, app.link_url_input
+                                    );
+                                    match app.edit_draft(&content_with_hyperlink) {
+                                        Err(e) => {
+                                            match e {
+                                                // if to much text don't let user type any more
+                                                BoredError::TooMuchText => {
+                                                    app.change_view(View::ErrorView(
+                                                        SurfBoredError::Message(
+                                                            "Hyperlink to big to fit on notice!"
+                                                                .to_string(),
+                                                        ),
+                                                    ));
+                                                }
+                                                _ => {
+                                                    app.change_view(View::ErrorView(
+                                                        SurfBoredError::BoredError(e),
+                                                    ));
+                                                }
+                                            };
+                                        }
+                                        Ok(_) => {
+                                            app.content_input = content_with_hyperlink;
+                                            app.link_text_input = String::new();
+                                            app.link_url_input = String::new();
+                                        }
+                                    }
+                                    app.current_view = View::DraftView(DraftMode::Content);
+                                }
+                            },
+                            _ => (),
                         },
                         DraftMode::Position => {
                             if key.code == KeyCode::Esc {

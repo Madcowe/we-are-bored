@@ -38,7 +38,7 @@ use std::time::Duration;
 use tokio::task;
 use tokio::time::sleep;
 
-use crate::app::{App, CreateMode, DraftMode, SurfBoredError, View};
+use crate::app::{App, CreateMode, DraftMode, HyperlinkMode, SurfBoredError, View};
 use crate::display_bored::{BoredViewPort, DisplayBored};
 use crate::display_bored::{character_wrap, style_notice_hyperlinks};
 use crate::theme::Theme;
@@ -220,6 +220,49 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
                         );
                         frame.buffer_mut().merge(&draft_buffer);
                     }
+                    DraftMode::Hyperlink(hyperlink_mode) => {
+                        let pop_up_rect = area.inner(Margin::new(area.width / 8, area.height / 5));
+                        Clear.render(pop_up_rect, frame.buffer_mut());
+                        let pop_up_block = Block::default()
+                            .title("Enter hyperlink text and url")
+                            .borders(Borders::ALL)
+                            .border_type(BorderType::Thick)
+                            .style(app.theme.text_style());
+                        frame.render_widget(pop_up_block, pop_up_rect);
+                        let pop_up_chunks = Layout::default()
+                            .direction(Direction::Vertical)
+                            .margin(1)
+                            .constraints([
+                                Constraint::Percentage(50),
+                                Constraint::Percentage(50),
+                                // Constraint::Min(navigation_text.lines().count() as u16),
+                            ])
+                            .split(pop_up_rect);
+                        let mut text_block = Block::default()
+                            .title("Hyperlink text")
+                            .style(app.theme.text_style());
+                        let mut url_block = Block::default()
+                            .title("Hyperlink URL")
+                            .style(app.theme.text_style());
+                        match hyperlink_mode {
+                            HyperlinkMode::Text => {
+                                status_text =
+                        "Type to enter hyperlink text, (ctrl + d) to pick from directory press (enter) to proceed or (esc) to go leave"
+                            .to_string();
+                                text_block =
+                                    text_block.clone().style(app.theme.inverted_text_style())
+                            }
+                            HyperlinkMode::URL => {
+                                status_text = "Type to enter key (or use terminal emulator paste), (ctrl + d) to pick from diretory, press (enter) to proceed, (tab) to edit link text or (esc) to leave".to_string();
+                                url_block = url_block.clone().style(app.theme.inverted_text_style())
+                            }
+                        };
+                        let link_text =
+                            Paragraph::new(app.link_text_input.clone()).block(text_block);
+                        let link_url = Paragraph::new(app.link_url_input.clone()).block(url_block);
+                        frame.render_widget(link_text, pop_up_chunks[0]);
+                        frame.render_widget(link_url, pop_up_chunks[1]);
+                    }
                     DraftMode::Position => {
                         status_text = "Use (the arrow keys) to postion the notice and (enter) to place or (esc) to edit text".to_string();
                         let display = draft.get_display().unwrap();
@@ -346,7 +389,7 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
         .style(app.theme.header_style())
         .bold();
     // let status_rect = Rect::new(0, area.height - 5, area.width, 5);
-    // status_text = format!("{:?}\n{}", app.status, status_text);
+    status_text = format!("{:?}\n{}", app.status, status_text);
     let status = Paragraph::new(Text::styled(status_text, Style::default()))
         .wrap(Wrap { trim: false })
         .block(status_block);

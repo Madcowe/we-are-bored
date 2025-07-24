@@ -303,6 +303,17 @@ impl Notice {
         self.content = content.to_string();
         Ok(())
     }
+
+    /// If the tail of the content is a hyperlink remove it as deleting the final ) could make
+    /// the remaining bit if the now non-link exceed the visible text capacity of the notice
+    pub fn remove_tail_link(&mut self) -> Result<bool, BoredError> {
+        let re = Regex::new(r"(?<link>\[[^\[]*\]\([^\(]*\)\z)")?;
+        if let Some(tail) = re.find(&self.content) {
+            self.content = self.content[0..tail.start()].to_string();
+            return Ok(true);
+        }
+        Ok(false)
+    }
 }
 
 /// Returns a vector of all the hyperlinks in the text using markdown link notation
@@ -545,6 +556,23 @@ mod tests {
 "#;
         eprintln!("{}", notice_hyperlink_map);
         assert_eq!(expected_output, format!("{}", notice_hyperlink_map));
+        Ok(())
+    }
+
+    #[test]
+    fn test_remove_tail_link() -> Result<(), BoredError> {
+        let mut notice = Notice::create(Coordinate { x: 10, y: 13 });
+        assert_eq!(notice.remove_tail_link(), Ok(false));
+        assert_eq!(notice.content, String::new());
+        let text = "We are [link](url) [bored](url).\nYou are [link](url) bored.\nI am [boooo\nooored](url).\nHello\nWorld";
+        notice.write(text)?;
+        assert_eq!(notice.remove_tail_link(), Ok(false));
+        assert_eq!(notice.content, text);
+        let text = "We are [link](url) [bored](url).\nYou are [link](url) bored.\nI am [boooo\nooored](url)";
+        notice.write(text)?;
+        let text = "We are [link](url) [bored](url).\nYou are [link](url) bored.\nI am ";
+        assert_eq!(notice.remove_tail_link(), Ok(true));
+        assert_eq!(notice.content, text);
         Ok(())
     }
 }
