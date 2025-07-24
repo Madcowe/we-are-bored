@@ -132,7 +132,7 @@ pub struct App {
     pub link_text_input: String,
     pub link_url_input: String,
     pub goto_input: String,
-    pub address_clipbored: String,
+    pub menu_visible: bool,
 }
 impl App {
     pub fn new() -> App {
@@ -154,7 +154,7 @@ impl App {
             link_text_input: String::new(),
             link_url_input: String::new(),
             goto_input: String::new(),
-            address_clipbored: String::new(),
+            menu_visible: false,
         }
     }
 
@@ -216,6 +216,7 @@ impl App {
             }
         }
         self.current_view = view.clone();
+        self.menu_visible = false;
     }
 
     /// only sets interupted view if it is not an error/diretory
@@ -237,6 +238,7 @@ impl App {
             View::DirectoryView(_) => self.current_view = self.interupted_view.clone(),
             _ => self.current_view = self.previous_view.clone(),
         }
+        self.menu_visible = false;
     }
 
     pub async fn goto_bored(&mut self, bored_address: BoredAddress) -> Result<(), SurfBoredError> {

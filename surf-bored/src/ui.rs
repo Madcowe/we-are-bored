@@ -19,6 +19,7 @@ use bored::bored_client::{BoredClient, ConnectionType};
 use bored::notice::{self, Display, Notice, NoticeHyperlinkMap, get_display, get_hyperlinks};
 use bored::{Bored, BoredAddress, BoredError, BoredHyperlinkMap, Coordinate};
 use core::panic;
+use rand::seq::IndexedRandom;
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rows;
 use ratatui::style::{Styled, Stylize};
@@ -48,6 +49,7 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
     let mut bored_name = String::new();
     let mut bored_url = String::new();
     let mut status_text = String::new();
+    let mut menu_options = vec![];
     // format!(
     // "Current: {:?} previous: {:?} interuppted: {:?} {}",
     // app.current_view, app.previous_view, app.interupted_view, app.status
@@ -297,6 +299,13 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
         }
         View::BoredView => {
             status_text = "Use (the arrow keys) to select a notice in that direction, (tab) to cycle selection, (enter) to view notice, (n) to create new notice, (g) to goto url (d) to view directory (c) to create new bored or (q) to quit".to_string();
+            menu_options = vec![
+                "n   New notice",
+                "c   Create bored",
+                "g   Goto bored",
+                "d   Open directory of boreds",
+                "q   Quit",
+            ];
         }
         View::NoticeView { hyperlinks_index } => {
             if let Some(notice) = app.get_selected_notice() {
@@ -389,12 +398,28 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
         .style(app.theme.header_style())
         .bold();
     // let status_rect = Rect::new(0, area.height - 5, area.width, 5);
-    status_text = format!("{:?}\n{}", app.status, status_text);
+    // status_text = format!("{:?}\n{}", app.status, status_text);
     let status = Paragraph::new(Text::styled(status_text, Style::default()))
         .wrap(Wrap { trim: false })
         .block(status_block);
     frame.render_widget(status, ui_chunks[2]);
     // status.render(status_rect, frame.buffer_mut());
+    if app.menu_visible {
+        let menu_rect = Rect::new(
+            safe_subtract_u16(area.width, 40),
+            safe_subtract_u16(area.height, menu_options.len() as u16 + 2),
+            min(40, area.width),
+            min(menu_options.len() as u16 + 2, area.height),
+        );
+        let menu_text = menu_options.join("\n");
+        let menu_block = Block::default()
+            .title("Menu")
+            .borders(Borders::ALL)
+            .style(app.theme.dimmed_text_style());
+        let menu = Paragraph::new(menu_text).bold().block(menu_block);
+        Clear.render(menu_rect, frame.buffer_mut());
+        frame.render_widget(menu, menu_rect);
+    }
 }
 
 fn get_draft_postion_on_viewport(

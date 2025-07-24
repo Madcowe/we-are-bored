@@ -145,6 +145,13 @@ async fn run_app<B: Backend>(
                         KeyCode::Char('q') => break,
                         KeyCode::Tab => try_select_notice(app, NoticeSelection::Next),
                         KeyCode::BackTab => try_select_notice(app, NoticeSelection::Previous),
+                        KeyCode::Char(' ') => {
+                            if app.menu_visible {
+                                app.menu_visible = false;
+                            } else {
+                                app.menu_visible = true;
+                            }
+                        }
                         KeyCode::Up => {
                             try_select_notice(app, NoticeSelection::Direction(bored::Direction::Up))
                         }
