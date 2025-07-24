@@ -293,7 +293,8 @@ async fn run_app<B: Backend>(
                         }
                         KeyCode::Enter => {
                             let bored_address = app.directory.get_bored_address(directory_index)?;
-                            match app.interupted_view {
+                            app.status = format!("{:?}", app.interupted_view);
+                            match &app.interupted_view {
                                 View::BoredView => {
                                     match BoredAddress::from_string(bored_address.bored_address) {
                                         Ok(address) => {
@@ -316,6 +317,15 @@ async fn run_app<B: Backend>(
                                             app.display_error(app::SurfBoredError::BoredError(e))
                                         }
                                     };
+                                }
+                                View::DraftView(DraftMode::Hyperlink(hyperlink_mode)) => {
+                                    if *hyperlink_mode == HyperlinkMode::Text
+                                        && app.link_text_input == ""
+                                    {
+                                        app.link_text_input = bored_address.name;
+                                    }
+                                    app.link_url_input = bored_address.bored_address;
+                                    app.revert_view();
                                 }
                                 _ => {}
                             }
@@ -437,10 +447,16 @@ async fn run_app<B: Backend>(
                                     app.link_url_input.pop();
                                 }
                             },
-                            KeyCode::Char(value) => match hyperlink_mode {
-                                HyperlinkMode::Text => app.link_text_input.push(value),
-                                HyperlinkMode::URL => app.link_url_input.push(value),
-                            },
+                            KeyCode::Char(value) => {
+                                if key.modifiers == KeyModifiers::CONTROL && value == 'd' {
+                                    app.change_view(View::DirectoryView(0));
+                                } else {
+                                    match hyperlink_mode {
+                                        HyperlinkMode::Text => app.link_text_input.push(value),
+                                        HyperlinkMode::URL => app.link_url_input.push(value),
+                                    }
+                                }
+                            }
                             KeyCode::Enter => match hyperlink_mode {
                                 HyperlinkMode::Text => {
                                     app.current_view =
