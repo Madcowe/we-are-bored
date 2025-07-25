@@ -21,6 +21,7 @@ use bored::{Bored, BoredAddress, BoredError, BoredHyperlinkMap, Coordinate};
 use core::panic;
 use rand::seq::IndexedRandom;
 use ratatui::buffer::Buffer;
+use ratatui::crossterm::terminal::EnableLineWrap;
 use ratatui::layout::Rows;
 use ratatui::style::{Styled, Stylize};
 use ratatui::symbols::border;
@@ -147,8 +148,7 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
         }
         View::CreateView(create_mode) => {
             let pop_up_rect = area.inner(Margin::new(area.width / 8, area.height / 5));
-            let navigation_text =
-                "Press (tab) to toggle input, (Y) to paste from system clipboard (esc) to cancel";
+            let warning = "THIS IS EXPERIMENTAL SOFTWARE AND STORAGE COSTS MAY VARY WITHOUT WARNING SO DO NOT USE A WALLET WITH YOUR LIFE SAVINGS IN OR INDEED CONTAINING ANY AMOUNT YOU ARE NOT PREPARED TO LOSE IN ENTIRETY";
             Clear.render(pop_up_rect, frame.buffer_mut());
             let pop_up_block = Block::default()
                 .title("Enter bored name and private key of funding wallet*")
@@ -161,15 +161,16 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
                 .direction(Direction::Vertical)
                 .margin(1)
                 .constraints([
-                    Constraint::Percentage(50),
-                    Constraint::Percentage(50),
-                    Constraint::Min(navigation_text.lines().count() as u16),
+                    Constraint::Percentage(40),
+                    Constraint::Percentage(20),
+                    Constraint::Percentage(40),
                 ])
                 .split(pop_up_rect);
             let mut name_block = Block::default().title("Name").style(app.theme.text_style());
             let mut key_block = Block::default()
                 .title("Private key of funding wallet")
                 .style(app.theme.text_style());
+            let warning_block = Block::default().style(app.theme.header_style()).bold();
             match create_mode {
                 CreateMode::Name => {
                     status_text =
@@ -178,14 +179,18 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
                     name_block = name_block.clone().style(app.theme.inverted_text_style())
                 }
                 CreateMode::PrivateKey => {
-                    status_text = "Type to enter key (or use terminal emulator paste) (enter) to proceed, (tab) to edit name or (esc) to leave".to_string();
+                    status_text = "Type to enter key or use terminal emulator paste (enter) to proceed, (tab) to edit name or (esc) to leave".to_string();
                     key_block = key_block.clone().style(app.theme.inverted_text_style())
                 }
             };
             let name_text = Paragraph::new(app.name_input.clone()).block(name_block);
             let key_text = Paragraph::new(app.key_input.clone()).block(key_block);
+            let warning_text = Paragraph::new(warning)
+                .wrap(Wrap { trim: false })
+                .block(warning_block);
             frame.render_widget(name_text, pop_up_chunks[0]);
-            frame.render_widget(key_text, pop_up_chunks[1]);
+            frame.render_widget(key_text, pop_up_chunks[2]);
+            frame.render_widget(warning_text, pop_up_chunks[1]);
         }
         View::DraftView(draft_mode) => {
             if let Some(draft) = app.get_draft() {
@@ -255,7 +260,7 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
                                     text_block.clone().style(app.theme.inverted_text_style())
                             }
                             HyperlinkMode::URL => {
-                                status_text = "Type to enter key (or use terminal emulator paste), (ctrl + d) to pick from diretory, press (enter) to proceed, (tab) to edit link text or (esc) to leave".to_string();
+                                status_text = "Type to enter key or use terminal emulator paste, (ctrl + d) to pick from diretory, press (enter) to proceed, (tab) to edit link text or (esc) to leave".to_string();
                                 url_block = url_block.clone().style(app.theme.inverted_text_style())
                             }
                         };
@@ -298,7 +303,7 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
             }
         }
         View::BoredView => {
-            status_text = "Use (the arrow keys) to select a notice in that direction, (tab) to cycle selection, (enter) to view notice, (n) to create new notice, (g) to goto url (d) to view directory (c) to create new bored or (q) to quit".to_string();
+            status_text = "Use (the arrow keys) to select a notice in that direction, (tab) to cycle selection, (enter) to view notice (n) to create a new notice or (space) to view menu.".to_string();
             menu_options = vec![
                 "n   New notice",
                 "c   Create bored",
@@ -357,7 +362,7 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
             }
         }
         View::GoToView => {
-            status_text = "Type to enter URL (or use terminal emulator paste) (enter) to go to address (esc) to leave".to_string();
+            status_text = "Type to enter URL or use terminal emulator paste, (enter) to go to address (esc) to leave".to_string();
         }
         View::DirectoryView(directory_index) => {
             let mut table_state = TableState::default().with_selected(*directory_index);

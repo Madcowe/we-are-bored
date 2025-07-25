@@ -451,6 +451,7 @@ impl Bored {
         }
         notice.relocate(&self, top_left)?;
         self.notices.push(notice);
+        self.prune_non_visible()?;
         return Ok(());
     }
 
