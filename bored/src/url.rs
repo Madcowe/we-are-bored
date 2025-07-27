@@ -63,10 +63,12 @@ pub enum URL {
 impl URL {
     pub fn from_string(s: String) -> Result<Self, BoredError> {
         let s = s.trim();
-        if let Ok(bored_address) = BoredAddress::from_string(&s) {
-            return Ok(URL::BoredNet(bored_address));
-        } else if &s[0..8] == "https://" || &s[0..7] == "http://" {
-            return Ok(URL::ClearNet(s.to_string()));
+        if s.len() > 7 {
+            if let Ok(bored_address) = BoredAddress::from_string(&s) {
+                return Ok(URL::BoredNet(bored_address));
+            } else if &s[0..8] == "https://" || &s[0..7] == "http://" {
+                return Ok(URL::ClearNet(s.to_string()));
+            }
         }
         Err(BoredError::UnknownURLType(s.to_string()))
     }
@@ -132,5 +134,7 @@ mod tests {
             url_result,
             Err(BoredError::UnknownURLType("not a url".to_string()))
         );
+        let url_result = URL::from_string("".to_string());
+        assert_eq!(url_result, Err(BoredError::UnknownURLType("".to_string())));
     }
 }

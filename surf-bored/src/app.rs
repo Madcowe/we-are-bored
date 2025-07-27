@@ -22,6 +22,7 @@ use bored::{Bored, BoredError, Coordinate, Direction};
 use rand::distr::uniform::Error;
 use rand::seq::IndexedRandom;
 use ratatui::style::{Color, Style, Stylize};
+use ratatui::{Frame, Terminal, backend::Backend, buffer::Buffer};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::fs::File;
@@ -31,6 +32,7 @@ use std::path::{Path, PathBuf, StripPrefixError};
 use crate::directory::{Directory, History, Listing};
 use crate::display_bored::BoredViewPort;
 use crate::theme::Theme;
+use crate::ui::wait_pop_up;
 
 #[derive(Debug, thiserror::Error, Clone, PartialEq)]
 pub enum SurfBoredError {
@@ -262,17 +264,6 @@ impl App {
         Ok(())
     }
 
-    pub fn view_notice(&mut self) {
-        self.change_view(View::NoticeView {
-            hyperlinks_index: None,
-        });
-    }
-
-    pub fn create_bored(&mut self) {
-        self.change_view(View::CreateView(CreateMode::Name));
-    }
-
-    /// returns the current bored of the cliet if both exist otherwise None
     pub fn get_current_bored(&self) -> Option<Bored> {
         if let Some(client) = &self.client {
             if let Ok(bored) = client.get_current_bored() {
@@ -418,10 +409,6 @@ impl App {
         }
     }
 
-    pub fn create_hyperlink(&mut self) {
-        self.change_view(View::DraftView(DraftMode::Hyperlink(HyperlinkMode::Text)));
-    }
-
     pub fn position_draft(&mut self, new_top_left: Coordinate) -> Result<bool, BoredError> {
         if let Some(draft) = self.get_draft() {
             let new_bottom_right = new_top_left.add(&draft.get_dimensions());
@@ -523,6 +510,37 @@ impl App {
             }
         }
         None
+    }
+
+    pub async fn handle_hyperlink<B: Backend>(
+        &mut self,
+        hyperlink: Hyperlink,
+        terminal: &mut Terminal<B>,
+        previous_buffer: Buffer,
+    ) -> Result<(), SurfBoredError> {
+        // ) -> impl Future<Output = Result<(), SurfBoredError>> {
+        let theme = self.theme.clone();
+        let url = URL::from_string(hyperlink.get_link())?;
+        match url {
+            URL::BoredNet(bored_address) => {
+                let going_to_bored = self.goto_bored(bored_address);
+                match wait_pop_up(
+                    terminal,
+                    previous_buffer,
+                    going_to_bored,
+                    "Loading bored from antnet...",
+                    theme,
+                )
+                .await
+                {
+                    Err(e) => self.display_error(e),
+                    _ => (),
+                }
+                self.revert_view();
+            }
+            _ => (),
+        }
+        Ok(())
     }
 }
 
