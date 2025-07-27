@@ -15,7 +15,7 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-use crate::{Bored, BoredAddress, BoredError, Coordinate};
+use crate::{Bored, BoredError, Coordinate};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::fmt::{self};

@@ -16,7 +16,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 use crate::notice::{Display, Notice};
-use crate::{Bored, BoredAddress, BoredError, Coordinate};
+use crate::url::{BoredAddress, URL};
+use crate::{Bored, BoredError, Coordinate};
 use autonomi::client::payment::PaymentOption;
 use autonomi::scratchpad::ScratchpadError;
 use autonomi::{Bytes, Client, Network, Scratchpad, SecretKey, Wallet};

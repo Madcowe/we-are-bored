@@ -15,6 +15,7 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+use crate::url::BoredAddress;
 use autonomi::SecretKey;
 use autonomi::scratchpad::ScratchpadError;
 use notice::{Display, Notice, NoticeHyperlinkMap};
@@ -24,6 +25,7 @@ use std::ops::{Add, IndexMut};
 
 pub mod bored_client;
 pub mod notice;
+pub mod url;
 
 // Should be entered in order as created as default looks at last element
 const PROTOCOL_VERSIONS: [ProtocolVersion; 1] = [ProtocolVersion(1)];
@@ -103,6 +105,8 @@ pub enum BoredError {
     NoBored,
     #[error("Non Bored URL:\n{0}")]
     NotBoredURL(String),
+    #[error("Unknown URL type:\n{0}")]
+    UnknownURLType(String),
     #[error(
         "Bored to big to store in scratchpad, oldest notice has been removed to make room, please try again."
     )]
@@ -137,57 +141,6 @@ impl From<autonomi::client::quote::CostError> for BoredError {
     fn from(e: autonomi::client::quote::CostError) -> Self {
         let message = format!("{e}");
         BoredError::QuoteError(message)
-    }
-}
-
-/// The address of a bored, currently this can only be autonomi::private key that has been
-/// used to create a scratchpad with a bored stored in it.
-/// Hence this means anyone who has the address can update the board which probalby won't
-/// be sensible in a long term project but this is an experiment so starting with the
-/// most basic level of a human trust network seems appropriate, you share it you bare it!
-#[derive(Clone, Debug, PartialEq)]
-pub enum BoredAddress {
-    ScratchpadKey(autonomi::SecretKey),
-}
-impl fmt::Display for BoredAddress {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match &self {
-            BoredAddress::ScratchpadKey(key) => write!(f, "bored://{}", key.to_hex()),
-        }
-    }
-}
-
-impl BoredAddress {
-    /// Generates a new BoredAdress, ie a new autonomi secrkey encapsulated inside this enum
-    pub fn new() -> BoredAddress {
-        BoredAddress::ScratchpadKey(autonomi::SecretKey::random())
-    }
-
-    /// Tries to create bored URL from string, will remove protocol part of URL if it exists
-    /// attempt to create with that text, fails if it doesn't make valid secret key
-    /// this doesn't neccsiarily imply it is an existing bored address
-    pub fn from_string(mut s: String) -> Result<Self, BoredError> {
-        if s.len() == 72 {
-            if &s[0..8] == "bored://" {
-                s = s[8..s.len()].to_string();
-            }
-        }
-        let key = match SecretKey::from_hex(&s) {
-            Ok(key) => key,
-            Err(_) => return Err(BoredError::NotBoredURL(s)),
-        };
-        Ok(BoredAddress::ScratchpadKey(key))
-    }
-
-    pub fn get_key(&self) -> &autonomi::SecretKey {
-        let BoredAddress::ScratchpadKey(key) = self;
-        key
-    }
-
-    pub fn get_public_key(&self) -> autonomi::PublicKey {
-        match self {
-            BoredAddress::ScratchpadKey(key) => key.public_key(),
-        }
     }
 }
 
@@ -824,17 +777,17 @@ mod tests {
 
     #[test]
     fn test_bored_address_from_string() {
-        let bored_address = BoredAddress::from_string("".to_string());
+        let bored_address = BoredAddress::from_string("");
         assert_eq!(bored_address, Err(BoredError::NotBoredURL("".to_string())));
         let string =
             "bored://2f67b46da5e6d62c07fb97889c7e7155ca7e1fd3efb711a5468eeda8e1501330".to_string();
-        let bored_address = BoredAddress::from_string(string);
+        let bored_address = BoredAddress::from_string(&string);
         assert_eq!(
             bored_address.unwrap().get_key().to_hex(),
             "2f67b46da5e6d62c07fb97889c7e7155ca7e1fd3efb711a5468eeda8e1501330"
         );
         let string = "2f67b46da5e6d62c07fb97889c7e7155ca7e1fd3efb711a5468eeda8e1501330".to_string();
-        let bored_address = BoredAddress::from_string(string);
+        let bored_address = BoredAddress::from_string(&string);
         assert_eq!(
             bored_address.unwrap().get_key().to_hex(),
             "2f67b46da5e6d62c07fb97889c7e7155ca7e1fd3efb711a5468eeda8e1501330"

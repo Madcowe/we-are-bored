@@ -16,7 +16,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 use bored::notice::{self, Display, Notice, NoticeHyperlinkMap, get_display, get_hyperlinks};
-use bored::{Bored, BoredAddress, BoredError, BoredHyperlinkMap, Coordinate, bored_client};
+use bored::url::{BoredAddress, URL};
+use bored::{Bored, BoredError, BoredHyperlinkMap, Coordinate, bored_client};
 use ratatui::buffer::{Buffer, Cell};
 use ratatui::crossterm::cursor::position;
 use ratatui::layout::Position;

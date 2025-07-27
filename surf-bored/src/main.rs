@@ -17,9 +17,10 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use app::{NoticeSelection, SurfBoredError};
 use bored::{
-    Bored, BoredAddress, BoredError, Coordinate, Direction, bored_client,
+    Bored, BoredError, Coordinate, Direction, bored_client,
     bored_client::ConnectionType,
     notice::{self, MAX_URL_LENGTH},
+    url::{BoredAddress, URL},
 };
 use core::arch;
 use directory::Directory;
@@ -103,7 +104,7 @@ async fn run_app<B: Backend>(
         // app.display_error(e);
     }
     if let Some(home_address) = app.directory.get_home() {
-        match BoredAddress::from_string(home_address.to_string()) {
+        match BoredAddress::from_string(home_address) {
             Ok(home_address) => {
                 let theme = app.theme.clone();
                 let going_to_bored = app.goto_bored(home_address);
@@ -224,7 +225,7 @@ async fn run_app<B: Backend>(
                         KeyCode::BackTab => app.previous_hyperlink(),
                         KeyCode::Enter => {
                             if let Some(hyperlink) = app.get_selected_hyperlink() {
-                                match BoredAddress::from_string(hyperlink.get_link()) {
+                                match BoredAddress::from_string(&hyperlink.get_link()) {
                                     Ok(bored_address) => {
                                         let theme = app.theme.clone();
                                         let going_to_bored = app.goto_bored(bored_address);
@@ -260,7 +261,7 @@ async fn run_app<B: Backend>(
                         }
                         KeyCode::Char(value) => app.goto_input.push(value),
                         KeyCode::Enter => {
-                            match BoredAddress::from_string(app.goto_input.to_string()) {
+                            match BoredAddress::from_string(&app.goto_input) {
                                 Ok(address) => {
                                     let theme = app.theme.clone();
                                     let going_to_bored = app.goto_bored(address);
@@ -303,7 +304,7 @@ async fn run_app<B: Backend>(
                             app.status = format!("{:?}", app.interupted_view);
                             match &app.interupted_view {
                                 View::BoredView => {
-                                    match BoredAddress::from_string(bored_address.bored_address) {
+                                    match BoredAddress::from_string(&bored_address.bored_address) {
                                         Ok(address) => {
                                             let theme = app.theme.clone();
                                             let going_to_bored = app.goto_bored(address);

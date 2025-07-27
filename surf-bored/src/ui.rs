@@ -17,7 +17,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use bored::bored_client::{BoredClient, ConnectionType};
 use bored::notice::{self, Display, Notice, NoticeHyperlinkMap, get_display, get_hyperlinks};
-use bored::{Bored, BoredAddress, BoredError, BoredHyperlinkMap, Coordinate};
+use bored::url::{BoredAddress, URL};
+use bored::{Bored, BoredError, BoredHyperlinkMap, Coordinate};
 use core::panic;
 use rand::seq::IndexedRandom;
 use ratatui::buffer::Buffer;
