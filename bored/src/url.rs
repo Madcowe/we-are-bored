@@ -54,6 +54,7 @@ impl BoredAddress {
     }
 }
 
+#[derive(Clone, Debug, PartialEq)]
 pub enum URL {
     BoredNet(BoredAddress),
     ClearNet(String),
@@ -102,6 +103,34 @@ mod tests {
         assert_eq!(
             bored_address.unwrap().get_key().to_hex(),
             "2f67b46da5e6d62c07fb97889c7e7155ca7e1fd3efb711a5468eeda8e1501330"
+        );
+    }
+
+    #[test]
+    fn test_url_from_string() {
+        let url = URL::from_string(
+            "bored://2f67b46da5e6d62c07fb97889c7e7155ca7e1fd3efb711a5468eeda8e1501330".to_string(),
+        )
+        .unwrap();
+        let secret_key = match url {
+            URL::BoredNet(bored_address) => bored_address.get_key().clone(),
+            _ => SecretKey::from_hex("00000000000000000000000000000000").unwrap(),
+        };
+        assert_eq!(
+            secret_key.to_hex(),
+            "2f67b46da5e6d62c07fb97889c7e7155ca7e1fd3efb711a5468eeda8e1501330"
+        );
+        let url = URL::from_string("https://autonomi.com".to_string()).unwrap();
+        assert_eq!(url, URL::ClearNet("https://autonomi.com".to_string()));
+        let url = URL::from_string("http://www.bbsdocumentary.com/".to_string()).unwrap();
+        assert_eq!(
+            url,
+            URL::ClearNet("http://www.bbsdocumentary.com/".to_string())
+        );
+        let url_result = URL::from_string("not a url".to_string());
+        assert_eq!(
+            url_result,
+            Err(BoredError::UnknownURLType("not a url".to_string()))
         );
     }
 }
