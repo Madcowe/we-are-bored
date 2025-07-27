@@ -105,7 +105,7 @@ pub enum BoredError {
     NoBored,
     #[error("Non Bored URL:\n{0}")]
     NotBoredURL(String),
-    #[error("Unknown URL type:\n{0}")]
+    #[error("This link is not recognised as a valid URL:\n{0}")]
     UnknownURLType(String),
     #[error(
         "Bored to big to store in scratchpad, oldest notice has been removed to make room, please try again."

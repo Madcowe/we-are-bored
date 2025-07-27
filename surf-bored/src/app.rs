@@ -27,6 +27,7 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::fs::File;
 use std::io::Write;
+use std::iter::Sum;
 use std::path::{Path, PathBuf, StripPrefixError};
 
 use crate::directory::{Directory, History, Listing};
@@ -528,7 +529,7 @@ impl App {
                     terminal,
                     previous_buffer,
                     going_to_bored,
-                    "Loading bored from antnet...",
+                    "Trying to open old fashioned internet link...",
                     theme,
                 )
                 .await
@@ -537,10 +538,18 @@ impl App {
                     _ => (),
                 }
                 self.revert_view();
+                return Ok(());
             }
-            _ => (),
+            URL::ClearNet(clear_net_url) => {
+                if let Err(_) = open::that(clear_net_url) {
+                    return Err(SurfBoredError::Message(
+                        "Could not open old fashioned (https/http) link".to_string(),
+                    ));
+                };
+                self.revert_view();
+                return Ok(());
+            }
         }
-        Ok(())
     }
 }
 
