@@ -70,3 +70,38 @@ impl URL {
         Err(BoredError::UnknownURLType(s.to_string()))
     }
 }
+#[cfg(test)]
+
+mod tests {
+
+    use super::*;
+
+    #[test]
+    fn test_bored_address_display() {
+        let bored_address = BoredAddress::new();
+        let BoredAddress::ScratchpadKey(ref scratchpad_key) = bored_address;
+        assert_eq!(
+            format!("bored://{}", scratchpad_key.to_hex()),
+            format!("{}", bored_address)
+        );
+    }
+
+    #[test]
+    fn test_bored_address_from_string() {
+        let bored_address = BoredAddress::from_string("");
+        assert_eq!(bored_address, Err(BoredError::NotBoredURL("".to_string())));
+        let string =
+            "bored://2f67b46da5e6d62c07fb97889c7e7155ca7e1fd3efb711a5468eeda8e1501330".to_string();
+        let bored_address = BoredAddress::from_string(&string);
+        assert_eq!(
+            bored_address.unwrap().get_key().to_hex(),
+            "2f67b46da5e6d62c07fb97889c7e7155ca7e1fd3efb711a5468eeda8e1501330"
+        );
+        let string = "2f67b46da5e6d62c07fb97889c7e7155ca7e1fd3efb711a5468eeda8e1501330".to_string();
+        let bored_address = BoredAddress::from_string(&string);
+        assert_eq!(
+            bored_address.unwrap().get_key().to_hex(),
+            "2f67b46da5e6d62c07fb97889c7e7155ca7e1fd3efb711a5468eeda8e1501330"
+        );
+    }
+}

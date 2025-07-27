@@ -484,6 +484,7 @@ mod tests {
         bored_client
             .create_draft(Coordinate { x: 4000, y: 4000 })
             .unwrap();
+        bored_client.position_draft(Coordinate { x: 1, y: 0 })?;
         let realy_long_string = "b".repeat(2 * 1024 * 1024);
         bored_client.edit_draft(&realy_long_string).unwrap();
         assert_eq!(
@@ -495,6 +496,7 @@ mod tests {
         bored_client
             .create_draft(Coordinate { x: 4000, y: 4000 })
             .unwrap();
+        bored_client.position_draft(Coordinate { x: 2, y: 0 })?;
         let realy_long_string = "b".repeat(2 * 1024 * 1024);
         bored_client.edit_draft(&realy_long_string).unwrap();
         assert_eq!(bored_client.add_draft_to_bored().await, Ok(()));
