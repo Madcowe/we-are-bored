@@ -19,11 +19,14 @@ use crate::notice::{Display, Notice};
 use crate::url::{BoredAddress, URL};
 use crate::{Bored, BoredError, Coordinate};
 use autonomi::client::payment::PaymentOption;
+use autonomi::data::DataAddress;
 use autonomi::scratchpad::ScratchpadError;
 use autonomi::{Bytes, Client, Network, Scratchpad, SecretKey, Wallet};
 use std::clone;
 use std::error::Error;
 use std::fmt::Debug;
+use std::path::PathBuf;
+use std::str::FromStr;
 
 #[derive(Clone, Copy)]
 pub enum ConnectionType {
@@ -295,6 +298,18 @@ impl BoredClient {
             },
             _ => (),
         }
+        Ok(())
+    }
+
+    /// Downlad file from antnet for antnet hyperlinks
+    pub async fn download_file(
+        &self,
+        data_address: &DataAddress,
+        path: PathBuf,
+    ) -> Result<(), BoredError> {
+        self.client
+            .file_download_public(&data_address, path)
+            .await?;
         Ok(())
     }
 

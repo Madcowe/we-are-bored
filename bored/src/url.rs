@@ -1,5 +1,5 @@
 use crate::BoredError;
-use autonomi::SecretKey;
+use autonomi::{SecretKey, data::DataAddress};
 use std::fmt::{self};
 
 /// The address of a bored, currently this can only be autonomi::private key that has been
@@ -58,6 +58,7 @@ impl BoredAddress {
 pub enum URL {
     BoredNet(BoredAddress),
     ClearNet(String),
+    AntNet(DataAddress),
 }
 
 impl URL {
@@ -68,6 +69,11 @@ impl URL {
                 return Ok(URL::BoredNet(bored_address));
             } else if &s[0..8] == "https://" || &s[0..7] == "http://" {
                 return Ok(URL::ClearNet(s.to_string()));
+            } else if &s[0..6] == "ant://" || s.len() == 70 {
+                let s = &s[6..s.len()];
+                if let Ok(data_address) = DataAddress::from_hex(s) {
+                    return Ok(URL::AntNet(data_address));
+                }
             }
         }
         Err(BoredError::UnknownURLType(s.to_string()))
@@ -136,5 +142,22 @@ mod tests {
         );
         let url_result = URL::from_string("".to_string());
         assert_eq!(url_result, Err(BoredError::UnknownURLType("".to_string())));
+        let url = URL::from_string(
+            "ant://a7d2fdbb975efaea25b7ebe3d38be4a0b82c1d71e9b89ac4f37bc9f8677826e0".to_string(),
+        )
+        .unwrap();
+        let data_address = DataAddress::from_hex(
+            "a7d2fdbb975efaea25b7ebe3d38be4a0b82c1d71e9b89ac4f37bc9f8677826e0",
+        )
+        .unwrap();
+        assert_eq!(url, URL::AntNet(data_address));
+        let url_result = URL::from_string(
+            "ant://a7d2fdbb975efaea25b7ebe3d38be4a0b82c1d71e9b89ac4f37bc9f8677826e".to_string(),
+        );
+        assert!(url_result.is_err());
+        let url_result = URL::from_string(
+            "ant://a7d2fdbb975efaea25b7ebe3d38be4a0b82c1d71e9b89ac4f37bc9f8677826e00".to_string(),
+        );
+        assert!(url_result.is_err());
     }
 }

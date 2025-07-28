@@ -17,6 +17,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use crate::url::BoredAddress;
 use autonomi::SecretKey;
+use autonomi::client::files::DownloadError;
 use autonomi::scratchpad::ScratchpadError;
 use notice::{Display, Notice, NoticeHyperlinkMap};
 use serde::{Deserialize, Serialize};
@@ -111,6 +112,10 @@ pub enum BoredError {
         "Bored to big to store in scratchpad, oldest notice has been removed to make room, please try again."
     )]
     BoredTooBig,
+    #[error("Could not download file from antnet: {0}")]
+    DownloadError(String),
+    #[error("Antnet call timed out as never returned")]
+    StillWaiting,
 }
 
 impl From<serde_json::Error> for BoredError {
@@ -128,6 +133,13 @@ impl From<autonomi::scratchpad::ScratchpadError> for BoredError {
                 BoredError::ScratchpadError(message)
             }
         }
+    }
+}
+
+impl From<DownloadError> for BoredError {
+    fn from(e: DownloadError) -> Self {
+        let messgae = format!("{e}");
+        BoredError::DownloadError(messgae)
     }
 }
 

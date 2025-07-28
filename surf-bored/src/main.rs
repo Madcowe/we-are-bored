@@ -231,6 +231,28 @@ async fn run_app<B: Backend>(
                                 {
                                     app.display_error(e);
                                 }
+                                // match BoredAddress::from_string(&hyperlink.get_link()) {
+                                //     Ok(bored_address) => {
+                                //         let theme = app.theme.clone();
+                                //         let going_to_bored = app.goto_bored(bored_address);
+                                //         match wait_pop_up(
+                                //             terminal,
+                                //             previous_buffer,
+                                //             going_to_bored,
+                                //             "Loading bored from antnet...",
+                                //             theme,
+                                //         )
+                                //         .await
+                                //         {
+                                //             Err(e) => app.display_error(e),
+                                //             _ => (),
+                                //         }
+                                //         app.revert_view();
+                                //     }
+                                //     Err(e) => {
+                                //         app.display_error(SurfBoredError::BoredError(e));
+                                //     }
+                                // }
                             }
                         }
                         KeyCode::Char('o') => {

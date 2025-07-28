@@ -1216,9 +1216,9 @@ checksum = "ace50bade8e6234aa140d9a2f552bbee1db4d353f69b8217bc503490fc1a9f26"
 
 [[package]]
 name = "autonomi"
-version = "0.5.1"
+version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9ea7fe69d8af95f0feeb7cb2f46d1ec65d8d2b96240bab2106e130c10f49696f"
+checksum = "d8c2f7a0abb3a2bf5e1d2ac0b4c27a5f9252c8ab419090fa8c8e1a7be30dad62"
 dependencies = [
  "ant-bootstrap",
  "ant-evm",
@@ -5851,8 +5851,9 @@ checksum = "13c2bddecc57b384dee18652358fb23172facb8a2c51ccc10d74c157bdea3292"
 
 [[package]]
 name = "surf-bored"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
+ "autonomi",
  "bored",
  "open",
  "rand 0.9.1",

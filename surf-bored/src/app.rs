@@ -15,25 +15,28 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+use autonomi::data::DataAddress;
 use bored::bored_client::{self, BoredClient, ConnectionType};
 use bored::notice::{self, Hyperlink, Notice, NoticeHyperlinkMap, get_hyperlinks};
 use bored::url::{BoredAddress, URL};
 use bored::{Bored, BoredError, Coordinate, Direction};
-use rand::distr::uniform::Error;
 use rand::seq::IndexedRandom;
 use ratatui::style::{Color, Style, Stylize};
 use ratatui::{Frame, Terminal, backend::Backend, buffer::Buffer};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::fs::File;
+use std::io::Error;
 use std::io::Write;
 use std::iter::Sum;
 use std::path::{Path, PathBuf, StripPrefixError};
+use std::str::FromStr;
+use tokio::task::futures::TaskLocalFuture;
 
 use crate::directory::{Directory, History, Listing};
 use crate::display_bored::BoredViewPort;
 use crate::theme::Theme;
-use crate::ui::wait_pop_up;
+use crate::ui::{wait_pop_up, wait_pop_up_bored_error};
 
 #[derive(Debug, thiserror::Error, Clone, PartialEq)]
 pub enum SurfBoredError {
@@ -57,11 +60,20 @@ pub enum SurfBoredError {
     DirectoryIsEmpty,
     #[error("The index: {0} is out of bounds of directory of len {1}")]
     DirectoryOutOfBounds(usize, usize),
+    #[error("{0}")]
+    IOError(String),
 }
 
 impl From<BoredError> for SurfBoredError {
     fn from(e: BoredError) -> Self {
         Self::BoredError(e)
+    }
+}
+
+impl From<Error> for SurfBoredError {
+    fn from(e: Error) -> Self {
+        let s = format!("{e}");
+        Self::IOError(s)
     }
 }
 
@@ -122,6 +134,7 @@ pub struct App {
     pub client: Option<BoredClient>,
     pub directory: Directory,
     pub directory_path: String,
+    pub download_path: String,
     pub history: History,
     pub current_view: View,
     pub previous_view: View,
@@ -144,6 +157,8 @@ impl App {
             client: None, //BoredClient::init(ConnectionType::Local).await.ok(),
             directory: Directory::new(),
             directory_path: "directory_of_boreds.toml".to_string(),
+            download_path: "downloads/".to_string(),
+            // download_path: "lucky.jpg".to_string(),
             history: History::new(),
             current_view: View::BoredView,
             previous_view: View::BoredView,
@@ -513,6 +528,18 @@ impl App {
         None
     }
 
+    pub async fn download_file(
+        &self,
+        data_address: &DataAddress,
+        path: PathBuf,
+    ) -> Result<(), SurfBoredError> {
+        let Some(ref client) = self.client else {
+            return Err(BoredError::ClientConnectionError.into());
+        };
+        client.download_file(&data_address, path).await?;
+        Ok(())
+    }
+
     pub async fn handle_hyperlink<B: Backend>(
         &mut self,
         hyperlink: Hyperlink,
@@ -529,7 +556,7 @@ impl App {
                     terminal,
                     previous_buffer,
                     going_to_bored,
-                    "Trying to open old fashioned internet link...",
+                    "Loading bored from antnet...",
                     theme,
                 )
                 .await
@@ -548,6 +575,36 @@ impl App {
                 };
                 self.revert_view();
                 return Ok(());
+            }
+            URL::AntNet(data_address) => {
+                // if let Ok(path) = PathBuf::from_str(&path) {
+                let mut path = PathBuf::new();
+                path.push(self.download_path.clone());
+                if tokio::fs::metadata(&path).await.is_err() {
+                    eprintln!("{path:?}");
+                    tokio::fs::create_dir_all(path.clone()).await?;
+                }
+                // let Some(ref client) = self.client else {
+                //     return Err(BoredError::ClientConnectionError.into());
+                // };
+                path.push("lucky.jpg");
+                eprintln!("{path:?}");
+                let downloading_file = self.download_file(&data_address, path);
+                match wait_pop_up(
+                    terminal,
+                    previous_buffer,
+                    downloading_file,
+                    "Downloading file from antnet...\nIf it is a large file it may take some time.",
+                    theme,
+                )
+                .await
+                {
+                    Err(e) => self.display_error(e.into()),
+                    _ => (),
+                }
+                self.revert_view();
+                // }
+                Ok(())
             }
         }
     }
