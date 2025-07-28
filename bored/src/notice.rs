@@ -25,13 +25,6 @@ use std::fmt::{self};
 /// bored to big to fit in scratchpadlonges
 pub const MAX_URL_LENGTH: usize = 2048;
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
-pub enum HyperlinkType {
-    Bored,
-    Clearnet,
-    AntFile,
-}
-
 /// Hyperlinks with maximum url length
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
 pub struct Hyperlink {
@@ -39,7 +32,6 @@ pub struct Hyperlink {
     text_location: (usize, usize),
     link: String,
     link_location: (usize, usize),
-    hyperlink_type: HyperlinkType,
 }
 impl Hyperlink {
     pub fn create(
@@ -56,7 +48,6 @@ impl Hyperlink {
             text_location,
             link: link.to_string(),
             link_location,
-            hyperlink_type: HyperlinkType::Bored,
         })
     }
 
@@ -64,8 +55,8 @@ impl Hyperlink {
         self.link.clone()
     }
 
-    pub fn get_type(&self) -> HyperlinkType {
-        self.hyperlink_type.clone()
+    pub fn get_text(&self) -> String {
+        self.text.clone()
     }
 }
 

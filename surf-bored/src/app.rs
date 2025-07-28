@@ -24,6 +24,7 @@ use rand::seq::IndexedRandom;
 use ratatui::style::{Color, Style, Stylize};
 use ratatui::{Frame, Terminal, backend::Backend, buffer::Buffer};
 use serde::{Deserialize, Serialize};
+use std::any::Any;
 use std::fs;
 use std::fs::File;
 use std::io::Error;
@@ -546,7 +547,6 @@ impl App {
         terminal: &mut Terminal<B>,
         previous_buffer: Buffer,
     ) -> Result<(), SurfBoredError> {
-        // ) -> impl Future<Output = Result<(), SurfBoredError>> {
         let theme = self.theme.clone();
         let url = URL::from_string(hyperlink.get_link())?;
         match url {
@@ -577,19 +577,14 @@ impl App {
                 return Ok(());
             }
             URL::AntNet(data_address) => {
-                // if let Ok(path) = PathBuf::from_str(&path) {
                 let mut path = PathBuf::new();
                 path.push(self.download_path.clone());
                 if tokio::fs::metadata(&path).await.is_err() {
-                    eprintln!("{path:?}");
                     tokio::fs::create_dir_all(path.clone()).await?;
                 }
-                // let Some(ref client) = self.client else {
-                //     return Err(BoredError::ClientConnectionError.into());
-                // };
-                path.push("lucky.jpg");
-                eprintln!("{path:?}");
-                let downloading_file = self.download_file(&data_address, path);
+                let file_name = hyperlink.get_text();
+                path.push(file_name);
+                let downloading_file = self.download_file(&data_address, path.clone());
                 match wait_pop_up(
                     terminal,
                     previous_buffer,
@@ -602,8 +597,12 @@ impl App {
                     Err(e) => self.display_error(e.into()),
                     _ => (),
                 }
+                if let Err(_) = open::that(path) {
+                    return Err(SurfBoredError::Message(
+                        "Could not open downloaded file".to_string(),
+                    ));
+                };
                 self.revert_view();
-                // }
                 Ok(())
             }
         }
