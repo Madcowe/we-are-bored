@@ -37,7 +37,7 @@ use tokio::task::futures::TaskLocalFuture;
 use crate::directory::{Directory, History, Listing};
 use crate::display_bored::BoredViewPort;
 use crate::theme::Theme;
-use crate::ui::{wait_pop_up, wait_pop_up_bored_error};
+use crate::ui::wait_pop_up;
 
 #[derive(Debug, thiserror::Error, Clone, PartialEq)]
 pub enum SurfBoredError {

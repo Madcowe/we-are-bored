@@ -99,8 +99,14 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
         let view_port_block = Block::default().style(app.theme.text_style());
         frame.render_widget(view_port_block, ui_chunks[1]);
     }
+    // uglify for windows terminals that don't support some charaters
+    let title_borders = if std::env::consts::OS == "windows" {
+        Borders::NONE
+    } else {
+        Borders::ALL
+    };
     let title_block = Block::default()
-        .borders(Borders::ALL)
+        .borders(title_borders)
         .border_type(BorderType::QuadrantOutside)
         .style(app.theme.header_style())
         .bold();
@@ -325,9 +331,15 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
                     notice.get_content(),
                     get_hyperlinks(notice.get_content()).unwrap_or(vec![]),
                 );
+                // uglify for windows terminals that don't support some charaters
+                let border_type = if std::env::consts::OS == "windows" {
+                    BorderType::Thick
+                } else {
+                    BorderType::QuadrantOutside
+                };
                 let pop_up_block = Block::default()
                     .borders(Borders::ALL)
-                    .border_type(BorderType::QuadrantOutside)
+                    .border_type(border_type)
                     .style(app.theme.inverted_text_style());
                 let pop_up_text =
                     character_wrap(display.get_display_text(), notice.get_text_width());
@@ -399,7 +411,7 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
     }
     // setup status area
     let status_block = Block::default()
-        .borders(Borders::ALL)
+        .borders(title_borders)
         .border_type(BorderType::QuadrantOutside)
         .style(app.theme.header_style())
         .bold();
@@ -486,56 +498,6 @@ pub async fn wait_pop_up<B: Backend>(
             }
         }
         Err(SurfBoredError::StillWaiting)
-    };
-    tokio::select! {
-        e = animate => { e }
-        f = future => { f }
-    }?;
-    Ok(())
-}
-
-// pops up a wating popup while awaiting a future with BoredError...as can't get to work generically
-pub async fn wait_pop_up_bored_error<B: Backend>(
-    // frame: &mut Frame<'_>,
-    terminal: &mut Terminal<B>,
-    previous_buffer: Buffer,
-    future: impl Future<Output = Result<(), BoredError>>,
-    message: &str,
-    theme: Theme,
-) -> Result<(), BoredError> {
-    let mut count = 0;
-    let animate = async {
-        let mut antimation = Antimation::new();
-        while count < 1200 {
-            let result = terminal.draw(|frame| {
-                frame.buffer_mut().merge(&previous_buffer);
-                let area = frame.area();
-                let pop_up_rect = area.inner(Margin::new(area.width / 4, area.height / 4));
-                Clear.render(pop_up_rect, frame.buffer_mut());
-                let pop_up_block = Block::default()
-                    .title("Working...")
-                    .borders(Borders::ALL)
-                    .border_type(BorderType::Thick)
-                    .style(theme.header_style());
-                let ant_frame = antimation.next_frame();
-                let pop_up_text = Paragraph::new(Text::styled(
-                    format!("{message}\n {ant_frame}"),
-                    Style::default(),
-                ))
-                .block(pop_up_block);
-                frame.render_widget(pop_up_text, pop_up_rect);
-            });
-            count += 1;
-            sleep(Duration::from_millis(500)).await;
-            match result {
-                Err(e) => {
-                    let s = format! {"{e}"};
-                    return Err::<(), BoredError>(BoredError::DownloadError(s));
-                }
-                _ => (),
-            }
-        }
-        Err(BoredError::StillWaiting)
     };
     tokio::select! {
         e = animate => { e }

@@ -89,14 +89,17 @@ impl Widget for DisplayBored {
             .border_type(BorderType::Rounded);
         bored_block.render(buffer.area, buffer);
         let bored_of_rects = BoredOfRects::create(&self.bored, 0);
+        // uglify for windows terminals that don't support some charaters
+        let border_type = if std::env::consts::OS == "windows" {
+            BorderType::Thick
+        } else {
+            BorderType::QuadrantOutside
+        };
         if let Ok(display_notices) = bored_of_rects.get_display_notices(&self.bored) {
             for (notice_index, (display_notice, notice_rect)) in display_notices.iter().enumerate()
             {
                 let (style, border_type) = if Some(notice_index) == self.selected_notice {
-                    (
-                        self.theme.inverted_text_style(),
-                        BorderType::QuadrantOutside,
-                    )
+                    (self.theme.inverted_text_style(), border_type)
                 } else {
                     (self.theme.text_style(), BorderType::Thick)
                 };
