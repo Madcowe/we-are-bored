@@ -22,6 +22,7 @@ use autonomi::client::payment::PaymentOption;
 use autonomi::data::DataAddress;
 use autonomi::scratchpad::ScratchpadError;
 use autonomi::{Bytes, Client, Network, Scratchpad, SecretKey, Wallet};
+use regex::bytes;
 use std::clone;
 use std::error::Error;
 use std::fmt::Debug;
@@ -301,15 +302,39 @@ impl BoredClient {
         Ok(())
     }
 
-    /// Downlad file from antnet for antnet hyperlinks
+    /// Download public archive from antnet for antnet hyperlinks
+    /// not supporting single files as no way to know file name
     pub async fn download_file(
         &self,
         data_address: &DataAddress,
-        path: PathBuf,
+        download_path: &str,
+        file_name: &str,
     ) -> Result<(), BoredError> {
-        self.client
-            .file_download_public(&data_address, path)
-            .await?;
+        let data = self.client.data_get_public(&data_address).await;
+        let archive_result = self.client.archive_get_public(&data_address).await;
+        match archive_result {
+            Ok(archive) => {
+                for (item_path, addr, _) in archive.iter() {
+                    let bytes = self.client.data_get_public(addr).await.unwrap();
+                    let path = PathBuf::from(download_path).join(item_path);
+                    let here = PathBuf::from(".");
+                    let parent = path.parent().unwrap_or_else(|| &here);
+                    std::fs::create_dir_all(parent).unwrap();
+                    std::fs::write(path, bytes).unwrap();
+                }
+            }
+            Err(_) => {
+                if let Ok(bytes) = self.client.data_get_public(&data_address).await {
+                    let path: PathBuf = [download_path, file_name].iter().collect();
+                    let here = PathBuf::from(".");
+                    let parent = path.parent().unwrap_or_else(|| &here);
+                    std::fs::create_dir_all(parent)?;
+                    std::fs::write(path, bytes)?;
+                } else {
+                    return Err(BoredError::NotValidAntAddress);
+                }
+            }
+        }
         Ok(())
     }
 

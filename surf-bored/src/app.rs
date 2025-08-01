@@ -159,7 +159,7 @@ impl App {
             directory: Directory::new(),
             directory_path: "directory_of_boreds.toml".to_string(),
             download_path: "downloads/".to_string(),
-            // download_path: "lucky.jpg".to_string(),
+            // download_path: "".to_string(),
             history: History::new(),
             current_view: View::BoredView,
             previous_view: View::BoredView,
@@ -532,12 +532,15 @@ impl App {
     pub async fn download_file(
         &self,
         data_address: &DataAddress,
-        path: PathBuf,
+        download_path: &str,
+        file_name: &str, // only used if not archive
     ) -> Result<(), SurfBoredError> {
         let Some(ref client) = self.client else {
             return Err(BoredError::ClientConnectionError.into());
         };
-        client.download_file(&data_address, path).await?;
+        client
+            .download_file(&data_address, download_path, &file_name)
+            .await?;
         Ok(())
     }
 
@@ -548,6 +551,7 @@ impl App {
         previous_buffer: Buffer,
     ) -> Result<(), SurfBoredError> {
         let theme = self.theme.clone();
+        let file_name = hyperlink.get_text();
         let url = URL::from_string(hyperlink.get_link())?;
         match url {
             URL::BoredNet(bored_address) => {
@@ -564,7 +568,7 @@ impl App {
                     Err(e) => self.display_error(e),
                     _ => (),
                 }
-                self.revert_view();
+                // self.revert_view();
                 return Ok(());
             }
             URL::ClearNet(clear_net_url) => {
@@ -573,36 +577,32 @@ impl App {
                         "Could not open old fashioned (https/http) link".to_string(),
                     ));
                 };
-                self.revert_view();
+                // self.revert_view();
                 return Ok(());
             }
             URL::AntNet(data_address) => {
-                let mut path = PathBuf::new();
-                path.push(self.download_path.clone());
-                if tokio::fs::metadata(&path).await.is_err() {
-                    tokio::fs::create_dir_all(path.clone()).await?;
-                }
-                let file_name = hyperlink.get_text();
-                path.push(file_name);
-                let downloading_file = self.download_file(&data_address, path.clone());
+                let downloading_file =
+                    self.download_file(&data_address, &self.download_path, &file_name);
                 match wait_pop_up(
                     terminal,
                     previous_buffer,
                     downloading_file,
-                    "Downloading file from antnet...\nIf it is a large file it may take some time.",
+                    "Downloading file(s) from antnet...\nIf it is a large file it may take some time.",
                     theme,
                 )
                 .await
                 {
-                    Err(e) => self.display_error(e.into()),
+                    Err(e) => {
+                        self.display_error(e);
+                    }
                     _ => (),
                 }
-                if let Err(_) = open::that(path) {
-                    return Err(SurfBoredError::Message(
-                        "Could not open downloaded file".to_string(),
-                    ));
-                };
-                self.revert_view();
+                // if let Err(_) = open::that(path) {
+                //     return Err(SurfBoredError::Message(
+                //         "Could not open downloaded file".to_string(),
+                //     ));
+                // };
+                // self.revert_view();
                 Ok(())
             }
         }

@@ -53,8 +53,8 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
     let mut status_text = String::new();
     let mut menu_options = vec![];
     // format!(
-    // "Current: {:?} previous: {:?} interuppted: {:?} {}",
-    // app.current_view, app.previous_view, app.interupted_view, app.status
+    //     "Current: {:?} previous: {:?} interuppted: {:?} {}",
+    //     app.current_view, app.previous_view, app.interupted_view, app.status
     // );
     //"Connected, no bored loaded";
     // let mut status_text = "Connected, no bored loaded";

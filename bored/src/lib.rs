@@ -17,6 +17,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use crate::url::BoredAddress;
 use autonomi::SecretKey;
+use autonomi::client::GetError;
 use autonomi::client::files::DownloadError;
 use autonomi::scratchpad::ScratchpadError;
 use notice::{Display, Notice, NoticeHyperlinkMap};
@@ -116,6 +117,10 @@ pub enum BoredError {
     DownloadError(String),
     #[error("Antnet call timed out as never returned")]
     StillWaiting,
+    #[error("{0}")]
+    IOError(String),
+    #[error("Not a valid autonomi public archive or file address")]
+    NotValidAntAddress,
 }
 
 impl From<serde_json::Error> for BoredError {
@@ -136,10 +141,17 @@ impl From<autonomi::scratchpad::ScratchpadError> for BoredError {
     }
 }
 
+impl From<GetError> for BoredError {
+    fn from(e: GetError) -> Self {
+        let message = format!("{e}");
+        BoredError::DownloadError(message)
+    }
+}
+
 impl From<DownloadError> for BoredError {
     fn from(e: DownloadError) -> Self {
-        let messgae = format!("{e}");
-        BoredError::DownloadError(messgae)
+        let message = format!("{e}");
+        BoredError::DownloadError(message)
     }
 }
 
@@ -153,6 +165,13 @@ impl From<autonomi::client::quote::CostError> for BoredError {
     fn from(e: autonomi::client::quote::CostError) -> Self {
         let message = format!("{e}");
         BoredError::QuoteError(message)
+    }
+}
+
+impl From<std::io::Error> for BoredError {
+    fn from(e: std::io::Error) -> Self {
+        let message = format!("{e}");
+        BoredError::IOError(message)
     }
 }
 
