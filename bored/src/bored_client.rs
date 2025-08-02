@@ -309,18 +309,21 @@ impl BoredClient {
         data_address: &DataAddress,
         download_path: &str,
         file_name: &str,
-    ) -> Result<(), BoredError> {
-        let data = self.client.data_get_public(&data_address).await;
+    ) -> Result<Option<PathBuf>, BoredError> {
+        let mut path_to_open = None;
         let archive_result = self.client.archive_get_public(&data_address).await;
         match archive_result {
             Ok(archive) => {
-                for (item_path, addr, _) in archive.iter() {
+                for (index, (item_path, addr, _)) in archive.iter().enumerate() {
                     let bytes = self.client.data_get_public(addr).await.unwrap();
                     let path = PathBuf::from(download_path).join(item_path);
                     let here = PathBuf::from(".");
                     let parent = path.parent().unwrap_or_else(|| &here);
                     std::fs::create_dir_all(parent).unwrap();
-                    std::fs::write(path, bytes).unwrap();
+                    std::fs::write(path.clone(), bytes).unwrap();
+                    if index == 0 {
+                        path_to_open = Some(path);
+                    }
                 }
             }
             Err(_) => {
@@ -329,13 +332,14 @@ impl BoredClient {
                     let here = PathBuf::from(".");
                     let parent = path.parent().unwrap_or_else(|| &here);
                     std::fs::create_dir_all(parent)?;
-                    std::fs::write(path, bytes)?;
+                    std::fs::write(path.clone(), bytes)?;
+                    path_to_open = Some(path);
                 } else {
                     return Err(BoredError::NotValidAntAddress);
                 }
             }
         }
-        Ok(())
+        Ok(path_to_open)
     }
 
     async fn get_funded_wallet(&self, private_key: &str) -> Result<Wallet, Box<dyn Error>> {

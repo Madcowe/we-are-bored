@@ -136,6 +136,7 @@ pub struct App {
     pub directory: Directory,
     pub directory_path: String,
     pub download_path: String,
+    pub path_to_open: Option<PathBuf>,
     pub history: History,
     pub current_view: View,
     pub previous_view: View,
@@ -159,7 +160,7 @@ impl App {
             directory: Directory::new(),
             directory_path: "directory_of_boreds.toml".to_string(),
             download_path: "downloads/".to_string(),
-            // download_path: "".to_string(),
+            path_to_open: None,
             history: History::new(),
             current_view: View::BoredView,
             previous_view: View::BoredView,
@@ -530,7 +531,7 @@ impl App {
     }
 
     pub async fn download_file(
-        &self,
+        &mut self,
         data_address: &DataAddress,
         download_path: &str,
         file_name: &str, // only used if not archive
@@ -538,7 +539,7 @@ impl App {
         let Some(ref client) = self.client else {
             return Err(BoredError::ClientConnectionError.into());
         };
-        client
+        self.path_to_open = client
             .download_file(&data_address, download_path, &file_name)
             .await?;
         Ok(())
@@ -581,8 +582,9 @@ impl App {
                 return Ok(());
             }
             URL::AntNet(data_address) => {
+                let download_path = self.download_path.clone();
                 let downloading_file =
-                    self.download_file(&data_address, &self.download_path, &file_name);
+                    self.download_file(&data_address, &download_path, &file_name);
                 match wait_pop_up(
                     terminal,
                     previous_buffer,
@@ -597,11 +599,13 @@ impl App {
                     }
                     _ => (),
                 }
-                // if let Err(_) = open::that(path) {
-                //     return Err(SurfBoredError::Message(
-                //         "Could not open downloaded file".to_string(),
-                //     ));
-                // };
+                if let Some(path) = self.path_to_open.clone() {
+                    if let Err(_) = open::that(path) {
+                        return Err(SurfBoredError::Message(
+                            "Could not open downloaded file".to_string(),
+                        ));
+                    };
+                }
                 // self.revert_view();
                 Ok(())
             }
