@@ -104,7 +104,7 @@ impl BoredClient {
             .client
             .scratchpad_create(
                 &self.bored_address.as_ref().unwrap().get_key(),
-                27,
+                bored.protocol_version.get_content_type(),
                 &content,
                 payment_option,
             )
@@ -204,7 +204,11 @@ impl BoredClient {
         let content = Bytes::from(serialized_bored);
         match self
             .client
-            .scratchpad_update(bored_address.get_key(), 27, &content)
+            .scratchpad_update(
+                bored_address.get_key(),
+                bored.protocol_version.get_content_type(),
+                &content,
+            )
             .await
         {
             Err(ScratchpadError::ScratchpadTooBig(_)) => {

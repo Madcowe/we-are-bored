@@ -59,6 +59,11 @@ impl ProtocolVersion {
         Err(BoredError::InvalidProtocolVersion(content_type))
     }
 
+    /// Convert version number to content type to put in scratchpad
+    pub fn get_content_type(&self) -> u64 {
+        self.0 + CONTENT_TYPE_PROTOCOL_BASE
+    }
+
     pub fn get_version(&self) -> u64 {
         self.0
     }
