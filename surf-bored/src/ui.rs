@@ -247,14 +247,20 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
                             .direction(Direction::Vertical)
                             .margin(1)
                             .constraints([
-                                Constraint::Percentage(50),
-                                Constraint::Percentage(50),
+                                Constraint::Percentage(40),
+                                Constraint::Percentage(20),
+                                Constraint::Percentage(40),
                                 // Constraint::Min(navigation_text.lines().count() as u16),
                             ])
                             .split(pop_up_rect);
                         let mut text_block = Block::default()
                             .title("Hyperlink text")
                             .style(app.theme.text_style());
+                        let note_block = Block::default()
+                            .style(app.theme.text_style())
+                            // .bold()
+                            .borders(Borders::ALL)
+                            .border_type(BorderType::Plain);
                         let mut url_block = Block::default()
                             .title("Hyperlink URL")
                             .style(app.theme.text_style());
@@ -273,9 +279,14 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
                         };
                         let link_text =
                             Paragraph::new(app.link_text_input.clone()).block(text_block);
+                        let note = "Url needs to include protocol identifier: bored:// for bored addresses, ant:// for autonomi archive or file addresses (if file then link text needs to be the file name) or https:// http:// for old fashion internet links.";
+                        let link_note = Paragraph::new(note)
+                            .block(note_block)
+                            .wrap(Wrap { trim: true });
                         let link_url = Paragraph::new(app.link_url_input.clone()).block(url_block);
                         frame.render_widget(link_text, pop_up_chunks[0]);
-                        frame.render_widget(link_url, pop_up_chunks[1]);
+                        frame.render_widget(link_note, pop_up_chunks[1]);
+                        frame.render_widget(link_url, pop_up_chunks[2]);
                     }
                     DraftMode::Position => {
                         status_text = "Use (the arrow keys) to postion the notice and (enter) to place or (esc) to edit text".to_string();
