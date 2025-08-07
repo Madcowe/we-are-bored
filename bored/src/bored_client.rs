@@ -146,10 +146,20 @@ impl BoredClient {
         &mut self,
         bored_address: &BoredAddress,
     ) -> Result<(Bored, u64), BoredError> {
-        let got = self
+        let got = match self
             .client
             .scratchpad_get_from_public_key(&bored_address.get_public_key())
-            .await?;
+            .await
+        {
+            Ok(got) => got,
+            // if has forks used first ones...as they always seem to be identical
+            Err(ScratchpadError::Fork(forks)) => match forks.first() {
+                Some(first) => first,
+                None => return Err(BoredError::ForkHandles),
+            }
+            .clone(),
+            Err(e) => return Err(e.into()),
+        };
         let content = match got.decrypt_data(bored_address.get_key()) {
             Ok(content) => content,
             Err(e) => return Err(BoredError::DecryptionError(format!("{e}"))),

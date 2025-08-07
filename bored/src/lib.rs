@@ -126,6 +126,8 @@ pub enum BoredError {
     IOError(String),
     #[error("Not a valid autonomi public archive or file address")]
     NotValidAntAddress,
+    #[error("Client reports mutiple fork of scratchpad but didn't return any???")]
+    ForkHandles,
 }
 
 impl From<serde_json::Error> for BoredError {
