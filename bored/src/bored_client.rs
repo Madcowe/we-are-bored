@@ -333,8 +333,8 @@ impl BoredClient {
                     let path = PathBuf::from(download_path).join(item_path);
                     let here = PathBuf::from(".");
                     let parent = path.parent().unwrap_or_else(|| &here);
-                    std::fs::create_dir_all(parent).unwrap();
-                    std::fs::write(path.clone(), bytes).unwrap();
+                    std::fs::create_dir_all(parent)?;
+                    std::fs::write(path.clone(), bytes)?;
                     if index == 0 {
                         path_to_open = Some(path);
                     }
