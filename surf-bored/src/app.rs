@@ -292,16 +292,11 @@ impl App {
         return None;
     }
 
-    pub fn create_view_toggle(&mut self) {
-        match &self.current_view {
-            View::CreateView(create_mode) => {
-                self.current_view = View::CreateView(match create_mode {
-                    CreateMode::Name => CreateMode::PrivateKey,
-                    CreateMode::PrivateKey => CreateMode::Name,
-                })
-            }
-            _ => (),
+    pub fn get_current_address(&self) -> Option<BoredAddress> {
+        if let Some(client) = &self.client {
+            return client.get_bored_address().ok();
         }
+        None
     }
 
     pub async fn create_bored_on_network(

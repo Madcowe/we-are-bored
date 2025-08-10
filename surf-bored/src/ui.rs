@@ -67,7 +67,7 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
         ])
         .split(area);
     let bored = app.get_current_bored();
-    if let Some(bored) = bored {
+    if let Some(ref bored) = bored {
         bored_url = format!(
             "{}",
             app.client.as_ref().unwrap().get_bored_address().unwrap()
@@ -321,14 +321,24 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
             }
         }
         View::BoredView => {
-            status_text = "Use (the arrow keys) to select a notice in that direction, (tab) to cycle selection, (enter) to view notice (n) to create a new notice or (space) to view menu.".to_string();
-            menu_options = vec![
-                "n   New notice",
-                "c   Create bored",
-                "g   Goto bored",
-                "d   Open directory of boreds",
-                "q   Quit",
-            ];
+            menu_options = if bored.is_none() {
+                vec![
+                    "c   Create bored",
+                    "g   Goto bored",
+                    "d   Open directory of boreds",
+                    "q   Quit",
+                ]
+            } else {
+                status_text = "Use (the arrow keys) to select a notice in that direction, (tab) to cycle selection, (enter) to view notice (n) to create a new notice or (space) to view menu.".to_string();
+                vec![
+                    "r   Refresh bored",
+                    "n   New notice",
+                    "c   Create bored",
+                    "g   Goto bored",
+                    "d   Open directory of boreds",
+                    "q   Quit",
+                ]
+            }
         }
         View::NoticeView { hyperlinks_index } => {
             if let Some(notice) = app.get_selected_notice() {

@@ -146,6 +146,7 @@ async fn run_app<B: Backend>(
                         KeyCode::Char('q') => break,
                         KeyCode::Tab => try_select_notice(app, NoticeSelection::Next),
                         KeyCode::BackTab => try_select_notice(app, NoticeSelection::Previous),
+                        KeyCode::Esc => app.menu_visible = false,
                         KeyCode::Char(' ') => {
                             if app.menu_visible {
                                 app.menu_visible = false;
@@ -216,6 +217,24 @@ async fn run_app<B: Backend>(
                         }
                         KeyCode::Char('g') => app.change_view(View::GoToView),
                         KeyCode::Char('d') => app.change_view(View::DirectoryView(0)),
+                        KeyCode::Char('r') | KeyCode::F(5) => {
+                            if let Some(bored_address) = app.get_current_address() {
+                                let theme = app.theme.clone();
+                                let going_to_bored = app.goto_bored(bored_address);
+                                match wait_pop_up(
+                                    terminal,
+                                    previous_buffer,
+                                    going_to_bored,
+                                    "Loading bored from antnet...",
+                                    theme,
+                                )
+                                .await
+                                {
+                                    Err(e) => app.display_error(e),
+                                    _ => app.goto_input = String::new(),
+                                }
+                            }
+                        }
                         _ => {}
                     },
                     View::NoticeView { .. } => match key.code {
@@ -288,7 +307,7 @@ async fn run_app<B: Backend>(
                         }
                         KeyCode::Enter => {
                             let bored_address = app.directory.get_bored_address(directory_index)?;
-                            app.status = format!("{:?}", app.interupted_view);
+                            // app.status = format!("{:?}", app.interupted_view);
                             match &app.interupted_view {
                                 View::BoredView => {
                                     match BoredAddress::from_string(&bored_address.bored_address) {
