@@ -219,7 +219,10 @@ async fn run_app<B: Backend>(
                         _ => {}
                     },
                     View::NoticeView { .. } => match key.code {
-                        KeyCode::Esc => app.revert_view(), //app.current_view = View::BoredView,
+                        KeyCode::Esc | KeyCode::Backspace => {
+                            try_select_notice(app, NoticeSelection::Current);
+                            app.revert_view();
+                        }
                         KeyCode::Char('q') => break,
                         KeyCode::Tab => app.next_hyperlink(),
                         KeyCode::BackTab => app.previous_hyperlink(),
@@ -231,28 +234,6 @@ async fn run_app<B: Backend>(
                                 {
                                     app.display_error(e);
                                 }
-                                // match BoredAddress::from_string(&hyperlink.get_link()) {
-                                //     Ok(bored_address) => {
-                                //         let theme = app.theme.clone();
-                                //         let going_to_bored = app.goto_bored(bored_address);
-                                //         match wait_pop_up(
-                                //             terminal,
-                                //             previous_buffer,
-                                //             going_to_bored,
-                                //             "Loading bored from antnet...",
-                                //             theme,
-                                //         )
-                                //         .await
-                                //         {
-                                //             Err(e) => app.display_error(e),
-                                //             _ => (),
-                                //         }
-                                //         app.revert_view();
-                                //     }
-                                //     Err(e) => {
-                                //         app.display_error(SurfBoredError::BoredError(e));
-                                //     }
-                                // }
                             }
                         }
                         KeyCode::Char('o') => {
@@ -577,6 +558,7 @@ fn try_select_notice(app: &mut App, notice_selection: NoticeSelection) {
         NoticeSelection::Direction(direction) => app.select_notice(direction),
         NoticeSelection::Next => app.increment_selected_notice(),
         NoticeSelection::Previous => app.decrement_selected_notice(),
+        NoticeSelection::Current => (),
     }
     if let Some(notice) = app.get_selected_notice() {
         let bored_view_port = app

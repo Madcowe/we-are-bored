@@ -341,16 +341,17 @@ impl BoredClient {
                 }
             }
             Err(_) => {
-                if let Ok(bytes) = self.client.data_get_public(&data_address).await {
-                    let path: PathBuf = [download_path, file_name].iter().collect();
-                    let here = PathBuf::from(".");
-                    let parent = path.parent().unwrap_or_else(|| &here);
-                    std::fs::create_dir_all(parent)?;
-                    std::fs::write(path.clone(), bytes)?;
-                    path_to_open = Some(path);
-                } else {
-                    return Err(BoredError::NotValidAntAddress);
-                }
+                // if let Ok(bytes) = self.client.data_get_public(&data_address).await {
+                let bytes = self.client.data_get_public(&data_address).await?;
+                let path: PathBuf = [download_path, file_name].iter().collect();
+                let here = PathBuf::from(".");
+                let parent = path.parent().unwrap_or_else(|| &here);
+                std::fs::create_dir_all(parent)?;
+                std::fs::write(path.clone(), bytes)?;
+                path_to_open = Some(path);
+                // } else {
+                //     return Err(BoredError::NotValidAntAddress);
+                // }
             }
         }
         Ok(path_to_open)

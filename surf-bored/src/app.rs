@@ -129,6 +129,7 @@ pub enum NoticeSelection {
     Direction(Direction),
     Next,
     Previous,
+    Current,
 }
 
 pub struct App {
