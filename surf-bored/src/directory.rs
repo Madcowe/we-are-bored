@@ -16,7 +16,10 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 use crate::app::SurfBoredError;
-use bored::{Bored, notice::Display};
+use bored::{
+    Bored, Coordinate,
+    notice::{Display, Notice},
+};
 use rand::seq::IndexedRandom;
 use serde::{Deserialize, Serialize};
 use std::fs;
@@ -121,6 +124,28 @@ impl Directory {
         }
         v
     }
+}
+
+pub fn about_bored() -> Bored {
+    let mut about = Bored::create("About", Coordinate { x: 80, y: 30 });
+    let mut notice = Notice::create(Coordinate { x: 20, y: 5 });
+    notice.write("Surf Bored\n\nV0.3.3").unwrap();
+    about.add(notice, Coordinate { x: 3, y: 2 }).unwrap();
+    let mut notice = Notice::create(Coordinate { x: 50, y: 5 });
+    notice
+        .write(
+            "License: GNU Affero General Public License\nVersion 3 or later\n[https://www.gnu.org/licenses/](https://www.gnu.org/licenses/)",
+        )
+        .unwrap();
+    about.add(notice, Coordinate { x: 25, y: 5 }).unwrap();
+    let mut notice = Notice::create(Coordinate { x: 20, y: 5 });
+    notice
+        .write(
+            "Source code:\n\n[Github](https://github.com/Madcowe/we-are-bored/tree/main/surf-bored)",
+        )
+        .unwrap();
+    about.add(notice, Coordinate { x: 17, y: 10 }).unwrap();
+    about
 }
 
 /// History of boreds surfed in current session

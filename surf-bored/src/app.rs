@@ -34,7 +34,7 @@ use std::path::{Path, PathBuf, StripPrefixError};
 use std::str::FromStr;
 use tokio::task::futures::TaskLocalFuture;
 
-use crate::directory::{Directory, History, Listing};
+use crate::directory::{self, Directory, History, Listing};
 use crate::display_bored::BoredViewPort;
 use crate::theme::Theme;
 use crate::ui::wait_pop_up;
@@ -63,6 +63,8 @@ pub enum SurfBoredError {
     DirectoryOutOfBounds(usize, usize),
     #[error("{0}")]
     IOError(String),
+    #[error("The application command in the hyperlink is not know by this appication:\n{0}")]
+    LinkCommandUnknown(String),
 }
 
 impl From<BoredError> for SurfBoredError {
@@ -568,6 +570,7 @@ impl App {
                 // self.revert_view();
                 return Ok(());
             }
+            URL::BoredApp(command) => self.hyperlink_command(&command),
             URL::ClearNet(clear_net_url) => {
                 if let Err(_) = open::that(clear_net_url) {
                     return Err(SurfBoredError::Message(
@@ -605,6 +608,23 @@ impl App {
                 // self.revert_view();
                 Ok(())
             }
+        }
+    }
+
+    pub fn hyperlink_command(&mut self, command: &str) -> Result<(), SurfBoredError> {
+        if command == "about" {
+            let Some(ref mut client) = self.client else {
+                return Err(SurfBoredError::BoredError(
+                    BoredError::ClientConnectionError,
+                ));
+            };
+            self.selected_notice = None;
+            self.current_view = View::BoredView;
+            let about = directory::about_bored();
+            client.load_app_bored(about);
+            Ok(())
+        } else {
+            return Err(SurfBoredError::LinkCommandUnknown(command.to_string()));
         }
     }
 }

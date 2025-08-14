@@ -316,6 +316,12 @@ impl BoredClient {
         Ok(())
     }
 
+    /// Loads a bored directly from the clinet application
+    pub fn load_app_bored(&mut self, bored: Bored) {
+        self.current_bored = Some(bored);
+        self.bored_address = None;
+    }
+
     /// Download public archive from antnet for antnet hyperlinks
     /// not supporting single files as no way to know file name
     pub async fn download_file(

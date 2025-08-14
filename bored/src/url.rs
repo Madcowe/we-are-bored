@@ -54,9 +54,12 @@ impl BoredAddress {
     }
 }
 
+/// BoredApp is holds a command that may be handled by a client application so that it can
+/// represent information of an interface via a bored
 #[derive(Clone, Debug, PartialEq)]
 pub enum URL {
     BoredNet(BoredAddress),
+    BoredApp(String),
     ClearNet(String),
     AntNet(DataAddress),
 }
@@ -69,11 +72,13 @@ impl URL {
                 return Ok(URL::BoredNet(bored_address));
             } else if &s[0..8] == "https://" || &s[0..7] == "http://" {
                 return Ok(URL::ClearNet(s.to_string()));
-            } else if &s[0..6] == "ant://" || s.len() == 70 {
+            } else if &s[0..6] == "ant://" && s.len() == 70 {
                 let s = &s[6..s.len()];
                 if let Ok(data_address) = DataAddress::from_hex(s) {
                     return Ok(URL::AntNet(data_address));
                 }
+            } else if &s[0..6] == "app://" {
+                return Ok(URL::BoredApp(s[6..s.len()].to_string()));
             }
         }
         Err(BoredError::UnknownURLType(s.to_string()))
@@ -128,6 +133,8 @@ mod tests {
             secret_key.to_hex(),
             "2f67b46da5e6d62c07fb97889c7e7155ca7e1fd3efb711a5468eeda8e1501330"
         );
+        let url = URL::from_string("app://about".to_string()).unwrap();
+        assert_eq!(url, URL::BoredApp("about".to_string()));
         let url = URL::from_string("https://autonomi.com".to_string()).unwrap();
         assert_eq!(url, URL::ClearNet("https://autonomi.com".to_string()));
         let url = URL::from_string("http://www.bbsdocumentary.com/".to_string()).unwrap();

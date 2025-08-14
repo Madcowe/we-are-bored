@@ -52,12 +52,6 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
     let mut bored_url = String::new();
     let mut status_text = String::new();
     let mut menu_options = vec![];
-    // format!(
-    //     "Current: {:?} previous: {:?} interuppted: {:?} {}",
-    //     app.current_view, app.previous_view, app.interupted_view, app.status
-    // );
-    //"Connected, no bored loaded";
-    // let mut status_text = "Connected, no bored loaded";
     let ui_chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
@@ -68,10 +62,15 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
         .split(area);
     let bored = app.get_current_bored();
     if let Some(ref bored) = bored {
-        bored_url = format!(
-            "{}",
-            app.client.as_ref().unwrap().get_bored_address().unwrap()
-        );
+        bored_url = if let Some(client) = app.client.as_ref() {
+            if let Ok(bored_address) = client.get_bored_address() {
+                bored_address.to_string()
+            } else {
+                String::new()
+            }
+        } else {
+            String::new()
+        };
         bored_name = bored.get_name().to_owned() + "\n";
         let mut bored_view_port = BoredViewPort::create(
             &bored,
@@ -326,6 +325,7 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
                     "c   Create bored",
                     "g   Goto bored",
                     "d   Open directory of boreds",
+                    "a   About Surf Bored",
                     "q   Quit",
                 ]
             } else {
@@ -336,6 +336,7 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
                     "c   Create bored",
                     "g   Goto bored",
                     "d   Open directory of boreds",
+                    "a   About",
                     "q   Quit",
                 ]
             }

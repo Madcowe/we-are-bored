@@ -235,6 +235,10 @@ async fn run_app<B: Backend>(
                                 }
                             }
                         }
+                        KeyCode::Char('a') => match app.hyperlink_command("about") {
+                            Err(e) => app.display_error(e),
+                            _ => (),
+                        },
                         _ => {}
                     },
                     View::NoticeView { .. } => match key.code {
