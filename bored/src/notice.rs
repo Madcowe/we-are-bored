@@ -98,6 +98,7 @@ impl NoticeHyperlinkMap {
         let mut visible =
             vec![vec![None; notice.dimensions.x as usize - 2]; notice.dimensions.y as usize - 2];
         let (mut x, mut y) = (0, 0);
+        let mut prev_char = '\n';
         for (char_index, char) in display.display_text.chars().enumerate() {
             for (hyperlink_index, hyperlink_location) in
                 display.hyperlink_locations.iter().enumerate()
@@ -108,10 +109,10 @@ impl NoticeHyperlinkMap {
                     }
                 }
             }
-            if char == '\n' && x != 0 {
+            if char == '\n' && (x != 0 || prev_char == '\n') {
                 y += 1;
                 x = 0;
-            // do nothing if newline type at end of line
+            // do nothing if newline typed at end of line
             } else if char == '\n' && x == 0 {
             } else if x < notice.get_text_width() as usize - 1 {
                 x += 1;
@@ -119,6 +120,7 @@ impl NoticeHyperlinkMap {
                 y += 1;
                 x = 0;
             }
+            prev_char = char;
         }
         Ok(NoticeHyperlinkMap { visible })
     }
@@ -539,6 +541,22 @@ mod tests {
 ********
 ********
 ********
+********
+********
+********
+********
+********
+********
+"#;
+        eprintln!("{}", notice_hyperlink_map);
+        assert_eq!(expected_output, format!("{}", notice_hyperlink_map));
+        notice.write("Fullstop\n\n\n\n. [link](url)")?;
+        let notice_hyperlink_map = NoticeHyperlinkMap::create(&notice)?;
+        let expected_output = r#"********
+********
+********
+********
+**0000**
 ********
 ********
 ********
