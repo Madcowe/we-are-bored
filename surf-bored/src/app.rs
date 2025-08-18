@@ -620,6 +620,7 @@ impl App {
             };
             self.selected_notice = None;
             self.current_view = View::BoredView;
+            self.menu_visible = false;
             let about = directory::about_bored();
             client.load_app_bored(about);
             Ok(())

@@ -675,26 +675,16 @@ impl Bored {
             return None;
         } else {
             let mut upper_left_most_index = 0;
-            let mut previous_top_left = self.notices[0].get_top_left();
+            let mut upper_left_most_top_left = self.notices[0].get_top_left();
             for (index, notice) in self.notices.iter().enumerate() {
                 if notice.get_top_left().x + notice.get_top_left().y
-                    < previous_top_left.x + previous_top_left.y
+                    < upper_left_most_top_left.x + upper_left_most_top_left.y
                 {
                     upper_left_most_index = index;
+                    upper_left_most_top_left = notice.get_top_left();
                 }
-                previous_top_left = notice.get_top_left();
             }
             Some(upper_left_most_index)
-            //     let mut notices_index = 0;
-            //     let mut next_notice_index = Some(0);
-            //     while next_notice_index.is_some() {
-            //         next_notice_index = self.get_cardinal_notice(notices_index, Direction::Left);
-            //         eprintln!("Next notice index: {next_notice_index:?}");
-            //         if let Some(index) = next_notice_index {
-            //             notices_index = index;
-            //         }
-            //     }
-            //     Some(notices_index)
         }
     }
 }
@@ -873,5 +863,16 @@ mod tests {
         let notice = Notice::create(Coordinate { x: 10, y: 5 });
         bored.add(notice, Coordinate { x: 50, y: 0 }).unwrap();
         assert_eq!(bored.get_upper_left_most_notice(), Some(1));
+
+        let mut bored = Bored::create("Test", Coordinate { x: 120, y: 40 });
+        let notice = Notice::create(Coordinate { x: 20, y: 5 });
+        bored.add(notice, Coordinate { x: 3, y: 2 }).unwrap();
+        assert_eq!(bored.get_upper_left_most_notice(), Some(0));
+        let notice = Notice::create(Coordinate { x: 50, y: 5 });
+        bored.add(notice, Coordinate { x: 25, y: 5 }).unwrap();
+        assert_eq!(bored.get_upper_left_most_notice(), Some(0));
+        let notice = Notice::create(Coordinate { x: 20, y: 5 });
+        bored.add(notice, Coordinate { x: 17, y: 10 }).unwrap();
+        assert_eq!(bored.get_upper_left_most_notice(), Some(0));
     }
 }
