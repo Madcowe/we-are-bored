@@ -15,34 +15,27 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-use bored::bored_client::{BoredClient, ConnectionType};
-use bored::notice::{self, Display, Notice, NoticeHyperlinkMap, get_display, get_hyperlinks};
-use bored::url::{BoredAddress, URL};
-use bored::{Bored, BoredError, BoredHyperlinkMap, Coordinate};
-use core::panic;
-use rand::seq::IndexedRandom;
+use bored::Coordinate;
+use bored::notice::{Notice, NoticeHyperlinkMap, get_display, get_hyperlinks};
 use ratatui::buffer::Buffer;
 use ratatui::crossterm::terminal::EnableLineWrap;
-use ratatui::layout::Rows;
 use ratatui::style::{Styled, Stylize};
-use ratatui::symbols::border;
 use ratatui::widgets::{BorderType, Row, Table, TableState, Widget};
 use ratatui::{
     Frame, Terminal,
     backend::Backend,
-    buffer::Cell,
     layout::{Alignment, Constraint, Direction, Layout, Margin, Rect},
-    style::{Color, Style},
-    text::{Line, Span, Text},
-    widgets::{Block, Borders, Clear, List, ListItem, Paragraph, Wrap},
+    style::Style,
+    text::{Span, Text},
+    widgets::{Block, Borders, Clear, Paragraph, Wrap},
 };
 use std::cmp::{max, min};
 use std::time::Duration;
-use tokio::task;
 use tokio::time::sleep;
 
+use crate::Bored;
 use crate::app::{App, CreateMode, DraftMode, HyperlinkMode, SurfBoredError, View};
-use crate::display_bored::{BoredViewPort, DisplayBored};
+use crate::display_bored::BoredViewPort;
 use crate::display_bored::{character_wrap, style_notice_hyperlinks};
 use crate::theme::Theme;
 
@@ -246,9 +239,9 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
                             .direction(Direction::Vertical)
                             .margin(1)
                             .constraints([
+                                Constraint::Percentage(30),
                                 Constraint::Percentage(40),
-                                Constraint::Percentage(20),
-                                Constraint::Percentage(40),
+                                Constraint::Percentage(30),
                                 // Constraint::Min(navigation_text.lines().count() as u16),
                             ])
                             .split(pop_up_rect);
@@ -509,6 +502,7 @@ pub async fn wait_pop_up<B: Backend>(
                     format!("{message}\n {ant_frame}"),
                     Style::default(),
                 ))
+                .wrap(Wrap { trim: false })
                 .block(pop_up_block);
                 frame.render_widget(pop_up_text, pop_up_rect);
             });

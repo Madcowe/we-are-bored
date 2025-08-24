@@ -158,22 +158,22 @@ pub struct App {
 }
 impl App {
     pub fn new() -> App {
-        let download_path = if std::env::consts::OS == "android"
-            && PathBuf::from_str("~/storage/downloads/")
-                .unwrap()
-                .try_exists()
-                .unwrap_or(false)
-        {
-            "~/storage/downloads/".to_string()
-        } else {
-            "downloads/".to_string()
-        };
+        // let download_path = if std::env::consts::OS == "android"
+        //     && PathBuf::from_str("~/storage/downloads/")
+        //         .unwrap()
+        //         .try_exists()
+        //         .unwrap_or(false)
+        // {
+        //     "~/storage/downloads/".to_string()
+        // } else {
+        //     "downloads/".to_string()
+        // };
 
         App {
-            client: None, //BoredClient::init(ConnectionType::Local).await.ok(),
+            client: None,
             directory: Directory::new(),
             directory_path: "directory_of_boreds.toml".to_string(),
-            download_path,
+            download_path: "downloads/".to_string(),
             path_to_open: None,
             history: History::new(),
             current_view: View::BoredView,
