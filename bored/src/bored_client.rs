@@ -15,19 +15,15 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-use crate::notice::{Display, Notice};
-use crate::url::{BoredAddress, URL};
+use crate::notice::Notice;
+use crate::url::BoredAddress;
 use crate::{Bored, BoredError, Coordinate};
 use autonomi::client::payment::PaymentOption;
 use autonomi::data::DataAddress;
 use autonomi::scratchpad::ScratchpadError;
-use autonomi::{Bytes, Client, Network, Scratchpad, SecretKey, Wallet};
-use regex::bytes;
-use std::clone;
+use autonomi::{Bytes, Client, Scratchpad, Wallet};
 use std::error::Error;
-use std::fmt::Debug;
 use std::path::PathBuf;
-use std::str::FromStr;
 
 #[derive(Clone, Copy)]
 pub enum ConnectionType {
@@ -152,9 +148,11 @@ impl BoredClient {
             .await
         {
             Ok(got) => got,
-            // if has forks used first ones...as they always seem to be identical
-            Err(ScratchpadError::Fork(forks)) => match forks.first() {
-                Some(first) => first,
+            // if has forks use one with highest counters
+            // if multiple ones with same counter (which isxx what the seem to be in examples I have looked at)
+            // it will just be the earliest occuring in the vector
+            Err(ScratchpadError::Fork(forks)) => match get_scratchpad_with_highest_counter(forks) {
+                Some(scratchpad) => scratchpad,
                 None => return Err(BoredError::ForkHandles),
             }
             .clone(),
@@ -269,7 +267,7 @@ impl BoredClient {
 
     /// check the content will fit in the notice and update content if so
     pub fn edit_draft(&mut self, content: &str) -> Result<(), BoredError> {
-        let Some(bored) = &self.current_bored else {
+        let Some(_bored) = &self.current_bored else {
             return Err(BoredError::NoBored);
         };
         if let Some(mut notice) = self.draft_notice.clone() {
@@ -372,6 +370,21 @@ impl BoredClient {
         };
         let wallet = Wallet::new_from_private_key(self.client.evm_network().clone(), private_key)?;
         Ok(wallet)
+    }
+}
+
+pub fn get_scratchpad_with_highest_counter(forks: Vec<Scratchpad>) -> Option<Scratchpad> {
+    if forks.is_empty() {
+        None
+    } else {
+        let (mut highest_counter, mut index) = (0, 0);
+        for (i, fork) in forks.iter().enumerate() {
+            if fork.counter() > highest_counter {
+                highest_counter = fork.counter();
+                index = i;
+            }
+        }
+        Some(forks.get(index).unwrap().clone())
     }
 }
 

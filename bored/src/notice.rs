@@ -15,7 +15,6 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-use crate::url::BoredAddress;
 use crate::{Bored, BoredError, Coordinate};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
@@ -362,6 +361,7 @@ pub fn get_display(content: &str, hyperlinks: Vec<Hyperlink>) -> Display {
 mod tests {
 
     use super::*;
+    use crate::url::BoredAddress;
 
     #[test]
     fn test_notice_relocate() {

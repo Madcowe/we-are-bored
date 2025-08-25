@@ -16,25 +16,15 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 use autonomi::data::DataAddress;
-use bored::bored_client::{self, BoredClient, ConnectionType};
-use bored::notice::{self, Hyperlink, Notice, NoticeHyperlinkMap, get_hyperlinks};
+use bored::bored_client::{BoredClient, ConnectionType};
+use bored::notice::{Hyperlink, Notice, get_hyperlinks};
 use bored::url::{BoredAddress, URL};
 use bored::{Bored, BoredError, Coordinate, Direction};
-use rand::seq::IndexedRandom;
-use ratatui::style::{Color, Style, Stylize};
-use ratatui::{Frame, Terminal, backend::Backend, buffer::Buffer};
-use serde::{Deserialize, Serialize};
-use std::any::Any;
-use std::fs;
-use std::fs::File;
+use ratatui::{Terminal, backend::Backend, buffer::Buffer};
 use std::io::Error;
-use std::io::Write;
-use std::iter::Sum;
-use std::path::{Path, PathBuf, StripPrefixError};
-use std::str::FromStr;
-use tokio::task::futures::TaskLocalFuture;
+use std::path::PathBuf;
 
-use crate::directory::{self, Directory, History, Listing};
+use crate::directory::{self, Directory, Listing};
 use crate::display_bored::BoredViewPort;
 use crate::theme::Theme;
 use crate::ui::wait_pop_up;
@@ -140,14 +130,14 @@ pub struct App {
     pub directory_path: String,
     pub download_path: String,
     pub path_to_open: Option<PathBuf>,
-    pub history: History,
+    // pub history: History,
     pub current_view: View,
     pub previous_view: View,
     pub interupted_view: View,
     pub selected_notice: Option<usize>,
     pub theme: Theme,
     pub bored_view_port: Option<BoredViewPort>,
-    pub status: String,
+    // pub status: String,
     pub name_input: String,
     pub key_input: String,
     pub content_input: String,
@@ -175,14 +165,14 @@ impl App {
             directory_path: "directory_of_boreds.toml".to_string(),
             download_path: "downloads/".to_string(),
             path_to_open: None,
-            history: History::new(),
+            // history: History::new(),
             current_view: View::BoredView,
             previous_view: View::BoredView,
             interupted_view: View::BoredView,
             selected_notice: None,
             theme: Theme::surf_bored_synth_wave(),
             bored_view_port: None,
-            status: String::new(),
+            // status: String::new(),
             name_input: String::new(),
             key_input: String::new(),
             content_input: String::new(),

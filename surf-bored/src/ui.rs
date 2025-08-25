@@ -18,8 +18,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 use bored::Coordinate;
 use bored::notice::{Notice, NoticeHyperlinkMap, get_display, get_hyperlinks};
 use ratatui::buffer::Buffer;
-use ratatui::crossterm::terminal::EnableLineWrap;
-use ratatui::style::{Styled, Stylize};
+use ratatui::style::Stylize;
 use ratatui::widgets::{BorderType, Row, Table, TableState, Widget};
 use ratatui::{
     Frame, Terminal,
@@ -29,11 +28,10 @@ use ratatui::{
     text::{Span, Text},
     widgets::{Block, Borders, Clear, Paragraph, Wrap},
 };
-use std::cmp::{max, min};
+use std::cmp::min;
 use std::time::Duration;
 use tokio::time::sleep;
 
-use crate::Bored;
 use crate::app::{App, CreateMode, DraftMode, HyperlinkMode, SurfBoredError, View};
 use crate::display_bored::BoredViewPort;
 use crate::display_bored::{character_wrap, style_notice_hyperlinks};
@@ -193,9 +191,9 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
         }
         View::DraftView(draft_mode) => {
             if let Some(draft) = app.get_draft() {
-                let bored = app
-                    .get_current_bored()
-                    .expect("There should not be a draft without a bored");
+                // let bored = app
+                //     .get_current_bored()
+                //     .expect("There should not be a draft without a bored");
                 match draft_mode {
                     DraftMode::Content => {
                         status_text = "Type to enter message, (ctrl + p) to position notice or (esc) to leave".to_string();
@@ -307,8 +305,7 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
                             app.theme.hyperlink_style(),
                         );
                         frame.buffer_mut().merge(&draft_buffer);
-                    }
-                    _ => (),
+                    } // _ => (),
                 }
             }
         }
@@ -421,8 +418,7 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
                     .to_string();
             Clear.render(pop_up_rect, frame.buffer_mut());
             frame.render_stateful_widget(table, pop_up_rect, &mut table_state);
-        }
-        _ => (),
+        } // _ => (),
     }
     // setup status area
     let status_block = Block::default()
@@ -552,6 +548,7 @@ impl Antimation {
 mod tests {
 
     use super::*;
+    use bored::Bored;
 
     #[test]
     fn test_safe_subtract_u16() {

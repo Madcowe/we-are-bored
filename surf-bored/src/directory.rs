@@ -16,11 +16,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 use crate::app::SurfBoredError;
-use bored::{
-    Bored, Coordinate,
-    notice::{Display, Notice},
-};
-use rand::seq::IndexedRandom;
+use bored::{Bored, Coordinate, notice::Notice};
 use serde::{Deserialize, Serialize};
 use std::fs;
 
@@ -149,18 +145,18 @@ pub fn about_bored() -> Bored {
 }
 
 /// History of boreds surfed in current session
-pub struct History {
-    boreds: Vec<Bored>,
-    current_position: usize,
-}
-impl History {
-    pub fn new() -> History {
-        History {
-            boreds: vec![],
-            current_position: 0,
-        }
-    }
-}
+// pub struct History {
+//     boreds: Vec<Bored>,
+//     current_position: usize,
+// }
+// impl History {
+//     pub fn new() -> History {
+//         History {
+//             boreds: vec![],
+//             current_position: 0,
+//         }
+//     }
+// }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct Listing {

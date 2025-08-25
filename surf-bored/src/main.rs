@@ -16,37 +16,23 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 use app::{NoticeSelection, SurfBoredError};
-use bored::{
-    Bored, BoredError, Coordinate, Direction, bored_client,
-    bored_client::ConnectionType,
-    notice::{self, MAX_URL_LENGTH},
-    url::{BoredAddress, URL},
-};
-use core::arch;
+use bored::{BoredError, Coordinate, bored_client::ConnectionType, url::BoredAddress};
 use directory::Directory;
-use rand::{Rng, seq::IndexedRandom};
 use ratatui::{
     Terminal,
     backend::{Backend, CrosstermBackend},
     crossterm::{
-        event::{
-            self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEventKind,
-            KeyModifiers, KeyboardEnhancementFlags, PopKeyboardEnhancementFlags,
-            PushKeyboardEnhancementFlags,
-        },
+        event::{self, DisableMouseCapture, Event, KeyCode, KeyModifiers},
         execute,
         terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
     },
-    layout::{Margin, Rect, Size},
+    layout::{Rect, Size},
 };
 use std::{
     cmp::{max, min},
-    env::Args,
     error::Error,
     fs, io,
-    time::Duration,
 };
-use tokio::time::sleep;
 
 mod app;
 mod directory;
@@ -77,7 +63,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let mut terminal = Terminal::new(backend)?;
 
     // create app and run it
-    let res = run_app(&mut terminal, &mut app).await?;
+    let _res = run_app(&mut terminal, &mut app).await?;
 
     // restore terminal
     disable_raw_mode()?;
@@ -98,7 +84,7 @@ async fn run_app<B: Backend>(
     // loop {
     // terminal.draw(|f| ui(f, app))?;
     let previous_buffer = terminal.draw(|f| ui(f, app))?.buffer.clone();
-    if let Err(e) = app.load_directory() {
+    if let Err(_) = app.load_directory() {
         app.directory = Directory::default();
         app.save_directory()?;
         // app.display_error(e);
@@ -519,8 +505,8 @@ async fn run_app<B: Backend>(
                             if key.code == KeyCode::Esc {
                                 app.current_view = View::DraftView(DraftMode::Content);
                             }
-                            if let Some(mut draft) = app.get_draft() {
-                                let bored = app
+                            if let Some(draft) = app.get_draft() {
+                                let _bored = app
                                     .get_current_bored()
                                     .expect("Bored should exist if there is a draft");
                                 let position = draft.get_top_left();
@@ -565,10 +551,9 @@ async fn run_app<B: Backend>(
                                     _ => {}
                                 }
                             }
-                        }
-                        _ => {}
+                        } // _ => {}
                     },
-                    _ => {}
+                    // _ => {}
                 }
             }
         }

@@ -15,15 +15,13 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-use crate::url::BoredAddress;
-use autonomi::SecretKey;
 use autonomi::client::GetError;
 use autonomi::client::files::DownloadError;
 use autonomi::scratchpad::ScratchpadError;
-use notice::{Display, Notice, NoticeHyperlinkMap};
+use notice::{Notice, NoticeHyperlinkMap};
 use serde::{Deserialize, Serialize};
 use std::fmt::{self};
-use std::ops::{Add, IndexMut};
+use std::ops::Add;
 
 pub mod bored_client;
 pub mod notice;
@@ -367,30 +365,6 @@ impl WhatsOnTheBored {
         WhatsOnTheBored { visible }
     }
 
-    // fn get_x_len(&self) -> usize {
-    //     self.visible[0].len()
-    // }
-
-    // fn get_y_len(&self) -> usize {
-    //     self.visible.len()
-    // }
-
-    // fn rotate_horizontally(&mut self) {
-    //     let mut visible: Vec<Vec<Option<usize>>> =
-    //         vec![vec![None; self.visible.len()]; self.visible[0].len()];
-    //     for (y, row) in self.visible.iter().enumerate() {
-    //         for (x, cell) in row.iter().enumerate() {
-    //             visible[x][y] = *cell;
-    //         }
-    //     }
-    //     self.visible = visible;
-    //     self.visible.iter_mut().for_each(|r| r.reverse());
-    // }
-
-    // fn flip_vertically(&mut self) {
-    //     self.visible.reverse();
-    // }
-
     /// flattens into a one dimesonal vectors
     pub fn get_1d(&self) -> Vec<Option<usize>> {
         let mut whats_on_the_bored_1d = vec![];
@@ -426,7 +400,7 @@ impl Bored {
     /// Creates a new board using the most recent protocol version
     pub fn create(name: &str, dimensions: Coordinate) -> Bored {
         Bored {
-            protocol_version: PROTOCOL_VERSIONS[PROTOCOL_VERSIONS.len() - 1],
+            protocol_version: ProtocolVersion::new(),
             name: name.to_string(),
             dimensions,
             notices: Vec::new(),

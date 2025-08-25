@@ -15,23 +15,17 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-use bored::notice::{self, Display, Notice, NoticeHyperlinkMap, get_display, get_hyperlinks};
-use bored::url::{BoredAddress, URL};
-use bored::{Bored, BoredError, BoredHyperlinkMap, Coordinate, bored_client};
-use ratatui::buffer::{Buffer, Cell};
-use ratatui::crossterm::cursor::position;
-use ratatui::layout::Position;
-use ratatui::style::{Styled, Stylize};
-use ratatui::text::ToSpan;
+use bored::notice::{Notice, NoticeHyperlinkMap, get_display, get_hyperlinks};
+use bored::{Bored, BoredError, BoredHyperlinkMap, Coordinate};
+use ratatui::buffer::Buffer;
 use ratatui::{
-    layout::{Constraint, Direction, Layout, Rect},
-    style::{Color, Style},
+    layout::Rect,
+    style::Style,
     text::{Line, Span, Text},
-    widgets::{Block, BorderType, Borders, Clear, List, ListItem, Paragraph, Widget, Wrap},
+    widgets::{Block, BorderType, Borders, Clear, Paragraph, Widget},
 };
-use std::cmp::{max, min};
+use std::cmp::min;
 
-use crate::app::{App, CreateMode, DraftMode, View};
 use crate::theme::Theme;
 use crate::ui::safe_subtract_u16;
 
@@ -133,7 +127,7 @@ impl DisplayBored {
 pub struct BoredViewPort {
     bored: Bored,
     bored_rect: Rect,
-    bored_dimensions: Coordinate,
+    // bored_dimensions: Coordinate,
     view_top_left: Coordinate,
     view_dimensions: Coordinate,
     buffer: Buffer,
@@ -150,7 +144,7 @@ impl BoredViewPort {
         BoredViewPort {
             bored: bored.clone(),
             bored_rect,
-            bored_dimensions: bored.get_dimensions(),
+            // bored_dimensions: bored.get_dimensions(),
             view_top_left: Coordinate { x: 0, y: 0 },
             view_dimensions,
             buffer: Buffer::empty(bored_rect),
@@ -189,9 +183,9 @@ impl BoredViewPort {
     }
 
     /// Change size of view port can be larger than bored
-    pub fn set_view_dimensions(&mut self, view_dimensions: Coordinate) {
-        self.view_dimensions = view_dimensions;
-    }
+    // pub fn set_view_dimensions(&mut self, view_dimensions: Coordinate) {
+    //     self.view_dimensions = view_dimensions;
+    // }
 
     /// render just what is in the view port
     pub fn render_view(&mut self, buffer: &mut Buffer, theme: Theme) {
@@ -225,7 +219,7 @@ impl BoredViewPort {
     pub fn get_view_for_notice(&self, notice: &Notice) -> Coordinate {
         // let notice_bottom_right = notice.get_top_left().add(&notice.get_dimensions());
         let mut position = notice.get_top_left();
-        let (mut x, mut y) = (position.x, position.y);
+        let (x, y); //= (position.x, position.y);
         x = if (safe_subtract_u16(self.view_dimensions.x, notice.get_dimensions().x) / 2)
             < position.x
         {
@@ -315,6 +309,7 @@ pub fn style_bored_hyperlinks(bored: &Bored, buffer: &mut Buffer, hyperlink_styl
 mod tests {
 
     use bored::notice::Notice;
+    use ratatui::prelude::Stylize;
 
     use crate::app::SurfBoredError;
 
