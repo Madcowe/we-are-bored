@@ -196,7 +196,7 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
                 //     .expect("There should not be a draft without a bored");
                 match draft_mode {
                     DraftMode::Content => {
-                        status_text = "Type to enter message, (ctrl + p) to position notice or (esc) to leave".to_string();
+                        status_text = "Type to enter message, (ctrl + h) to insert hyperlink, (ctrl + p) to position notice or (esc) to leave".to_string();
                         let display = draft.get_display().unwrap();
                         let display_text = display.get_display_text();
                         let display_text = character_wrap(display_text, draft.get_text_width());
