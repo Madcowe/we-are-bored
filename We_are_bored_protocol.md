@@ -77,8 +77,9 @@ rectangle, the top left is assumed at coordinate (0, 0).
 
 The bored data is stored in JSON format before being encrypted for storage in a scratchpad.
 An example in JSON format is below:
+Data: {"protocol_version":1,"name":"The genesis bored","dimensions":{"x":120,"y":40},"notices":[{"top_left":{"x":6,"y":2},"dimensions":{"x":30,"y":8},"content":"Hello is this bored for fans\nof genesis?"},{"top_left":{"x":17,"y":7},"dimensions":{"x":30,"y":10},"content":"No it's just the first bored\nto ever exist."},{"top_left":{"x":55,"y":3},"dimensions":{"x":20,"y":6},"content":"Kuato lives\n"},{"top_left":{"x":54,"y":11},"dimensions":{"x":28,"y":8},"content":"--MY FAVOURITE FONT--\nWhat is your porpoise\n"},{"top_left":{"x":77,"y":3},"dimensions":{"x":28,"y":8},"content":"Welcome to CBBS. Please leave a message or check the latest upload from the CACHE user group.\n"},{"top_left":{"x":71,"y":25},"dimensions":{"x":30,"y":10},"content":"This [link won't work](not a link)"}]}
 
-The scratchpad data_encoding filed should be set to ?.... for version 1 of this protocol and
+The scratchpad data_encoding filed should be set to 2151856 for version 1 of this protocol and
 incremented by for each subsequent protocol version.
 
 ## Bored variants and their corresponding URLs
