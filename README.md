@@ -1,4 +1,4 @@
-A minimalist ephemeral social interaction network of linked notice boards implemented via the [autonomi](https://autonomi.com/) network
+A minimalist ephemeral social interaction network of linked notice boards implemented via the [autonomi](https://autonomi.com/) network.
 
 The protcol specification is [here](We_are_bored_protocol.md).
 
