@@ -195,7 +195,8 @@ impl BoredClient {
     /// if bored to big for scratchpad it will try and remove the oldest notice from the bored
     pub async fn update_bored(&mut self) -> Result<(), BoredError> {
         let Some(bored_address) = &self.bored_address else {
-            return Err(BoredError::NoBored);
+            // return Err(BoredError::NoBored);
+            return Ok(());
         };
         let bored_address = bored_address.clone();
         if self.scratchpad_counter.is_none() {
