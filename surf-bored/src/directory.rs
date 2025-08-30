@@ -125,7 +125,7 @@ impl Directory {
 pub fn about_bored() -> Bored {
     let mut about = Bored::create("About", Coordinate { x: 80, y: 30 });
     let mut notice = Notice::create(Coordinate { x: 20, y: 5 });
-    notice.write("Surf Bored\n\nV0.4.1").unwrap();
+    notice.write("Surf Bored\n\nV0.4.2").unwrap();
     about.add(notice, Coordinate { x: 3, y: 2 }).unwrap();
     let mut notice = Notice::create(Coordinate { x: 50, y: 5 });
     notice
@@ -141,11 +141,9 @@ pub fn about_bored() -> Bored {
         )
         .unwrap();
     about.add(notice, Coordinate { x: 17, y: 10 }).unwrap();
-    let mut notice = Notice::create(Coordinate { x: 15, y: 5 });
-    notice
-        .write("Go back to \n[home bored](app://home)")
-        .unwrap();
-    about.add(notice, Coordinate { x: 60, y: 17 }).unwrap();
+    let mut notice = Notice::create(Coordinate { x: 15, y: 3 });
+    notice.write("[Home bored](app://home)").unwrap();
+    about.add(notice, Coordinate { x: 61, y: 1 }).unwrap();
     about
 }
 
