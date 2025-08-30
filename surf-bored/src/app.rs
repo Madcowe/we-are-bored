@@ -544,6 +544,14 @@ impl App {
         Ok(())
     }
 
+    pub async fn go_home(&mut self) -> Result<(), SurfBoredError> {
+        if let Some(home) = self.directory.get_home() {
+            let home_address = BoredAddress::from_string(home)?;
+            self.goto_bored(home_address).await?
+        }
+        Ok(())
+    }
+
     pub async fn handle_hyperlink<B: Backend>(
         &mut self,
         hyperlink: Hyperlink,
@@ -571,7 +579,20 @@ impl App {
                 // self.revert_view();
                 return Ok(());
             }
-            URL::BoredApp(command) => self.hyperlink_command(&command),
+            URL::BoredApp(command) => {
+                let executing_command = self.hyperlink_command(&command);
+                let message = if command == "home" {
+                    "Loading home bored from antnet"
+                } else {
+                    ""
+                };
+                match wait_pop_up(terminal, previous_buffer, executing_command, message, theme)
+                    .await
+                {
+                    Err(e) => Ok(self.display_error(e)),
+                    _ => Ok(()),
+                }
+            }
             URL::ClearNet(clear_net_url) => {
                 if let Err(_) = open::that(clear_net_url) {
                     return Err(SurfBoredError::Message(
@@ -594,9 +615,7 @@ impl App {
                 )
                 .await
                 {
-                    Err(e) => {
-                        self.display_error(e);
-                    }
+                    Err(e) => self.display_error(e),
                     _ => (),
                 }
                 if let Some(path) = self.path_to_open.clone() {
@@ -612,7 +631,7 @@ impl App {
         }
     }
 
-    pub fn hyperlink_command(&mut self, command: &str) -> Result<(), SurfBoredError> {
+    pub async fn hyperlink_command(&mut self, command: &str) -> Result<(), SurfBoredError> {
         if command == "about" {
             let Some(ref mut client) = self.client else {
                 return Err(SurfBoredError::BoredError(
@@ -623,7 +642,15 @@ impl App {
             self.current_view = View::BoredView;
             self.menu_visible = false;
             let about = directory::about_bored();
+            self.bored_view_port = Some(BoredViewPort::create(
+                &about,
+                about.get_dimensions(),
+                self.selected_notice,
+            ));
             client.load_app_bored(about);
+            Ok(())
+        } else if command == "home" {
+            self.go_home().await?;
             Ok(())
         } else {
             return Err(SurfBoredError::LinkCommandUnknown(command.to_string()));

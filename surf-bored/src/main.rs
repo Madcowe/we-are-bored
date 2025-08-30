@@ -221,7 +221,7 @@ async fn run_app<B: Backend>(
                                 }
                             }
                         }
-                        KeyCode::Char('a') => match app.hyperlink_command("about") {
+                        KeyCode::Char('a') => match app.hyperlink_command("about").await {
                             Err(e) => app.display_error(e),
                             _ => (),
                         },

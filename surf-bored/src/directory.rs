@@ -134,13 +134,18 @@ pub fn about_bored() -> Bored {
         )
         .unwrap();
     about.add(notice, Coordinate { x: 25, y: 5 }).unwrap();
-    let mut notice = Notice::create(Coordinate { x: 20, y: 5 });
+    let mut notice = Notice::create(Coordinate { x: 25, y: 5 });
     notice
         .write(
             "Source code:\n\n[Github](https://github.com/Madcowe/we-are-bored/tree/main/surf-bored)",
         )
         .unwrap();
     about.add(notice, Coordinate { x: 17, y: 10 }).unwrap();
+    let mut notice = Notice::create(Coordinate { x: 15, y: 5 });
+    notice
+        .write("Go back to \n[home bored](app://home)")
+        .unwrap();
+    about.add(notice, Coordinate { x: 60, y: 17 }).unwrap();
     about
 }
 

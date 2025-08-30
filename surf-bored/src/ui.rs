@@ -120,7 +120,7 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
         View::ErrorView(e) => {
             status_text = "Press (enter) to contunue or (q) to quit".to_string();
             let pop_up_rect = area.inner(Margin::new(area.width / 4, area.height / 4)); //centered_rect(60, 60, area);
-            let navigation_text = "Press (enter) to contiune or (q) to quit.";
+            let navigation_text = "Press (enter) to contiune.";
             Clear.render(pop_up_rect, frame.buffer_mut());
             let pop_up_block = Block::default()
                 .borders(Borders::ALL)
