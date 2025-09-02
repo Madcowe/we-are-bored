@@ -208,9 +208,9 @@ impl BoredViewPort {
             let buffer_x = x - view_rect.x + buffer_rect.x;
             for y in view_rect.y..y_limit {
                 let buffer_y = y - view_rect.y + buffer_rect.y;
-                let bored_pos = y * self.bored_rect.width + x;
-                if bored_pos < bored_content.len() as u16 {
-                    buffer[(buffer_x, buffer_y)] = bored_content[bored_pos as usize].clone();
+                let bored_pos = y as usize * self.bored_rect.width as usize + x as usize;
+                if bored_pos < bored_content.len() {
+                    buffer[(buffer_x, buffer_y)] = bored_content[bored_pos].clone();
                 }
             }
         }
