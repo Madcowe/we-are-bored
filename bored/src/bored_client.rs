@@ -69,7 +69,12 @@ impl BoredClient {
     pub async fn get_cost(&self) -> Result<String, BoredError> {
         let cost = self
             .client
-            .scratchpad_cost(&BoredAddress::new().get_key().public_key())
+            .scratchpad_cost(
+                &BoredAddress::new()
+                    .get_key()
+                    .expect("BoredAddress::new should always produce valid key")
+                    .public_key(),
+            )
             .await?;
         Ok(cost.to_string())
     }
@@ -81,9 +86,18 @@ impl BoredClient {
         name: &str,
         dimensions: Coordinate,
         private_key: &str,
+        url_name: Option<&str>,
     ) -> Result<(), BoredError> {
         let bored = Bored::create(name, dimensions);
-        self.bored_address = Some(BoredAddress::new());
+        self.bored_address = match url_name {
+            None => Some(BoredAddress::new()),
+            Some(name) => Some(BoredAddress::from_string(name)?),
+        };
+        let scratchpad_key = self
+            .bored_address
+            .as_ref()
+            .expect("Bored address should exist by now")
+            .get_key()?;
         let serialized_bored = serde_json::to_vec(&bored)?;
         let content = Bytes::from(serialized_bored);
         let wallet = match self.get_funded_wallet(private_key).await {
@@ -99,7 +113,8 @@ impl BoredClient {
         let (..) = self
             .client
             .scratchpad_create(
-                &self.bored_address.as_ref().unwrap().get_key(),
+                &scratchpad_key,
+                // &self.bored_address.as_ref().unwrap().get_key(),
                 bored.protocol_version.get_content_type(),
                 &content,
                 payment_option,
@@ -127,6 +142,10 @@ impl BoredClient {
         Ok(&bored.name)
     }
 
+    pub fn get_connection_type(&self) -> ConnectionType {
+        self.connection_type
+    }
+
     /// Attempt to download a bored and set current_bored to it if succesfful
     pub async fn go_to_bored(&mut self, bored_address: &BoredAddress) -> Result<(), BoredError> {
         let bored_address = bored_address.clone();
@@ -144,7 +163,7 @@ impl BoredClient {
     ) -> Result<(Bored, u64), BoredError> {
         let got = match self
             .client
-            .scratchpad_get_from_public_key(&bored_address.get_public_key())
+            .scratchpad_get_from_public_key(&bored_address.get_public_key()?)
             .await
         {
             Ok(got) => got,
@@ -158,7 +177,7 @@ impl BoredClient {
             .clone(),
             Err(e) => return Err(e.into()),
         };
-        let content = match got.decrypt_data(bored_address.get_key()) {
+        let content = match got.decrypt_data(&bored_address.get_key()?) {
             Ok(content) => content,
             Err(e) => return Err(BoredError::DecryptionError(format!("{e}"))),
         };
@@ -214,7 +233,7 @@ impl BoredClient {
         match self
             .client
             .scratchpad_update(
-                bored_address.get_key(),
+                &bored_address.get_key()?,
                 bored.protocol_version.get_content_type(),
                 &content,
             )
@@ -427,7 +446,7 @@ mod tests {
     async fn test_create_bored() -> Result<(), BoredError> {
         let mut bored_client = BoredClient::init(ConnectionType::Local).await?;
         bored_client
-            .create_bored("", Coordinate { x: 120, y: 40 }, "")
+            .create_bored("", Coordinate { x: 120, y: 40 }, "", None)
             .await?;
         let bored = bored_client.current_bored.as_ref().unwrap().clone();
         bored_client.refresh_bored().await?;
@@ -440,7 +459,7 @@ mod tests {
     async fn test_update_bored() -> Result<(), BoredError> {
         let mut bored_client = BoredClient::init(ConnectionType::Local).await?;
         bored_client
-            .create_bored("I am BORED", Coordinate { x: 120, y: 40 }, "")
+            .create_bored("I am BORED", Coordinate { x: 120, y: 40 }, "", None)
             .await?;
         let scrachpad_counter = bored_client.scratchpad_counter.unwrap();
         let mut bored = bored_client.get_current_bored().unwrap();
@@ -469,7 +488,7 @@ mod tests {
     async fn test_add_draft_to_bored() -> Result<(), BoredError> {
         let mut bored_client = BoredClient::init(ConnectionType::Local).await?;
         bored_client
-            .create_bored("", Coordinate { x: 120, y: 40 }, "")
+            .create_bored("", Coordinate { x: 120, y: 40 }, "", None)
             .await?;
         bored_client.create_draft(Coordinate { x: 60, y: 18 })?;
         bored_client.edit_draft("I am BORED")?;
@@ -491,7 +510,7 @@ mod tests {
     async fn test_edit_draft() -> Result<(), BoredError> {
         let mut bored_client = BoredClient::init(ConnectionType::Local).await?;
         bored_client
-            .create_bored("", Coordinate { x: 120, y: 40 }, "")
+            .create_bored("", Coordinate { x: 120, y: 40 }, "", None)
             .await?;
         // let bored = bored_client.current_bored.as_ref().unwrap().clone();
         bored_client
@@ -549,7 +568,7 @@ mod tests {
     async fn test_adding_notice_too_big_for_scratchpad() -> Result<(), BoredError> {
         let mut bored_client = BoredClient::init(ConnectionType::Local).await?;
         bored_client
-            .create_bored("", Coordinate { x: 10000, y: 10000 }, "")
+            .create_bored("", Coordinate { x: 10000, y: 10000 }, "", None)
             .await?;
         bored_client
             .create_draft(Coordinate { x: 4000, y: 4000 })

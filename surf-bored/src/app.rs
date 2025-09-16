@@ -302,6 +302,16 @@ impl App {
         None
     }
 
+    pub fn has_local_connection(&self) -> bool {
+        if let Some(client) = &self.client {
+            match client.get_connection_type() {
+                ConnectionType::Local => return true,
+                _ => (),
+            }
+        }
+        false
+    }
+
     pub async fn create_bored_on_network(
         &mut self,
         name: &str,
@@ -314,7 +324,7 @@ impl App {
             ));
         };
         client
-            .create_bored(name, dimensions, private_key.trim())
+            .create_bored(name, dimensions, private_key.trim(), None)
             .await?;
         let bored = client.get_current_bored()?;
         self.selected_notice = None;

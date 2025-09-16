@@ -18,6 +18,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 use autonomi::client::GetError;
 use autonomi::client::files::DownloadError;
 use autonomi::scratchpad::ScratchpadError;
+use core::panic::PanicMessage;
 use notice::{Notice, NoticeHyperlinkMap};
 use serde::{Deserialize, Serialize};
 use std::fmt::{self};
@@ -126,6 +127,15 @@ pub enum BoredError {
     NotValidAntAddress,
     #[error("Client reports mutiple fork of scratchpad but didn't return any???")]
     ForkHandles,
+    #[error("{0}")]
+    BLSError(String),
+}
+
+impl From<blsttc::Error> for BoredError {
+    fn from(e: blsttc::Error) -> Self {
+        let message = format!("{e}");
+        BoredError::BLSError(message)
+    }
 }
 
 impl From<serde_json::Error> for BoredError {

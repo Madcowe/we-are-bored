@@ -89,26 +89,28 @@ async fn run_app<B: Backend>(
         app.save_directory()?;
         // app.display_error(e);
     }
-    if let Some(home_address) = app.directory.get_home() {
-        match BoredAddress::from_string(home_address) {
-            Ok(home_address) => {
-                let theme = app.theme.clone();
-                let going_to_bored = app.goto_bored(home_address);
-                match wait_pop_up(
-                    terminal,
-                    previous_buffer,
-                    going_to_bored,
-                    "Loading bored from antnet...",
-                    theme,
-                )
-                .await
-                {
-                    Err(e) => app.display_error(e),
-                    _ => (),
+    if app.has_local_connection() {
+        if let Some(home_address) = app.directory.get_home() {
+            match BoredAddress::from_string(home_address) {
+                Ok(home_address) => {
+                    let theme = app.theme.clone();
+                    let going_to_bored = app.goto_bored(home_address);
+                    match wait_pop_up(
+                        terminal,
+                        previous_buffer,
+                        going_to_bored,
+                        "Loading bored from antnet...",
+                        theme,
+                    )
+                    .await
+                    {
+                        Err(e) => app.display_error(e),
+                        _ => (),
+                    }
                 }
-            }
-            Err(e) => app.display_error(app::SurfBoredError::BoredError(e)),
-        };
+                Err(e) => app.display_error(app::SurfBoredError::BoredError(e)),
+            };
+        }
     }
 
     loop {
