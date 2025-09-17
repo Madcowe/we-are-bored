@@ -42,14 +42,11 @@ impl BoredAddress {
                 s = &s[8..s.len()];
             }
         }
-
-        // if s.len() == 64 {
         if let Ok(key) = SecretKey::from_hex(&s) {
             return Ok(BoredAddress::ScratchpadKey(key));
         } else if let Ok(_) = derive_key_from_name(&s) {
             return Ok(BoredAddress::DerivedName(s.to_string()));
         }
-        // }
         Err(BoredError::NotBoredURL(s.to_string()))
     }
 
@@ -102,7 +99,7 @@ impl URL {
 }
 
 pub fn derive_key_from_name(derived_name: &str) -> Result<SecretKey, BoredError> {
-    if derived_name.len() == 0 {
+    if derived_name.replace(".", "").len() == 0 {
         return Err(BoredError::NotBoredURL(derived_name.to_string()));
     }
     let domains = derived_name.split('.');

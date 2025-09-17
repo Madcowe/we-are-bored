@@ -89,7 +89,7 @@ async fn run_app<B: Backend>(
         app.save_directory()?;
         // app.display_error(e);
     }
-    if app.has_local_connection() {
+    if !app.has_local_connection() {
         if let Some(home_address) = app.directory.get_home() {
             match BoredAddress::from_string(home_address) {
                 Ok(home_address) => {
@@ -346,16 +346,23 @@ async fn run_app<B: Backend>(
                             CreateMode::Name => {
                                 app.name_input.pop();
                             }
+                            CreateMode::URLName => {
+                                app.url_name_input.pop();
+                            }
                             CreateMode::PrivateKey => {
                                 app.key_input.pop();
                             }
                         },
                         KeyCode::Char(value) => match create_view {
                             CreateMode::Name => app.name_input.push(value),
+                            CreateMode::URLName => app.url_name_input.push(value),
                             CreateMode::PrivateKey => app.key_input.push(value),
                         },
                         KeyCode::Enter => match create_view {
                             CreateMode::Name => {
+                                app.current_view = View::CreateView(CreateMode::URLName)
+                            }
+                            CreateMode::URLName => {
                                 app.current_view = View::CreateView(CreateMode::PrivateKey)
                             }
                             CreateMode::PrivateKey => {
@@ -364,11 +371,17 @@ async fn run_app<B: Backend>(
                                 // ));
                                 let (name_input, key_input) =
                                     (app.name_input.clone(), app.key_input.clone());
+                                let url_name_input = if app.url_name_input.is_empty() {
+                                    None
+                                } else {
+                                    Some(app.url_name_input.clone())
+                                };
                                 let theme = app.theme.clone();
                                 let creating_bored = app.create_bored_on_network(
                                     &name_input,
                                     &key_input,
                                     Coordinate { x: 120, y: 40 },
+                                    url_name_input.as_deref(),
                                 );
                                 match wait_pop_up(
                                     terminal,
@@ -380,7 +393,10 @@ async fn run_app<B: Backend>(
                                 .await
                                 {
                                     Err(e) => app.display_error(e),
-                                    _ => app.name_input = String::new(),
+                                    _ => {
+                                        app.name_input = String::new();
+                                        app.url_name_input = String::new();
+                                    }
                                 }
                                 app.key_input = String::new();
                             }

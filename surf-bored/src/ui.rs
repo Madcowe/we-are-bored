@@ -148,7 +148,7 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
             let warning = "THIS IS EXPERIMENTAL SOFTWARE AND STORAGE COSTS MAY VARY WITHOUT WARNING SO DO NOT USE A WALLET WITH YOUR LIFE SAVINGS IN OR INDEED CONTAINING ANY AMOUNT YOU ARE NOT PREPARED TO LOSE IN ENTIRETY";
             Clear.render(pop_up_rect, frame.buffer_mut());
             let pop_up_block = Block::default()
-                .title("Enter bored name and private key of funding wallet*")
+                .title("Enter bored name, url (optional) and private key of funding wallet")
                 .borders(Borders::ALL)
                 .border_type(BorderType::Thick)
                 .style(app.theme.text_style());
@@ -158,12 +158,15 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
                 .direction(Direction::Vertical)
                 .margin(1)
                 .constraints([
-                    Constraint::Percentage(40),
-                    Constraint::Percentage(20),
-                    Constraint::Percentage(40),
+                    Constraint::Percentage(25),
+                    Constraint::Percentage(25),
+                    Constraint::Percentage(25),
+                    Constraint::Percentage(25),
                 ])
                 .split(pop_up_rect);
             let mut name_block = Block::default().title("Name").style(app.theme.text_style());
+            let mut url_name_block = Block::default()
+                .title("URL name: separate domains with full stops (.) leave blank for random URL");
             let mut key_block = Block::default()
                 .title("Private key of funding wallet")
                 .style(app.theme.text_style());
@@ -175,19 +178,29 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
                             .to_string();
                     name_block = name_block.clone().style(app.theme.inverted_text_style())
                 }
+                CreateMode::URLName => {
+                    status_text =
+                        "Type to url name, press (enter) to proceed or (esc) to go leave. Leave blank to have random url"
+                            .to_string();
+                    url_name_block = url_name_block
+                        .clone()
+                        .style(app.theme.inverted_text_style())
+                }
                 CreateMode::PrivateKey => {
                     status_text = "Type to enter key or use terminal emulator paste (enter) to proceed, (tab) to edit name or (esc) to leave".to_string();
                     key_block = key_block.clone().style(app.theme.inverted_text_style())
                 }
             };
             let name_text = Paragraph::new(app.name_input.clone()).block(name_block);
+            let url_name_text = Paragraph::new(app.url_name_input.clone()).block(url_name_block);
             let key_text = Paragraph::new(app.key_input.clone()).block(key_block);
             let warning_text = Paragraph::new(warning)
                 .wrap(Wrap { trim: false })
                 .block(warning_block);
             frame.render_widget(name_text, pop_up_chunks[0]);
-            frame.render_widget(key_text, pop_up_chunks[2]);
-            frame.render_widget(warning_text, pop_up_chunks[1]);
+            frame.render_widget(url_name_text, pop_up_chunks[1]);
+            frame.render_widget(warning_text, pop_up_chunks[2]);
+            frame.render_widget(key_text, pop_up_chunks[3]);
         }
         View::DraftView(draft_mode) => {
             if let Some(draft) = app.get_draft() {

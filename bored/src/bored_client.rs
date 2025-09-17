@@ -20,7 +20,7 @@ use crate::url::BoredAddress;
 use crate::{Bored, BoredError, Coordinate};
 use autonomi::client::payment::PaymentOption;
 use autonomi::data::DataAddress;
-use autonomi::scratchpad::ScratchpadError;
+use autonomi::scratchpad::{ScratchpadAddress, ScratchpadError};
 use autonomi::{Bytes, Client, Scratchpad, Wallet};
 use std::error::Error;
 use std::path::PathBuf;
@@ -93,6 +93,18 @@ impl BoredClient {
             None => Some(BoredAddress::new()),
             Some(name) => Some(BoredAddress::from_string(name)?),
         };
+        let scratchpad_address =
+            ScratchpadAddress::new(self.bored_address.clone().unwrap().get_public_key()?);
+        if self
+            .client
+            .scratchpad_check_existence(&scratchpad_address)
+            .await?
+            && url_name.is_some()
+        {
+            return Err(BoredError::URLNameAlreadyExists(
+                url_name.unwrap().to_string(),
+            ));
+        }
         let scratchpad_key = self
             .bored_address
             .as_ref()

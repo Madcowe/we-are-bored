@@ -84,12 +84,14 @@ pub enum View {
 #[derive(Clone, Debug, PartialEq)]
 pub enum CreateMode {
     Name,
+    URLName,
     PrivateKey,
 }
 impl CreateMode {
     pub fn toggle(&self) -> CreateMode {
         match self {
-            CreateMode::Name => CreateMode::PrivateKey,
+            CreateMode::Name => CreateMode::URLName,
+            CreateMode::URLName => CreateMode::PrivateKey,
             CreateMode::PrivateKey => CreateMode::Name,
         }
     }
@@ -139,6 +141,7 @@ pub struct App {
     pub bored_view_port: Option<BoredViewPort>,
     // pub status: String,
     pub name_input: String,
+    pub url_name_input: String,
     pub key_input: String,
     pub content_input: String,
     pub link_text_input: String,
@@ -148,17 +151,6 @@ pub struct App {
 }
 impl App {
     pub fn new() -> App {
-        // let download_path = if std::env::consts::OS == "android"
-        //     && PathBuf::from_str("~/storage/downloads/")
-        //         .unwrap()
-        //         .try_exists()
-        //         .unwrap_or(false)
-        // {
-        //     "~/storage/downloads/".to_string()
-        // } else {
-        //     "downloads/".to_string()
-        // };
-
         App {
             client: None,
             directory: Directory::new(),
@@ -174,6 +166,7 @@ impl App {
             bored_view_port: None,
             // status: String::new(),
             name_input: String::new(),
+            url_name_input: String::new(),
             key_input: String::new(),
             content_input: String::new(),
             link_text_input: String::new(),
@@ -317,6 +310,7 @@ impl App {
         name: &str,
         private_key: &str,
         dimensions: Coordinate,
+        url_name: Option<&str>,
     ) -> Result<(), SurfBoredError> {
         let Some(ref mut client) = self.client else {
             return Err(SurfBoredError::BoredError(
@@ -324,7 +318,7 @@ impl App {
             ));
         };
         client
-            .create_bored(name, dimensions, private_key.trim(), None)
+            .create_bored(name, dimensions, private_key.trim(), url_name)
             .await?;
         let bored = client.get_current_bored()?;
         self.selected_notice = None;
@@ -681,7 +675,7 @@ mod tests {
             let mut app = App::new();
             app.directory_path = "test_directory.toml".to_string();
             app.init_client(ConnectionType::Local).await?;
-            app.create_bored_on_network("I am bored", "", Coordinate { x: 120, y: 40 })
+            app.create_bored_on_network("I am bored", "", Coordinate { x: 120, y: 40 }, None)
                 .await?;
             directory = app.directory.clone();
         }
@@ -691,8 +685,13 @@ mod tests {
             app.init_client(ConnectionType::Local).await?;
             app.load_directory()?;
             assert_eq!(directory, app.directory);
-            app.create_bored_on_network("We are bored", "", Coordinate { x: 120, y: 40 })
-                .await?;
+            app.create_bored_on_network(
+                "We are bored",
+                "",
+                Coordinate { x: 120, y: 40 },
+                Some("bored.of.domains"),
+            )
+            .await?;
             directory = app.directory.clone();
         }
         let mut app = App::new();

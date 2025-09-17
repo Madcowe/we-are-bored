@@ -18,7 +18,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 use autonomi::client::GetError;
 use autonomi::client::files::DownloadError;
 use autonomi::scratchpad::ScratchpadError;
-use core::panic::PanicMessage;
 use notice::{Notice, NoticeHyperlinkMap};
 use serde::{Deserialize, Serialize};
 use std::fmt::{self};
@@ -129,6 +128,8 @@ pub enum BoredError {
     ForkHandles,
     #[error("{0}")]
     BLSError(String),
+    #[error("The URL name: {0} is already taken.\nPlease choose a different one.")]
+    URLNameAlreadyExists(String),
 }
 
 impl From<blsttc::Error> for BoredError {
