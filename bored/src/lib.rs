@@ -28,7 +28,7 @@ pub mod notice;
 pub mod url;
 
 // Should be entered in order as created as default looks at last element
-const PROTOCOL_VERSIONS: [ProtocolVersion; 1] = [ProtocolVersion(1)];
+const PROTOCOL_VERSIONS: [ProtocolVersion; 2] = [ProtocolVersion(1), ProtocolVersion(2)];
 
 /// Bored protocol version 1 is recorded here and subseqnet version incremented by 1
 const CONTENT_TYPE_PROTOCOL_BASE: u64 = 2151856;

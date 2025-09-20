@@ -1,6 +1,6 @@
 # We are bored protocol
 
-Version: 1
+Version: 2
 
 ## Abstract
 
@@ -11,7 +11,7 @@ philosophy though falls short of many of those principles.
 It's inspiration is real world physical pin/notice boards. It is made up of boreds which are two
 dimensional volumes that can contain notices that can contain text which may contain hyperlinks that
 can be to other boreds in the network. These may be viewed by anyone who has the bored's address and
-as of version 1 anyone with access may also add a notice.
+as of version 2 anyone with access may also add a notice.
 
 ## Definitions
 
@@ -90,6 +90,22 @@ All fully qualified bored URLs should start with the bored protocol identifier i
 
 The key used to create and hence also decrypt the scratchpad is used as the address in hexadecimal
 format as the autonomi address can be derived from this hence it will be 64 characters long eg.
+
+## Variant 2, autonomi scratchpad addressed by the name used to derive key used to create it.
+
+They strings used to derive the key used to create and decrypt the scratch pad. Multiple domains may
+be delimited by full stops (.). The derivation start with the base key of (in hex):
+
+    000000000000000000000000000000000000000000000000000000000020D5B0
+
+Then a new key is derived using each domain (delimited by .) from left to right.
+
+This mean boreds can essentially have any url name that has not already be used and there in now
+specific limitation on length though be impractically long would defeat the point of having
+them over random numbers...ie a human could possible remember them. The only character that cannot
+be used is the full stop which are not counted as used to deliminate domains.
+
+An empty string or any number of empty strings (ie loads of ...) are not valid addresses.
 
 ## Potential vulnerabilities
 
