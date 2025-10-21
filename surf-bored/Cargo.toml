@@ -1,6 +1,6 @@
 [package]
 name = "surf-bored"
-version = "0.5.0"
+version = "0.5.1"
 edition = "2024"
 license = "AGPL-3.0-or-later"
 
@@ -13,4 +13,4 @@ toml = "0.8.22"
 thiserror = "2.0.12"
 rand = "0.9.1"
 open = "5.3.2"
-autonomi = "0.6.0"
+autonomi = "0.6.3"

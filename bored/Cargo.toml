@@ -1,11 +1,11 @@
 [package]
 name = "bored"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2024"
 license = "AGPL-3.0-or-later"
 
 [dependencies]
-autonomi = "0.6.0"
+autonomi = "0.6.3"
 bincode = "1.3.3"
 blsttc = "8.0.2"
 regex = "1.11.1"

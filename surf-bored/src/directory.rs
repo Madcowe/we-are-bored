@@ -46,6 +46,21 @@ impl Directory {
             "bored://0ea6aa74936fcf6afc1fcd75391b7bcbcf26a20e7e2c50583f8f1d61dc9fa28a",
         );
         directory.bored_addresses.push(listing);
+        let listing = Listing::new(
+            "If hell is other people then that is you!",
+            "bored://you.are.ell",
+        );
+        directory.bored_addresses.push(listing);
+        let listing = Listing::new(
+            "Bored of autonomi community public files",
+            "bored://1c2bc9751fd44b2b6a5e6d24a7933e8f5b74e140d33fd310a6fa5e3fb293a45b",
+        );
+        directory.bored_addresses.push(listing);
+        let listing = Listing::new(
+            "The really big bored",
+            "bored://2185e6315dc0319a5845c6f4fc8bb980d13730651bfed59d2ed6050b626d30a9",
+        );
+        directory.bored_addresses.push(listing);
         directory
     }
 
@@ -125,7 +140,7 @@ impl Directory {
 pub fn about_bored() -> Bored {
     let mut about = Bored::create("About", Coordinate { x: 80, y: 24 });
     let mut notice = Notice::create(Coordinate { x: 20, y: 5 });
-    notice.write("Surf Bored\n\nV0.5.0").unwrap();
+    notice.write("Surf Bored\n\nV0.5.1").unwrap();
     about.add(notice, Coordinate { x: 3, y: 2 }).unwrap();
     let mut notice = Notice::create(Coordinate { x: 50, y: 5 });
     notice
