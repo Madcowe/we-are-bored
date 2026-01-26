@@ -365,7 +365,7 @@ impl BoredClient {
         match archive_result {
             Ok(archive) => {
                 for (index, (item_path, addr, _)) in archive.iter().enumerate() {
-                    let bytes = self.client.data_get_public(addr).await.unwrap();
+                    let bytes = self.client.data_get_public(addr).await?;
                     let path = PathBuf::from(download_path).join(item_path);
                     let here = PathBuf::from(".");
                     let parent = path.parent().unwrap_or_else(|| &here);
