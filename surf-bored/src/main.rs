@@ -46,7 +46,59 @@ use crate::ui::{safe_subtract_u16, ui, wait_pop_up};
 async fn main() -> Result<(), Box<dyn Error>> {
     let mut app = App::new();
     println!("Trying to connect to x0x daemon...");
-    app.init_client().await?;
+    if let Err(e) = app.init_client().await {
+        eprintln!("\nError: {}", e);
+        eprintln!("\nPlease ensure the x0x daemon is installed and running on your system.");
+        eprintln!("For documentation and configuration details, visit: https://x0x.md");
+        eprintln!("GitHub repository: https://github.com/saorsa-labs/x0x");
+        
+        eprint!("\nWould you like me to attempt to install and start the x0x daemon for you now? (y/N): ");
+        use std::io::Write;
+        let _ = std::io::stderr().flush();
+        
+        let mut input = String::new();
+        if std::io::stdin().read_line(&mut input).is_ok() {
+            let choice = input.trim().to_lowercase();
+            if choice == "y" || choice == "yes" {
+                eprintln!("\nInstalling and starting x0x daemon via standard installer...");
+                eprintln!("Running: curl -sfL https://x0x.md | sh -s -- --start");
+                
+                let status = std::process::Command::new("sh")
+                    .arg("-c")
+                    .arg("curl -sfL https://x0x.md | sh -s -- --start")
+                    .status();
+                    
+                match status {
+                    Ok(s) if s.success() => {
+                        eprintln!("\nInstaller completed successfully! Waiting 3 seconds for the daemon to spin up...");
+                        std::thread::sleep(std::time::Duration::from_secs(3));
+                        
+                        eprintln!("Re-connecting to x0x daemon...");
+                        match app.init_client().await {
+                            Ok(_) => {
+                                eprintln!("Connected successfully! Booting We Are Bored TUI...");
+                                std::thread::sleep(std::time::Duration::from_secs(1));
+                            }
+                            Err(e2) => {
+                                eprintln!("Failed to connect even after successful installation: {}", e2);
+                                std::process::exit(1);
+                            }
+                        }
+                    }
+                    _ => {
+                        eprintln!("\nFailed to execute installer automatically.");
+                        eprintln!("Please try running the installer command manually in your shell:");
+                        eprintln!("  curl -sfL https://x0x.md | sh -s -- --start");
+                        std::process::exit(1);
+                    }
+                }
+            } else {
+                std::process::exit(1);
+            }
+        } else {
+            std::process::exit(1);
+        }
+    }
     
     // setup terminal
     enable_raw_mode()?;

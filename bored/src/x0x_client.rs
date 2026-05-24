@@ -77,14 +77,23 @@ impl X0xBoredClient {
             request = request.bearer_auth(&api_token);
         }
 
-        let mut agent_id = String::new();
-        if let Ok(resp) = request.send().await {
-            if let Ok(json) = resp.json::<serde_json::Value>().await {
-                if let Some(aid) = json.get("agent_id").and_then(|v| v.as_str()) {
-                    agent_id = aid.to_string();
-                }
-            }
+        let resp = match request.send().await {
+            Ok(resp) => resp,
+            Err(_) => return Err(BoredError::ClientConnectionError),
+        };
+
+        if !resp.status().is_success() {
+            let err_body = resp.text().await.unwrap_or_default();
+            return Err(BoredError::X0xError(err_body));
         }
+
+        let json = resp.json::<serde_json::Value>().await
+            .map_err(|e| BoredError::X0xError(format!("Invalid JSON response from /agent: {}", e)))?;
+            
+        let agent_id = json.get("agent_id")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| BoredError::X0xError("agent_id missing in response".to_string()))?
+            .to_string();
 
         Ok(X0xBoredClient {
             http,
