@@ -48,55 +48,72 @@ async fn main() -> Result<(), Box<dyn Error>> {
     println!("Trying to connect to x0x daemon...");
     if let Err(e) = app.init_client().await {
         eprintln!("\nError: {}", e);
-        eprintln!("\nPlease ensure the x0x daemon is installed and running on your system.");
-        eprintln!("For documentation and configuration details, visit: https://x0x.md");
-        eprintln!("GitHub repository: https://github.com/saorsa-labs/x0x");
         
-        eprint!("\nWould you like me to attempt to install and start the x0x daemon for you now? (y/N): ");
-        use std::io::Write;
-        let _ = std::io::stderr().flush();
-        
-        let mut input = String::new();
-        if std::io::stdin().read_line(&mut input).is_ok() {
-            let choice = input.trim().to_lowercase();
-            if choice == "y" || choice == "yes" {
-                eprintln!("\nInstalling and starting x0x daemon via standard installer...");
-                eprintln!("Running: curl -sfL https://x0x.md | sh -s -- --start");
+        match e {
+            BoredError::ClientConnectionError => {
+                eprintln!("\nPlease ensure the x0x daemon is installed and running on your system.");
+                eprintln!("For documentation and configuration details, visit: https://x0x.md");
+                eprintln!("GitHub repository: https://github.com/saorsa-labs/x0x");
                 
-                let status = std::process::Command::new("sh")
-                    .arg("-c")
-                    .arg("curl -sfL https://x0x.md | sh -s -- --start")
-                    .status();
-                    
-                match status {
-                    Ok(s) if s.success() => {
-                        eprintln!("\nInstaller completed successfully! Waiting 3 seconds for the daemon to spin up...");
-                        std::thread::sleep(std::time::Duration::from_secs(3));
+                eprint!("\nWould you like me to attempt to install and start the x0x daemon for you now? (y/N): ");
+                use std::io::Write;
+                let _ = std::io::stderr().flush();
+                
+                let mut input = String::new();
+                if std::io::stdin().read_line(&mut input).is_ok() {
+                    let choice = input.trim().to_lowercase();
+                    if choice == "y" || choice == "yes" {
+                        eprintln!("\nInstalling and starting x0x daemon via standard installer...");
+                        eprintln!("Running: curl -sfL https://x0x.md | sh -s -- --start");
                         
-                        eprintln!("Re-connecting to x0x daemon...");
-                        match app.init_client().await {
-                            Ok(_) => {
-                                eprintln!("Connected successfully! Booting We Are Bored TUI...");
-                                std::thread::sleep(std::time::Duration::from_secs(1));
+                        let status = std::process::Command::new("sh")
+                            .arg("-c")
+                            .arg("curl -sfL https://x0x.md | sh -s -- --start")
+                            .status();
+                            
+                        match status {
+                            Ok(s) if s.success() => {
+                                eprintln!("\nInstaller completed successfully! Waiting 3 seconds for the daemon to spin up...");
+                                std::thread::sleep(std::time::Duration::from_secs(3));
+                                
+                                eprintln!("Re-connecting to x0x daemon...");
+                                match app.init_client().await {
+                                    Ok(_) => {
+                                        eprintln!("Connected successfully! Booting We Are Bored TUI...");
+                                        std::thread::sleep(std::time::Duration::from_secs(1));
+                                    }
+                                    Err(e2) => {
+                                        eprintln!("Failed to connect even after successful installation: {}", e2);
+                                        std::process::exit(1);
+                                    }
+                                }
                             }
-                            Err(e2) => {
-                                eprintln!("Failed to connect even after successful installation: {}", e2);
+                            _ => {
+                                eprintln!("\nFailed to execute installer automatically.");
+                                eprintln!("Please try running the installer command manually in your shell:");
+                                eprintln!("  curl -sfL https://x0x.md | sh -s -- --start");
                                 std::process::exit(1);
                             }
                         }
-                    }
-                    _ => {
-                        eprintln!("\nFailed to execute installer automatically.");
-                        eprintln!("Please try running the installer command manually in your shell:");
-                        eprintln!("  curl -sfL https://x0x.md | sh -s -- --start");
+                    } else {
                         std::process::exit(1);
                     }
+                } else {
+                    std::process::exit(1);
                 }
-            } else {
+            }
+            _ => {
+                eprintln!("\n⚠️  The x0x daemon is running on this machine, but access was denied.");
+                eprintln!("\nThis usually happens when there are multiple users on the same computer.");
+                eprintln!("Because x0x uses port 12700 for local communication, if another user");
+                eprintln!("(or a background service) is already running the daemon, your app will");
+                eprintln!("connect to their daemon but get rejected due to a token mismatch.");
+                eprintln!("\nTo fix this, you can either:");
+                eprintln!("1. Stop the daemon running on the other user account.");
+                eprintln!("2. Share the API token (~/.local/share/x0x/api-token) between users.");
+                eprintln!("3. Run your daemon on a different port using `x0xd --api-port <PORT>`.");
                 std::process::exit(1);
             }
-        } else {
-            std::process::exit(1);
         }
     }
     
