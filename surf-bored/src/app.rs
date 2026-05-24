@@ -15,14 +15,12 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-use autonomi::data::DataAddress;
-use bored::bored_client::{BoredClient, ConnectionType};
 use bored::notice::{Hyperlink, Notice, get_hyperlinks};
 use bored::url::{BoredAddress, URL};
+use bored::x0x_client::X0xBoredClient;
 use bored::{Bored, BoredError, Coordinate, Direction};
 use ratatui::{Terminal, backend::Backend, buffer::Buffer};
 use std::io::Error;
-use std::path::PathBuf;
 
 use crate::directory::{self, Directory, Listing};
 use crate::display_bored::BoredViewPort;
@@ -43,8 +41,6 @@ pub enum SurfBoredError {
     DirectorySerialzationError,
     #[error("Could not derserialize directory file so directory is empty.")]
     DirectoryDeserialzationError,
-    #[error("Antnet call timed out as never returned")]
-    StillWaiting,
     #[error("Failed to render waiting pop up")]
     CannotRenderWait,
     #[error("The directory of boreds is currently empty")]
@@ -55,6 +51,8 @@ pub enum SurfBoredError {
     IOError(String),
     #[error("The application command in the hyperlink is not know by this appication:\n{0}")]
     LinkCommandUnknown(String),
+    #[error("Daemon call timed out as never returned")]
+    StillWaiting,
 }
 
 impl From<BoredError> for SurfBoredError {
@@ -85,14 +83,12 @@ pub enum View {
 pub enum CreateMode {
     Name,
     URLName,
-    PrivateKey,
 }
 impl CreateMode {
     pub fn toggle(&self) -> CreateMode {
         match self {
             CreateMode::Name => CreateMode::URLName,
-            CreateMode::URLName => CreateMode::PrivateKey,
-            CreateMode::PrivateKey => CreateMode::Name,
+            CreateMode::URLName => CreateMode::Name,
         }
     }
 }
@@ -127,22 +123,17 @@ pub enum NoticeSelection {
 }
 
 pub struct App {
-    pub client: Option<BoredClient>,
+    pub client: Option<X0xBoredClient>,
     pub directory: Directory,
     pub directory_path: String,
-    pub download_path: String,
-    pub path_to_open: Option<PathBuf>,
-    // pub history: History,
     pub current_view: View,
     pub previous_view: View,
     pub interupted_view: View,
     pub selected_notice: Option<usize>,
     pub theme: Theme,
     pub bored_view_port: Option<BoredViewPort>,
-    // pub status: String,
     pub name_input: String,
     pub url_name_input: String,
-    pub key_input: String,
     pub content_input: String,
     pub link_text_input: String,
     pub link_url_input: String,
@@ -155,19 +146,14 @@ impl App {
             client: None,
             directory: Directory::new(),
             directory_path: "directory_of_boreds.toml".to_string(),
-            download_path: "downloads/".to_string(),
-            path_to_open: None,
-            // history: History::new(),
             current_view: View::BoredView,
             previous_view: View::BoredView,
             interupted_view: View::BoredView,
             selected_notice: None,
             theme: Theme::surf_bored_synth_wave(),
             bored_view_port: None,
-            // status: String::new(),
             name_input: String::new(),
             url_name_input: String::new(),
-            key_input: String::new(),
             content_input: String::new(),
             link_text_input: String::new(),
             link_url_input: String::new(),
@@ -176,8 +162,8 @@ impl App {
         }
     }
 
-    pub async fn init_client(&mut self, connection_type: ConnectionType) -> Result<(), BoredError> {
-        self.client = Some(BoredClient::init(connection_type).await?);
+    pub async fn init_client(&mut self) -> Result<(), BoredError> {
+        self.client = Some(X0xBoredClient::init().await?);
         Ok(())
     }
 
@@ -249,9 +235,6 @@ impl App {
     /// go back to previous view
     pub fn revert_view(&mut self) {
         match self.current_view {
-            View::ErrorView(SurfBoredError::BoredError(BoredError::MoreRecentVersionExists(
-                ..,
-            ))) => self.current_view = View::BoredView,
             View::ErrorView(_) => self.current_view = self.interupted_view.clone(),
             View::DirectoryView(_) => self.current_view = self.interupted_view.clone(),
             _ => self.current_view = self.previous_view.clone(),
@@ -267,10 +250,8 @@ impl App {
         };
         client.go_to_bored(&bored_address).await?;
         self.selected_notice = None;
-        // could this happen befored the bored is loaded and hence still be None?
         let bored = client.get_current_bored()?;
         self.revert_view();
-        // self.change_view(View::BoredView);
         self.bored_view_port = Some(BoredViewPort::create(
             &bored,
             bored.get_dimensions(),
@@ -285,7 +266,7 @@ impl App {
                 return Some(bored);
             }
         }
-        return None;
+        None
     }
 
     pub fn get_current_address(&self) -> Option<BoredAddress> {
@@ -297,10 +278,7 @@ impl App {
 
     pub fn has_local_connection(&self) -> bool {
         if let Some(client) = &self.client {
-            match client.get_connection_type() {
-                ConnectionType::Local => return true,
-                _ => (),
-            }
+            return client.is_available();
         }
         false
     }
@@ -308,7 +286,6 @@ impl App {
     pub async fn create_bored_on_network(
         &mut self,
         name: &str,
-        private_key: &str,
         dimensions: Coordinate,
         url_name: Option<&str>,
     ) -> Result<(), SurfBoredError> {
@@ -318,7 +295,7 @@ impl App {
             ));
         };
         client
-            .create_bored(name, dimensions, private_key.trim(), url_name)
+            .create_bored(name, dimensions, url_name)
             .await?;
         let bored = client.get_current_bored()?;
         self.selected_notice = None;
@@ -363,7 +340,6 @@ impl App {
     }
 
     pub async fn add_draft_to_bored(&mut self) -> Result<(), SurfBoredError> {
-        // self.change_view(View::Waiting("Updating bored on antnet".to_string()));
         let Some(ref mut client) = self.client else {
             return Err(SurfBoredError::BoredError(
                 BoredError::ClientConnectionError,
@@ -373,13 +349,12 @@ impl App {
             .add_draft_to_bored()
             .await
             .map_err(|e| SurfBoredError::BoredError(e))?;
-        // self.revert_view();
         Ok(())
     }
 
     pub fn select_notice(&mut self, direction: Direction) {
         if let Some(bored) = self.get_current_bored() {
-            if bored.get_notices().len() > 0 {
+            if !bored.get_notices().is_empty() {
                 if self.selected_notice.is_none() {
                     self.selected_notice = bored.get_upper_left_most_notice();
                 } else {
@@ -404,7 +379,7 @@ impl App {
 
     pub fn increment_selected_notice(&mut self) {
         if let Some(bored) = self.get_current_bored() {
-            if self.selected_notice.is_none() && !bored.get_notices().len() > 0 {
+            if self.selected_notice.is_none() && !bored.get_notices().is_empty() {
                 self.selected_notice = Some(0);
             } else {
                 if let Some(notices_index) = self.selected_notice {
@@ -438,7 +413,6 @@ impl App {
             };
             match client.position_draft(new_top_left) {
                 Err(bored_error) => match bored_error {
-                    // if new position is out of bound do nothing so user can't move it there
                     BoredError::NoticeOutOfBounds(..) => return Ok(true),
                     _ => return Err(bored_error),
                 },
@@ -462,7 +436,6 @@ impl App {
                     .get(notice_index)
                     .map(|n| n.get_display().map(|d| d.get_hyperlink_locations()))
                 {
-                    // self.status = format!("hyperlinks: {:?}", hyperlinks);
                     self.current_view = if hyperlinks_index.is_none() && !hyperlinks.is_empty() {
                         View::NoticeView {
                             hyperlinks_index: Some(0),
@@ -495,7 +468,6 @@ impl App {
                     .get(notice_index)
                     .map(|n| n.get_display().map(|d| d.get_hyperlink_locations()))
                 {
-                    // self.status = format!("hyperlinks: {:?}", hyperlinks);
                     self.current_view = if hyperlinks_index.is_none() && !hyperlinks.is_empty() {
                         View::NoticeView {
                             hyperlinks_index: Some(hyperlinks.len() - 1),
@@ -533,21 +505,6 @@ impl App {
         None
     }
 
-    pub async fn download_file(
-        &mut self,
-        data_address: &DataAddress,
-        download_path: &str,
-        file_name: &str, // only used if not archive
-    ) -> Result<(), SurfBoredError> {
-        let Some(ref client) = self.client else {
-            return Err(BoredError::ClientConnectionError.into());
-        };
-        self.path_to_open = client
-            .download_file(&data_address, download_path, &file_name)
-            .await?;
-        Ok(())
-    }
-
     pub async fn go_home(&mut self) -> Result<(), SurfBoredError> {
         if let Some(home) = self.directory.get_home() {
             let home_address = BoredAddress::from_string(home)?;
@@ -563,7 +520,6 @@ impl App {
         previous_buffer: Buffer,
     ) -> Result<(), SurfBoredError> {
         let theme = self.theme.clone();
-        let file_name = hyperlink.get_text();
         let url = URL::from_string(hyperlink.get_link())?;
         match url {
             URL::BoredNet(bored_address) => {
@@ -572,7 +528,7 @@ impl App {
                     terminal,
                     previous_buffer,
                     going_to_bored,
-                    "Loading bored from antnet...",
+                    "Loading board from x0x...",
                     theme,
                 )
                 .await
@@ -580,13 +536,12 @@ impl App {
                     Err(e) => self.display_error(e),
                     _ => (),
                 }
-                // self.revert_view();
                 return Ok(());
             }
             URL::BoredApp(command) => {
                 let executing_command = self.hyperlink_command(&command);
                 let message = if command == "home" {
-                    "Loading home bored from antnet"
+                    "Loading home board from x0x"
                 } else {
                     ""
                 };
@@ -603,34 +558,7 @@ impl App {
                         "Could not open old fashioned (https/http) link".to_string(),
                     ));
                 };
-                // self.revert_view();
                 return Ok(());
-            }
-            URL::AntNet(data_address) => {
-                let download_path = self.download_path.clone();
-                let downloading_file =
-                    self.download_file(&data_address, &download_path, &file_name);
-                match wait_pop_up(
-                    terminal,
-                    previous_buffer,
-                    downloading_file,
-                    "Downloading file(s) from antnet...\nIf it is a large file it may take some time.",
-                    theme,
-                )
-                .await
-                {
-                    Err(e) => self.display_error(e),
-                    _ => (),
-                }
-                if let Some(path) = self.path_to_open.clone() {
-                    if let Err(_) = open::that(path) {
-                        return Err(SurfBoredError::Message(
-                            "Could not open downloaded file".to_string(),
-                        ));
-                    };
-                }
-                // self.revert_view();
-                Ok(())
             }
         }
     }
@@ -663,7 +591,6 @@ impl App {
 }
 
 #[cfg(test)]
-
 mod tests {
     use super::*;
 
@@ -674,20 +601,19 @@ mod tests {
         {
             let mut app = App::new();
             app.directory_path = "test_directory.toml".to_string();
-            app.init_client(ConnectionType::Local).await?;
-            app.create_bored_on_network("I am bored", "", Coordinate { x: 120, y: 40 }, None)
+            app.init_client().await?;
+            app.create_bored_on_network("I am bored", Coordinate { x: 120, y: 40 }, None)
                 .await?;
             directory = app.directory.clone();
         }
         {
             let mut app = App::new();
             app.directory_path = "test_directory.toml".to_string();
-            app.init_client(ConnectionType::Local).await?;
+            app.init_client().await?;
             app.load_directory()?;
             assert_eq!(directory, app.directory);
             app.create_bored_on_network(
                 "We are bored",
-                "",
                 Coordinate { x: 120, y: 40 },
                 Some("bored.of.domains"),
             )
@@ -696,7 +622,7 @@ mod tests {
         }
         let mut app = App::new();
         app.directory_path = "test_directory.toml".to_string();
-        app.init_client(ConnectionType::Local).await?;
+        app.init_client().await?;
         app.load_directory()?;
         assert_eq!(directory, app.directory);
         Ok(())

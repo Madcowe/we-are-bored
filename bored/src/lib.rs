@@ -15,27 +15,21 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-use autonomi::client::GetError;
-use autonomi::client::files::DownloadError;
-use autonomi::scratchpad::ScratchpadError;
 use notice::{Notice, NoticeHyperlinkMap};
 use serde::{Deserialize, Serialize};
 use std::fmt::{self};
 use std::ops::Add;
 
-pub mod bored_client;
+pub mod x0x_client;
 pub mod notice;
 pub mod url;
 
 // Should be entered in order as created as default looks at last element
-const PROTOCOL_VERSIONS: [ProtocolVersion; 2] = [ProtocolVersion(1), ProtocolVersion(2)];
-
-/// Bored protocol version 1 is recorded here and subseqnet version incremented by 1
-const CONTENT_TYPE_PROTOCOL_BASE: u64 = 2151856;
+const PROTOCOL_VERSIONS: [ProtocolVersion; 3] = [ProtocolVersion(1), ProtocolVersion(2), ProtocolVersion(3)];
 
 /// Version number of the "we are bored" protocol using semantic versioning (major.minor.patch)
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Serialize, Deserialize)]
-struct ProtocolVersion(u64);
+pub struct ProtocolVersion(u64);
 
 impl ProtocolVersion {
     /// Create a new instance of ProtocolVersion returning the latest supported by this library
@@ -43,23 +37,14 @@ impl ProtocolVersion {
         PROTOCOL_VERSIONS[PROTOCOL_VERSIONS.len() - 1]
     }
 
-    /// Converts scratchpad content_type to protcol version and check if it is supported
-    pub fn check(content_type: u64) -> Result<ProtocolVersion, BoredError> {
-        if content_type < CONTENT_TYPE_PROTOCOL_BASE {
-            return Err(BoredError::InvalidProtocolVersion(content_type));
-        }
-        let version = content_type - CONTENT_TYPE_PROTOCOL_BASE + 1;
-        for exiting_protocol_version in PROTOCOL_VERSIONS {
-            if ProtocolVersion(version) == exiting_protocol_version {
+    /// Check if version is supported
+    pub fn check(version: u64) -> Result<ProtocolVersion, BoredError> {
+        for existing_protocol_version in PROTOCOL_VERSIONS {
+            if ProtocolVersion(version) == existing_protocol_version {
                 return Ok(ProtocolVersion(version));
             }
         }
-        Err(BoredError::InvalidProtocolVersion(content_type))
-    }
-
-    /// Convert version number to content type to put in scratchpad
-    pub fn get_content_type(&self) -> u64 {
-        self.0 + CONTENT_TYPE_PROTOCOL_BASE
+        Err(BoredError::InvalidProtocolVersion(version))
     }
 
     pub fn get_version(&self) -> u64 {
@@ -70,7 +55,7 @@ impl ProtocolVersion {
 /// Errors that can occur when using Bored client
 #[derive(Debug, thiserror::Error, PartialEq, Clone)]
 pub enum BoredError {
-    #[error("Version of protocol {0} is not know to exist by this implementation of bored")]
+    #[error("Version of protocol {0} is not known to exist by this implementation of bored")]
     InvalidProtocolVersion(u64),
     #[error("Method is not in this version of the protocol")]
     MethodNotInProtocol,
@@ -80,94 +65,35 @@ pub enum BoredError {
     NoticeOutOfBounds(Coordinate, Coordinate),
     #[error("Too much text for notice size")]
     TooMuchText,
-    #[error("Could initiate autonomi client")]
+    #[error("Could not connect to x0x daemon")]
     ClientConnectionError,
-    #[error("Could not get funded wallet with key: |{0}| {1}")]
-    FailedToGetWallet(String, String),
-    #[error("JSON serializing/deserializing error")]
-    JSONError,
+    #[error("JSON serializing/deserializing error: {0}")]
+    JSONError(String),
     #[error("Binary serializing/deserializing error")]
     BinaryError,
-    #[error("{0}")]
-    ScratchpadError(String),
-    #[error("{0}")]
-    DecryptionError(String),
-    #[error("Cannot updated bored as it has not be downloaded this session")]
-    BoredNotYetDownloaded,
-    #[error(
-        "A more recent version of the bored exists so notice cannot be added, the bored has now been refreshed so please try again."
-    )]
-    MoreRecentVersionExists(Bored, u64),
-    #[error("Hyperlink url is too long at max is {}", notice::MAX_URL_LENGTH)]
-    URLTooLong,
-    #[error("Error performing regular expression search")]
-    RegexError,
     #[error("No notice in that directions")]
     NoNotice,
-    #[error("{0}")]
-    QuoteError(String),
     #[error("No bored has been set yet")]
     NoBored,
     #[error("Non Bored URL:\n{0}")]
     NotBoredURL(String),
     #[error("This link is not recognised as a valid URL:\n{0}")]
     UnknownURLType(String),
-    #[error(
-        "Bored to big to store in scratchpad, oldest notice has been removed to make room, please try again."
-    )]
-    BoredTooBig,
-    #[error("Could not download file from antnet: {0}")]
-    DownloadError(String),
-    #[error("Antnet call timed out as never returned")]
-    StillWaiting,
+    #[error("Hyperlink url is too long at max is {}", notice::MAX_URL_LENGTH)]
+    URLTooLong,
+    #[error("Error performing regular expression search")]
+    RegexError,
     #[error("{0}")]
     IOError(String),
-    #[error("Not a valid autonomi public archive or file address")]
-    NotValidAntAddress,
-    #[error("Client reports mutiple fork of scratchpad but didn't return any???")]
-    ForkHandles,
-    #[error("{0}")]
-    BLSError(String),
     #[error("The URL name: {0} is already taken.\nPlease choose a different one.")]
     URLNameAlreadyExists(String),
-}
-
-impl From<blsttc::Error> for BoredError {
-    fn from(e: blsttc::Error) -> Self {
-        let message = format!("{e}");
-        BoredError::BLSError(message)
-    }
+    #[error("x0x API error: {0}")]
+    X0xError(String),
 }
 
 impl From<serde_json::Error> for BoredError {
-    fn from(_: serde_json::Error) -> Self {
-        Self::JSONError
-    }
-}
-
-impl From<autonomi::scratchpad::ScratchpadError> for BoredError {
-    fn from(e: autonomi::scratchpad::ScratchpadError) -> Self {
-        match e {
-            ScratchpadError::ScratchpadTooBig(_) => BoredError::BoredTooBig,
-            _ => {
-                let message = format!("{e}");
-                BoredError::ScratchpadError(message)
-            }
-        }
-    }
-}
-
-impl From<GetError> for BoredError {
-    fn from(e: GetError) -> Self {
-        let message = format!("{e}");
-        BoredError::DownloadError(message)
-    }
-}
-
-impl From<DownloadError> for BoredError {
-    fn from(e: DownloadError) -> Self {
-        let message = format!("{e}");
-        BoredError::DownloadError(message)
+    fn from(e: serde_json::Error) -> Self {
+        Self::JSONError(format!("{e}"))
     }
 }
 
@@ -177,17 +103,16 @@ impl From<regex::Error> for BoredError {
     }
 }
 
-impl From<autonomi::client::quote::CostError> for BoredError {
-    fn from(e: autonomi::client::quote::CostError) -> Self {
-        let message = format!("{e}");
-        BoredError::QuoteError(message)
-    }
-}
-
 impl From<std::io::Error> for BoredError {
     fn from(e: std::io::Error) -> Self {
         let message = format!("{e}");
         BoredError::IOError(message)
+    }
+}
+
+impl From<reqwest::Error> for BoredError {
+    fn from(e: reqwest::Error) -> Self {
+        BoredError::X0xError(format!("{e}"))
     }
 }
 
@@ -680,22 +605,18 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_protcol_version() {
-        let protocol_version = ProtocolVersion::check(CONTENT_TYPE_PROTOCOL_BASE);
+    fn test_protocol_version() {
+        let protocol_version = ProtocolVersion::check(1);
         assert_eq!(protocol_version, Ok(ProtocolVersion(1)));
-        let protocol_version = ProtocolVersion::check(CONTENT_TYPE_PROTOCOL_BASE - 1);
+        let protocol_version = ProtocolVersion::check(0);
         assert_eq!(
             protocol_version,
-            Err(BoredError::InvalidProtocolVersion(
-                CONTENT_TYPE_PROTOCOL_BASE - 1
-            ))
+            Err(BoredError::InvalidProtocolVersion(0))
         );
-        let protocol_version = ProtocolVersion::check(CONTENT_TYPE_PROTOCOL_BASE + 99999);
+        let protocol_version = ProtocolVersion::check(99999);
         assert_eq!(
             protocol_version,
-            Err(BoredError::InvalidProtocolVersion(
-                CONTENT_TYPE_PROTOCOL_BASE + 99999
-            ))
+            Err(BoredError::InvalidProtocolVersion(99999))
         );
     }
 

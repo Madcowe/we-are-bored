@@ -111,7 +111,6 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
     let name_span = Span::styled(bored_name, app.theme.header_style());
     let url_span = Span::styled(bored_url, url_style);
     let title_text = Text::from_iter(vec![name_span, url_span]);
-    // let title_text = bored_name + "\n" + &bored_url;
     let title = Paragraph::new(title_text).block(title_block);
     frame.render_widget(title, ui_chunks[0]);
 
@@ -119,7 +118,7 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
     match &app.current_view {
         View::ErrorView(e) => {
             status_text = "Press (enter) to contunue or (q) to quit".to_string();
-            let pop_up_rect = area.inner(Margin::new(area.width / 4, area.height / 4)); //centered_rect(60, 60, area);
+            let pop_up_rect = area.inner(Margin::new(area.width / 4, area.height / 4));
             let navigation_text = "Press (enter) to contiune.";
             Clear.render(pop_up_rect, frame.buffer_mut());
             let pop_up_block = Block::default()
@@ -144,69 +143,49 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
             frame.render_widget(navigation_text, pop_up_chunks[1]);
         }
         View::CreateView(create_mode) => {
-            let pop_up_rect = area.inner(Margin::new(area.width / 8, area.height / 5));
-            let warning = "THIS IS EXPERIMENTAL SOFTWARE AND STORAGE COSTS MAY VARY WITHOUT WARNING SO DO NOT USE A WALLET WITH YOUR LIFE SAVINGS IN OR INDEED CONTAINING ANY AMOUNT YOU ARE NOT PREPARED TO LOSE IN ENTIRETY";
+            let pop_up_rect = area.inner(Margin::new(area.width / 8, area.height / 4));
             Clear.render(pop_up_rect, frame.buffer_mut());
             let pop_up_block = Block::default()
-                .title("Enter bored name, url (optional) and private key of funding wallet")
+                .title("Enter board name and URL name (optional)")
                 .borders(Borders::ALL)
                 .border_type(BorderType::Thick)
                 .style(app.theme.text_style());
-            // .bg(Color::Black);
             frame.render_widget(pop_up_block, pop_up_rect);
             let pop_up_chunks = Layout::default()
                 .direction(Direction::Vertical)
                 .margin(1)
                 .constraints([
-                    Constraint::Percentage(25),
-                    Constraint::Percentage(25),
-                    Constraint::Percentage(25),
-                    Constraint::Percentage(25),
+                    Constraint::Percentage(50),
+                    Constraint::Percentage(50),
                 ])
                 .split(pop_up_rect);
             let mut name_block = Block::default().title("Name").style(app.theme.text_style());
             let mut url_name_block = Block::default()
-                .title("URL name: separate domains with full stops (.) leave blank for random URL");
-            let mut key_block = Block::default()
-                .title("Private key of funding wallet")
+                .title("URL name: separate domains with full stops (.) leave blank for random URL")
                 .style(app.theme.text_style());
-            let warning_block = Block::default().style(app.theme.header_style()).bold();
             match create_mode {
                 CreateMode::Name => {
                     status_text =
-                        "Type to enter bored name, press (enter) to proceed or (esc) to go leave"
+                        "Type to enter bored name, press (enter) to proceed or (esc) to leave"
                             .to_string();
                     name_block = name_block.clone().style(app.theme.inverted_text_style())
                 }
                 CreateMode::URLName => {
                     status_text =
-                        "Type to url name, press (enter) to proceed or (esc) to go leave. Leave blank to have random url"
+                        "Type url name, press (enter) to create board or (esc) to leave. Leave blank to have random url"
                             .to_string();
                     url_name_block = url_name_block
                         .clone()
                         .style(app.theme.inverted_text_style())
                 }
-                CreateMode::PrivateKey => {
-                    status_text = "Type to enter key or use terminal emulator paste (enter) to proceed, (tab) to edit name or (esc) to leave".to_string();
-                    key_block = key_block.clone().style(app.theme.inverted_text_style())
-                }
             };
             let name_text = Paragraph::new(app.name_input.clone()).block(name_block);
             let url_name_text = Paragraph::new(app.url_name_input.clone()).block(url_name_block);
-            let key_text = Paragraph::new(app.key_input.clone()).block(key_block);
-            let warning_text = Paragraph::new(warning)
-                .wrap(Wrap { trim: false })
-                .block(warning_block);
             frame.render_widget(name_text, pop_up_chunks[0]);
             frame.render_widget(url_name_text, pop_up_chunks[1]);
-            frame.render_widget(warning_text, pop_up_chunks[2]);
-            frame.render_widget(key_text, pop_up_chunks[3]);
         }
         View::DraftView(draft_mode) => {
             if let Some(draft) = app.get_draft() {
-                // let bored = app
-                //     .get_current_bored()
-                //     .expect("There should not be a draft without a bored");
                 match draft_mode {
                     DraftMode::Content => {
                         status_text = "Type to enter message, (ctrl + h) to insert hyperlink, (ctrl + p) to position notice or (esc) to leave".to_string();
@@ -225,7 +204,6 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
                         let draft_text = Paragraph::new(display_text).block(draft_block);
                         let mut draft_buffer = Buffer::empty(draft_rect);
                         draft_text.render(draft_rect, &mut draft_buffer);
-                        // render hyperlinks
                         style_notice_hyperlinks(
                             &draft,
                             &mut draft_buffer,
@@ -253,7 +231,6 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
                                 Constraint::Percentage(30),
                                 Constraint::Percentage(40),
                                 Constraint::Percentage(30),
-                                // Constraint::Min(navigation_text.lines().count() as u16),
                             ])
                             .split(pop_up_rect);
                         let mut text_block = Block::default()
@@ -261,7 +238,6 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
                             .style(app.theme.text_style());
                         let note_block = Block::default()
                             .style(app.theme.text_style())
-                            // .bold()
                             .borders(Borders::ALL)
                             .border_type(BorderType::Plain);
                         let mut url_block = Block::default()
@@ -270,19 +246,19 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
                         match hyperlink_mode {
                             HyperlinkMode::Text => {
                                 status_text =
-                        "Type to enter hyperlink text, (ctrl + d) to pick from directory press (enter) to proceed or (esc) to go leave"
+                        "Type to enter hyperlink text, (ctrl + d) to pick from directory press (enter) to proceed or (esc) to leave"
                             .to_string();
                                 text_block =
                                     text_block.clone().style(app.theme.inverted_text_style())
                             }
                             HyperlinkMode::URL => {
-                                status_text = "Type to enter key or use terminal emulator paste, (ctrl + d) to pick from diretory, press (enter) to proceed, (tab) to edit link text or (esc) to leave".to_string();
+                                status_text = "Type URL, (ctrl + d) to pick from directory, press (enter) to insert hyperlink or (esc) to leave".to_string();
                                 url_block = url_block.clone().style(app.theme.inverted_text_style())
                             }
                         };
                         let link_text =
                             Paragraph::new(app.link_text_input.clone()).block(text_block);
-                        let note = "Url needs to include protocol identifier: bored:// for bored addresses, ant:// for autonomi archive or file addresses (if file then link text needs to be the file name) or https:// http:// for old fashion internet links.";
+                        let note = "Url needs to include protocol identifier: bored:// for board addresses or https:// http:// for old fashion internet links.";
                         let link_note = Paragraph::new(note)
                             .block(note_block)
                             .wrap(Wrap { trim: true });
@@ -292,7 +268,7 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
                         frame.render_widget(link_url, pop_up_chunks[2]);
                     }
                     DraftMode::Position => {
-                        status_text = "Use (the arrow keys) to postion the notice and (enter) to place or (esc) to edit text".to_string();
+                        status_text = "Use (the arrow keys) to position the notice and (enter) to place or (esc) to edit text".to_string();
                         let display = draft.get_display().unwrap();
                         let display_text = display.get_display_text();
                         let display_text = character_wrap(display_text, draft.get_text_width());
@@ -318,7 +294,7 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
                             app.theme.hyperlink_style(),
                         );
                         frame.buffer_mut().merge(&draft_buffer);
-                    } // _ => (),
+                    }
                 }
             }
         }
@@ -346,7 +322,7 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
         }
         View::NoticeView { hyperlinks_index } => {
             if let Some(notice) = app.get_selected_notice() {
-                status_text = "Press (tab) to cycle through hyperlinks, (enter) to activte selected hyperlink and (esc) to leave".to_string();
+                status_text = "Press (tab) to cycle through hyperlinks, (enter) to activate selected hyperlink and (esc) to leave".to_string();
                 let pop_up_rect = area.inner(Margin::new(
                     safe_subtract_u16(area.width, notice.get_dimensions().x) / 2,
                     safe_subtract_u16(area.height, notice.get_dimensions().y) / 2,
@@ -356,7 +332,6 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
                     notice.get_content(),
                     get_hyperlinks(notice.get_content()).unwrap_or(vec![]),
                 );
-                // uglify for windows terminals that don't support some charaters
                 let border_type = if std::env::consts::OS == "windows" {
                     BorderType::Thick
                 } else {
@@ -372,7 +347,6 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
                     Paragraph::new(pop_up_text.clone()).block(pop_up_block.clone());
                 let mut pop_up_buffer = Buffer::empty(pop_up_rect);
                 pop_up_paragraph.render(pop_up_rect, &mut pop_up_buffer);
-                // render hyperlinks
                 style_notice_hyperlinks(
                     &notice,
                     &mut pop_up_buffer,
@@ -385,9 +359,9 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
                 // Highlight selected hyperlink
                 if let Ok(notice_hyperlink_map) = NoticeHyperlinkMap::create(&notice) {
                     for (mut y, row) in notice_hyperlink_map.get_map().iter().enumerate() {
-                        y = y + pop_up_rect.y as usize + 1; // + 1 as the buffer will have a border
+                        y = y + pop_up_rect.y as usize + 1;
                         for (mut x, index) in row.iter().enumerate() {
-                            x = x + pop_up_rect.x as usize + 1; // as the buffer will have a border
+                            x = x + pop_up_rect.x as usize + 1;
                             if index == hyperlinks_index && index.is_some() {
                                 if let Some(cell) = pop_up_buffer.cell_mut((x as u16, y as u16)) {
                                     cell.set_style(app.theme.text_style());
@@ -418,7 +392,7 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
                 .collect();
             let pop_up_rect = area.inner(Margin::new(area.width / 8, area.height / 4));
             let pop_up_block = Block::default()
-                .title("Diretory of boreds")
+                .title("Directory of boreds")
                 .style(app.theme.text_style())
                 .borders(Borders::ALL)
                 .border_type(BorderType::Thick);
@@ -431,7 +405,7 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
                     .to_string();
             Clear.render(pop_up_rect, frame.buffer_mut());
             frame.render_stateful_widget(table, pop_up_rect, &mut table_state);
-        } // _ => (),
+        }
     }
     // setup status area
     let status_block = Block::default()
@@ -439,13 +413,10 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
         .border_type(BorderType::QuadrantOutside)
         .style(app.theme.header_style())
         .bold();
-    // let status_rect = Rect::new(0, area.height - 5, area.width, 5);
-    // status_text = format!("{:?}\n{}", app.status, status_text);
     let status = Paragraph::new(Text::styled(status_text, Style::default()))
         .wrap(Wrap { trim: false })
         .block(status_block);
     frame.render_widget(status, ui_chunks[2]);
-    // status.render(status_rect, frame.buffer_mut());
     if app.menu_visible {
         let menu_rect = Rect::new(
             safe_subtract_u16(area.width, 40),
@@ -478,14 +449,11 @@ fn get_draft_postion_on_viewport(
     Rect::new(x, y, draft.get_dimensions().x, draft.get_dimensions().y)
 }
 
-/// Returns 0 if subraction overflow
 pub fn safe_subtract_u16(a: u16, b: u16) -> u16 {
     if (a as i32 - b as i32) < 0 { 0 } else { a - b }
 }
 
-/// pops up a wating popup while awaiting a future
 pub async fn wait_pop_up<B: Backend>(
-    // frame: &mut Frame<'_>,
     terminal: &mut Terminal<B>,
     previous_buffer: Buffer,
     future: impl Future<Output = Result<(), SurfBoredError>>,
@@ -557,9 +525,7 @@ impl Antimation {
 }
 
 #[cfg(test)]
-
 mod tests {
-
     use super::*;
     use bored::Bored;
 

@@ -16,7 +16,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 use app::{NoticeSelection, SurfBoredError};
-use bored::{BoredError, Coordinate, bored_client::ConnectionType, url::BoredAddress};
+use bored::{BoredError, Coordinate, url::BoredAddress};
 use directory::Directory;
 use ratatui::{
     Terminal,
@@ -44,17 +44,10 @@ use crate::ui::{safe_subtract_u16, ui, wait_pop_up};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-    // create app and try to init client if fail error will stop program
-    let args: Vec<String> = std::env::args().collect();
     let mut app = App::new();
-    println!("Trying to connect to antnet...");
-    let mut connection_type = ConnectionType::Antnet;
-    if args.len() > 1 {
-        if &args[1] == "local" {
-            connection_type = ConnectionType::Local;
-        }
-    }
-    app.init_client(connection_type).await?;
+    println!("Trying to connect to x0x daemon...");
+    app.init_client().await?;
+    
     // setup terminal
     enable_raw_mode()?;
     let mut stdout = io::stdout();
@@ -62,7 +55,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
 
-    // create app and run it
+    // run the app
     let _res = run_app(&mut terminal, &mut app).await?;
 
     // restore terminal
@@ -81,13 +74,10 @@ async fn run_app<B: Backend>(
     terminal: &mut Terminal<B>,
     app: &mut App,
 ) -> Result<(), Box<dyn Error>> {
-    // loop {
-    // terminal.draw(|f| ui(f, app))?;
     let previous_buffer = terminal.draw(|f| ui(f, app))?.buffer.clone();
     if let Err(_) = app.load_directory() {
         app.directory = Directory::default();
         app.save_directory()?;
-        // app.display_error(e);
     }
     if !app.has_local_connection() {
         if let Some(home_address) = app.directory.get_home() {
@@ -99,7 +89,7 @@ async fn run_app<B: Backend>(
                         terminal,
                         previous_buffer,
                         going_to_bored,
-                        "Loading bored from antnet...",
+                        "Loading board from x0x...",
                         theme,
                     )
                     .await
@@ -186,12 +176,12 @@ async fn run_app<B: Backend>(
                                     min(view_rect.width, bored_dimensions.x),
                                     draft_dimensions.x,
                                 ) / 2)
-                                    + view_rect.x;
+                                     + view_rect.x;
                                 let y = (safe_subtract_u16(
                                     min(view_rect.height, bored_dimensions.y),
                                     draft_dimensions.y,
                                 ) / 2)
-                                    + view_rect.y;
+                                     + view_rect.y;
                                 match app.position_draft(Coordinate { x, y }) {
                                     Err(e) => app.change_view(View::ErrorView(
                                         app::SurfBoredError::BoredError(e),
@@ -213,7 +203,7 @@ async fn run_app<B: Backend>(
                                     terminal,
                                     previous_buffer,
                                     going_to_bored,
-                                    "Loading bored from antnet...",
+                                    "Loading board from x0x...",
                                     theme,
                                 )
                                 .await
@@ -267,7 +257,7 @@ async fn run_app<B: Backend>(
                                         terminal,
                                         previous_buffer,
                                         going_to_bored,
-                                        "Loading bored from antnet...",
+                                        "Loading board from x0x...",
                                         theme,
                                     )
                                     .await
@@ -299,7 +289,6 @@ async fn run_app<B: Backend>(
                         }
                         KeyCode::Enter => {
                             let bored_address = app.directory.get_bored_address(directory_index)?;
-                            // app.status = format!("{:?}", app.interupted_view);
                             match &app.interupted_view {
                                 View::BoredView => {
                                     match BoredAddress::from_string(&bored_address.bored_address) {
@@ -310,7 +299,7 @@ async fn run_app<B: Backend>(
                                                 terminal,
                                                 previous_buffer,
                                                 going_to_bored,
-                                                "Loading bored from antnet...",
+                                                "Loading board from x0x...",
                                                 theme,
                                             )
                                             .await
@@ -339,7 +328,6 @@ async fn run_app<B: Backend>(
                         _ => {}
                     },
                     View::CreateView(create_view) => match key.code {
-                        // not using change_view() becase don;t wnat to change previous view for sub enum change
                         KeyCode::Tab => app.current_view = View::CreateView(create_view.toggle()),
                         KeyCode::Esc => app.revert_view(),
                         KeyCode::Backspace => match create_view {
@@ -349,28 +337,17 @@ async fn run_app<B: Backend>(
                             CreateMode::URLName => {
                                 app.url_name_input.pop();
                             }
-                            CreateMode::PrivateKey => {
-                                app.key_input.pop();
-                            }
                         },
                         KeyCode::Char(value) => match create_view {
                             CreateMode::Name => app.name_input.push(value),
                             CreateMode::URLName => app.url_name_input.push(value),
-                            CreateMode::PrivateKey => app.key_input.push(value),
                         },
                         KeyCode::Enter => match create_view {
                             CreateMode::Name => {
                                 app.current_view = View::CreateView(CreateMode::URLName)
                             }
                             CreateMode::URLName => {
-                                app.current_view = View::CreateView(CreateMode::PrivateKey)
-                            }
-                            CreateMode::PrivateKey => {
-                                // app.change_view(View::Waiting(
-                                //     "Creating bored on antnet".to_string(),
-                                // ));
-                                let (name_input, key_input) =
-                                    (app.name_input.clone(), app.key_input.clone());
+                                let name_input = app.name_input.clone();
                                 let url_name_input = if app.url_name_input.is_empty() {
                                     None
                                 } else {
@@ -379,7 +356,6 @@ async fn run_app<B: Backend>(
                                 let theme = app.theme.clone();
                                 let creating_bored = app.create_bored_on_network(
                                     &name_input,
-                                    &key_input,
                                     Coordinate { x: 120, y: 40 },
                                     url_name_input.as_deref(),
                                 );
@@ -387,7 +363,7 @@ async fn run_app<B: Backend>(
                                     terminal,
                                     previous_buffer,
                                     creating_bored,
-                                    "Creating bored on antnet...",
+                                    "Creating board on x0x...",
                                     theme,
                                 )
                                 .await
@@ -398,19 +374,14 @@ async fn run_app<B: Backend>(
                                         app.url_name_input = String::new();
                                     }
                                 }
-                                app.key_input = String::new();
                             }
                         },
                         _ => {}
                     },
-                    // due to wrapping it may still allow some non visible text to be typed
-                    // it would still be within the specfication just not visible in this app
                     View::DraftView(draft_mode) => match draft_mode {
                         DraftMode::Content => match key.code {
                             KeyCode::Esc => app.revert_view(),
                             KeyCode::Backspace => {
-                                // If end of content is hyperlink remove it, as just emoving the
-                                // final ) may exceed the max length
                                 if let Some(mut draft) = app.get_draft() {
                                     if Ok(true) == draft.remove_tail_link() {
                                         app.content_input = draft.get_content().to_string();
@@ -429,7 +400,6 @@ async fn run_app<B: Backend>(
                             }
                             KeyCode::Enter => {
                                 app.content_input.push('\n');
-                                // this doesn't seem to remove the first newline that is not visible
                                 try_edit(app);
                             }
                             KeyCode::Char(value) => {
@@ -449,10 +419,8 @@ async fn run_app<B: Backend>(
                                 if app.current_view == View::DraftView(DraftMode::Content) {
                                     app.content_input.push(value);
                                     try_edit(app);
-                                    // app.status = app.content_input.clone();
                                 }
                             }
-
                             _ => {}
                         },
                         DraftMode::Hyperlink(hyperlink_mode) => match key.code {
@@ -492,11 +460,10 @@ async fn run_app<B: Backend>(
                                     match app.edit_draft(&content_with_hyperlink) {
                                         Err(e) => {
                                             match e {
-                                                // if to much text don't let user type any more
                                                 BoredError::TooMuchText => {
                                                     app.change_view(View::ErrorView(
                                                         SurfBoredError::Message(
-                                                            "Hyperlink to big to fit on notice!"
+                                                            "Hyperlink too big to fit on notice!"
                                                                 .to_string(),
                                                         ),
                                                     ));
@@ -524,9 +491,6 @@ async fn run_app<B: Backend>(
                                 app.current_view = View::DraftView(DraftMode::Content);
                             }
                             if let Some(draft) = app.get_draft() {
-                                let _bored = app
-                                    .get_current_bored()
-                                    .expect("Bored should exist if there is a draft");
                                 let position = draft.get_top_left();
                                 match key.code {
                                     KeyCode::Up => try_move(
@@ -556,7 +520,7 @@ async fn run_app<B: Backend>(
                                             terminal,
                                             previous_buffer,
                                             going_onto_bored,
-                                            "Updating bored on antnet...",
+                                            "Updating board on x0x...",
                                             theme,
                                         )
                                         .await
@@ -569,9 +533,8 @@ async fn run_app<B: Backend>(
                                     _ => {}
                                 }
                             }
-                        } // _ => {}
+                        }
                     },
-                    // _ => {}
                 }
             }
         }
@@ -595,9 +558,6 @@ fn try_select_notice(app: &mut App, notice_selection: NoticeSelection) {
             notice.get_top_left(),
             notice.get_top_left().add(&notice.get_dimensions()),
         ) {
-            //if at bottom right show as much of bored as possible
-            // otherwise in middle of screen
-            // otherwise at notices top left
             let new_view_position = bored_view_port.get_view_for_notice(&notice);
             bored_view_port.move_view(new_view_position);
         }
@@ -605,10 +565,8 @@ fn try_select_notice(app: &mut App, notice_selection: NoticeSelection) {
 }
 
 fn try_move(app: &mut App, new_position: Coordinate, scroll_offset: (i32, i32)) {
-    // Do nothing is error so user can't move notice outside of bored
     match app.position_draft(new_position) {
         Ok(in_view) => {
-            // if bottom right of notice is off screen scoll view towards it
             if !in_view {
                 if let Some(bored_view_port) = app.bored_view_port.as_mut() {
                     let mut new_view_position = bored_view_port.get_view_top_left();
@@ -624,7 +582,6 @@ fn try_move(app: &mut App, new_position: Coordinate, scroll_offset: (i32, i32)) 
 fn try_edit(app: &mut App) {
     if let Err(e) = app.edit_draft(&app.content_input.clone()) {
         match e {
-            // if to much text don't let user type any more
             BoredError::TooMuchText => {
                 app.content_input.pop();
             }
@@ -639,32 +596,4 @@ fn generate_notice_size(terminal_size: Size, bored_size: Coordinate) -> Coordina
     let x = max(9, max_x / 4);
     let y = max(3, max_y / 4);
     Coordinate { x, y }
-
-    // // portrait or landscape
-    // if rand::rng().random_range(0..1) == 0 {
-    //     // neet to take into account bored size as well
-    //     width = rand::rng().random_range(
-    //         max(9, terminal_size.width / 6)
-    //             ..min(60, min(terminal_size.width, bored_dimensions.x) / 2),
-    //     );
-    //     height = rand::rng().random_range(
-    //         max(6, terminal_size.height / 3)
-    //             ..min(
-    //                 18,
-    //                 min(terminal_size.height, bored_dimensions.y) / 2,
-    //             ),
-    //     );
-    // } else {
-    //     width = rand::rng().random_range(
-    //         max(12, terminal_size.width / 4)
-    //             ..min(90, min(terminal_size.width, bored_dimensions.x) / 2),
-    //     );
-    //     height = rand::rng().random_range(
-    //         max(4, terminal_size.height / 5)
-    //             ..min(
-    //                 12,
-    //                 min(terminal_size.height, bored_dimensions.y) / 2,
-    //             ),
-    //     );
-    // }
 }

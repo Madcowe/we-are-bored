@@ -175,6 +175,7 @@ impl Display {
 /// within it's bounds (not counting not visble parts of hyperlinks)
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
 pub struct Notice {
+    notice_id: String,
     top_left: Coordinate,
     dimensions: Coordinate, // the notice will range from (0,0) up to
     content: String,
@@ -184,6 +185,7 @@ impl Notice {
     /// Create a new blank note at (0,0)
     pub fn new() -> Notice {
         Notice {
+            notice_id: String::new(),
             top_left: Coordinate { x: 0, y: 0 },
             dimensions: Coordinate { x: 60, y: 18 },
             content: String::new(),
@@ -193,10 +195,19 @@ impl Notice {
     /// Create a new blank note of specfied size at (0,0)
     pub fn create(dimensions: Coordinate) -> Notice {
         Notice {
+            notice_id: String::new(),
             top_left: Coordinate { x: 0, y: 0 },
             dimensions,
             content: String::new(),
         }
+    }
+
+    pub fn get_notice_id(&self) -> &str {
+        &self.notice_id
+    }
+
+    pub fn set_notice_id(&mut self, id: String) {
+        self.notice_id = id;
     }
 
     pub fn get_top_left(&self) -> Coordinate {
@@ -486,7 +497,7 @@ mod tests {
         notice.write(&content)?;
         hyperlinks = get_hyperlinks(notice.get_content()).unwrap();
         let url_text = format!("{}", bored_address);
-        let link = Hyperlink::create("bored", (67, 72), &url_text, (74, 74 + 8 + 64)).unwrap();
+        let link = Hyperlink::create("bored", (67, 72), &url_text, (74, 74 + url_text.len())).unwrap();
         links.push(link);
         assert_eq!(hyperlinks, links);
         let display_text = "The autonomi website, a [] () bored url: bored";
