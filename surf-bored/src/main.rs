@@ -51,11 +51,23 @@ async fn main() -> Result<(), Box<dyn Error>> {
         
         match e {
             BoredError::ClientConnectionError => {
-                eprintln!("\nPlease ensure the x0x daemon is installed and running on your system.");
-                eprintln!("For documentation and configuration details, visit: https://x0x.md");
-                eprintln!("GitHub repository: https://github.com/saorsa-labs/x0x");
-                
-                eprint!("\nWould you like me to attempt to install and start the x0x daemon for you now? (y/N): ");
+                let is_installed = std::process::Command::new("x0x")
+                    .arg("--version")
+                    .output()
+                    .map(|out| out.status.success())
+                    .unwrap_or(false);
+
+                if is_installed {
+                    eprintln!("\nThe x0x daemon is installed but currently stopped.");
+                    eprintln!("It must be running in the background for this application to work.");
+                    eprint!("\nWould you like me to attempt to start the x0x daemon for you now? (y/N): ");
+                } else {
+                    eprintln!("\nPlease ensure the x0x daemon is installed and running on your system.");
+                    eprintln!("For documentation and configuration details, visit: https://x0x.md");
+                    eprintln!("GitHub repository: https://github.com/saorsa-labs/x0x");
+                    eprint!("\nWould you like me to attempt to install and start the x0x daemon for you now? (y/N): ");
+                }
+
                 use std::io::Write;
                 let _ = std::io::stderr().flush();
                 
@@ -63,17 +75,24 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 if std::io::stdin().read_line(&mut input).is_ok() {
                     let choice = input.trim().to_lowercase();
                     if choice == "y" || choice == "yes" {
-                        eprintln!("\nInstalling and starting x0x daemon via standard installer...");
-                        eprintln!("Running: curl -sfL https://x0x.md | sh -s -- --start");
-                        
-                        let status = std::process::Command::new("sh")
-                            .arg("-c")
-                            .arg("curl -sfL https://x0x.md | sh -s -- --start")
-                            .status();
+                        let status = if is_installed {
+                            eprintln!("\nStarting x0x daemon...");
+                            eprintln!("Running: x0x start");
+                            std::process::Command::new("x0x")
+                                .arg("start")
+                                .status()
+                        } else {
+                            eprintln!("\nInstalling and starting x0x daemon via standard installer...");
+                            eprintln!("Running: curl -sfL https://x0x.md | sh -s -- --start");
+                            std::process::Command::new("sh")
+                                .arg("-c")
+                                .arg("curl -sfL https://x0x.md | sh -s -- --start")
+                                .status()
+                        };
                             
                         match status {
                             Ok(s) if s.success() => {
-                                eprintln!("\nInstaller completed successfully! Waiting 3 seconds for the daemon to spin up...");
+                                eprintln!("\nAction completed successfully! Waiting 3 seconds for the daemon to spin up...");
                                 std::thread::sleep(std::time::Duration::from_secs(3));
                                 
                                 eprintln!("Re-connecting to x0x daemon...");
@@ -83,15 +102,21 @@ async fn main() -> Result<(), Box<dyn Error>> {
                                         std::thread::sleep(std::time::Duration::from_secs(1));
                                     }
                                     Err(e2) => {
-                                        eprintln!("Failed to connect even after successful installation: {}", e2);
+                                        eprintln!("Failed to connect even after successful action: {}", e2);
                                         std::process::exit(1);
                                     }
                                 }
                             }
                             _ => {
-                                eprintln!("\nFailed to execute installer automatically.");
-                                eprintln!("Please try running the installer command manually in your shell:");
-                                eprintln!("  curl -sfL https://x0x.md | sh -s -- --start");
+                                if is_installed {
+                                    eprintln!("\nFailed to start x0x daemon automatically.");
+                                    eprintln!("Please try running it manually in your shell:");
+                                    eprintln!("  x0x start");
+                                } else {
+                                    eprintln!("\nFailed to execute installer automatically.");
+                                    eprintln!("Please try running the installer command manually in your shell:");
+                                    eprintln!("  curl -sfL https://x0x.md | sh -s -- --start");
+                                }
                                 std::process::exit(1);
                             }
                         }
