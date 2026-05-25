@@ -17,7 +17,29 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use crate::notice::Notice;
 use crate::url::BoredAddress;
-use crate::{Bored, BoredError, Coordinate, ProtocolVersion};
+use crate::{Bored, BoredError, Coordinate};
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+#[serde(tag = "type")]
+enum GossipMsg {
+    #[serde(rename = "meta")]
+    Meta {
+        name: String,
+        dimensions: Coordinate,
+    },
+    #[serde(rename = "notice")]
+    NoticeMsg {
+        notice: Notice,
+    },
+    #[serde(rename = "sync-request")]
+    SyncRequest,
+    #[serde(rename = "sync-response")]
+    SyncResponse {
+        name: String,
+        dimensions: Coordinate,
+        notices: Vec<Notice>,
+    },
+}
 
 fn get_api_credentials() -> Option<(String, String)> {
     let home = std::env::var("HOME").ok()?;
@@ -33,7 +55,7 @@ fn get_api_credentials() -> Option<(String, String)> {
     Some((api_base, token))
 }
 
-/// A client implementing the Bored protocol via local x0x daemon storage
+/// A client implementing the Bored protocol via gossip pub/sub and local caching
 pub struct X0xBoredClient {
     http: reqwest::Client,
     api_base: String,
@@ -42,6 +64,7 @@ pub struct X0xBoredClient {
     current_bored: Option<Bored>,
     draft_notice: Option<Notice>,
     bored_address: Option<BoredAddress>,
+    cache_dir: std::path::PathBuf,
 }
 
 impl X0xBoredClient {
@@ -95,6 +118,10 @@ impl X0xBoredClient {
             .ok_or_else(|| BoredError::X0xError("agent_id missing in response".to_string()))?
             .to_string();
 
+        let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+        let cache_dir = std::path::PathBuf::from(home).join(".local/share/we-are-bored/cache");
+        let _ = std::fs::create_dir_all(&cache_dir);
+
         Ok(X0xBoredClient {
             http,
             api_base,
@@ -103,6 +130,7 @@ impl X0xBoredClient {
             current_bored: None,
             draft_notice: None,
             bored_address: None,
+            cache_dir,
         })
     }
 
@@ -122,7 +150,196 @@ impl X0xBoredClient {
         !self.agent_id.is_empty()
     }
 
-    /// Create a new board by initializing an x0x KV store with topic and metadata
+    fn cache_path(cache_dir: &std::path::Path, address: &BoredAddress) -> std::path::PathBuf {
+        let filename = format!("{}.json", address.get_topic());
+        cache_dir.join(filename)
+    }
+
+    fn load_cache(cache_dir: &std::path::Path, address: &BoredAddress) -> Option<Bored> {
+        let path = Self::cache_path(cache_dir, address);
+        if let Ok(content) = std::fs::read_to_string(path) {
+            serde_json::from_str(&content).ok()
+        } else {
+            None
+        }
+    }
+
+    fn save_cache(cache_dir: &std::path::Path, address: &BoredAddress, bored: &Bored) -> Result<(), BoredError> {
+        let path = Self::cache_path(cache_dir, address);
+        if let Some(parent) = path.parent() {
+            let _ = std::fs::create_dir_all(parent);
+        }
+        let content = serde_json::to_string(bored)?;
+        std::fs::write(path, content)?;
+        Ok(())
+    }
+
+    async fn subscribe(&self, topic: &str) -> Result<(), BoredError> {
+        let url = format!("{}/subscribe", self.api_base);
+        let mut request = self.http.post(&url).json(&serde_json::json!({
+            "topic": topic
+        }));
+        if !self.api_token.is_empty() {
+            request = request.bearer_auth(&self.api_token);
+        }
+        let _ = request.send().await;
+        Ok(())
+    }
+
+    async fn publish_msg(&self, topic: &str, msg: &GossipMsg) -> Result<(), BoredError> {
+        let serialized = serde_json::to_string(msg)?;
+        let base64_payload = base64::Engine::encode(&base64::prelude::BASE64_STANDARD, serialized.as_bytes());
+
+        let url = format!("{}/publish", self.api_base);
+        let mut request = self.http.post(&url).json(&serde_json::json!({
+            "topic": topic,
+            "payload": base64_payload
+        }));
+        if !self.api_token.is_empty() {
+            request = request.bearer_auth(&self.api_token);
+        }
+
+        let resp = request.send().await?;
+        if !resp.status().is_success() {
+            let err_body = resp.text().await.unwrap_or_default();
+            return Err(BoredError::X0xError(err_body));
+        }
+        Ok(())
+    }
+
+    async fn fetch_events(&self) -> Result<Vec<(String, GossipMsg)>, BoredError> {
+        let url = format!("{}/events", self.api_base);
+        let mut request = self.http.get(&url);
+        if !self.api_token.is_empty() {
+            request = request.bearer_auth(&self.api_token);
+        }
+
+        let resp = request.send().await?;
+        if !resp.status().is_success() {
+            return Ok(Vec::new());
+        }
+
+        let mut resp = resp;
+        let mut events = Vec::new();
+        let mut buffer = String::new();
+
+        // Drain available SSE chunks until a small timeout (50ms) occurs
+        loop {
+            let chunk_res = tokio::time::timeout(
+                tokio::time::Duration::from_millis(50),
+                resp.chunk()
+            ).await;
+
+            match chunk_res {
+                Ok(Ok(Some(chunk))) => {
+                    if let Ok(s) = std::str::from_utf8(&chunk) {
+                        buffer.push_str(s);
+                        while let Some(pos) = buffer.find('\n') {
+                            let line = buffer[..pos].trim().to_string();
+                            buffer = buffer[pos + 1..].to_string();
+
+                            if line.starts_with("data:") {
+                                let data_str = line["data:".len()..].trim();
+                                if let Ok(json) = serde_json::from_str::<serde_json::Value>(data_str) {
+                                    if let (Some(topic), Some(payload_base64)) = (
+                                        json.get("topic").and_then(|v| v.as_str()),
+                                        json.get("payload").and_then(|v| v.as_str())
+                                    ) {
+                                        if let Ok(decoded) = base64::Engine::decode(&base64::prelude::BASE64_STANDARD, payload_base64) {
+                                            if let Ok(msg) = serde_json::from_slice::<GossipMsg>(&decoded) {
+                                                events.push((topic.to_string(), msg));
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                _ => {
+                    break;
+                }
+            }
+        }
+
+        Ok(events)
+    }
+
+    async fn process_pending_events(&mut self) -> Result<(), BoredError> {
+        let events = self.fetch_events().await?;
+        let current_address = match &self.bored_address {
+            Some(addr) => addr.clone(),
+            None => return Ok(()),
+        };
+        let topic = current_address.get_topic();
+
+        let mut changed = false;
+
+        for (event_topic, msg) in events {
+            if event_topic != topic {
+                continue;
+            }
+
+            match msg {
+                GossipMsg::Meta { name, dimensions } => {
+                    if self.current_bored.is_none() {
+                        let bored = Bored::create(&name, dimensions);
+                        self.current_bored = Some(bored);
+                        changed = true;
+                    }
+                }
+                GossipMsg::NoticeMsg { notice } => {
+                    if let Some(ref mut bored) = self.current_bored {
+                        let already_exists = bored.notices.iter().any(|n| n.get_notice_id() == notice.get_notice_id());
+                        if !already_exists {
+                            let _ = bored.add(notice.clone(), notice.get_top_left());
+                            let _ = bored.prune_non_visible();
+                            changed = true;
+                        }
+                    }
+                }
+                GossipMsg::SyncRequest => {
+                    if let Some(ref bored) = self.current_bored {
+                        let response_msg = GossipMsg::SyncResponse {
+                            name: bored.get_name().to_string(),
+                            dimensions: bored.get_dimensions(),
+                            notices: bored.get_notices(),
+                        };
+                        let _ = self.publish_msg(&topic, &response_msg).await;
+                    }
+                }
+                GossipMsg::SyncResponse { name, dimensions, notices } => {
+                    if self.current_bored.is_none() {
+                        let bored = Bored::create(&name, dimensions);
+                        self.current_bored = Some(bored);
+                        changed = true;
+                    }
+                    if let Some(ref mut bored) = self.current_bored {
+                        for notice in notices {
+                            let already_exists = bored.notices.iter().any(|n| n.get_notice_id() == notice.get_notice_id());
+                            if !already_exists {
+                                let _ = bored.add(notice.clone(), notice.get_top_left());
+                                changed = true;
+                            }
+                        }
+                        if changed {
+                            let _ = bored.prune_non_visible();
+                        }
+                    }
+                }
+            }
+        }
+
+        if changed {
+            if let Some(ref bored) = self.current_bored {
+                Self::save_cache(&self.cache_dir, &current_address, bored)?;
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Create a new board by subscribing to topic and initializing cache
     pub async fn create_bored(
         &mut self,
         name: &str,
@@ -136,225 +353,72 @@ impl X0xBoredClient {
         self.bored_address = Some(address.clone());
         let topic = address.get_topic();
 
-        // 1. Create or join KV store
-        let url = format!("{}/stores", self.api_base);
-        let mut request = self.http.post(&url).json(&serde_json::json!({
-            "name": &topic,
-            "topic": &topic
-        }));
-        if !self.api_token.is_empty() {
-            request = request.bearer_auth(&self.api_token);
-        }
+        self.subscribe(&topic).await?;
 
-        let resp = match request.send().await {
-            Ok(resp) => resp,
-            Err(_) => return Err(BoredError::ClientConnectionError),
+        let bored = Bored::create(name, dimensions);
+        self.current_bored = Some(bored.clone());
+
+        Self::save_cache(&self.cache_dir, &address, &bored)?;
+
+        let meta_msg = GossipMsg::Meta {
+            name: name.to_string(),
+            dimensions,
         };
+        self.publish_msg(&topic, &meta_msg).await?;
 
-        if !resp.status().is_success() && url_name.is_some() {
-            // Best effort join if already exists
-            let join_url = format!("{}/stores/{}/join", self.api_base, topic);
-            let mut req = self.http.post(&join_url);
-            if !self.api_token.is_empty() {
-                req = req.bearer_auth(&self.api_token);
-            }
-            let _ = req.send().await;
-        }
-
-        // 2. Put metadata key
-        let meta_value = serde_json::json!({
-            "protocol_version": 3,
-            "name": name,
-            "dimensions": dimensions
-        });
-        
-        let meta_str = serde_json::to_string(&meta_value)?;
-        let base64_meta = base64::Engine::encode(&base64::prelude::BASE64_STANDARD, meta_str.as_bytes());
-
-        let put_url = format!("{}/stores/{}/meta", self.api_base, topic);
-        let mut request = self.http.put(&put_url).json(&serde_json::json!({
-            "value": base64_meta,
-            "content_type": "application/json"
-        }));
-        if !self.api_token.is_empty() {
-            request = request.bearer_auth(&self.api_token);
-        }
-
-        let resp = match request.send().await {
-            Ok(resp) => resp,
-            Err(_) => return Err(BoredError::ClientConnectionError),
-        };
-
-        if !resp.status().is_success() {
-            let err_body = resp.text().await.unwrap_or_default();
-            return Err(BoredError::X0xError(err_body));
-        }
-
-        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
-        self.refresh_bored().await?;
         Ok(())
     }
 
-    /// Retrieve and enter an existing bored KV store
+    /// Retrieve and enter an existing bored topic
     pub async fn go_to_bored(&mut self, bored_address: &BoredAddress) -> Result<(), BoredError> {
         let bored_address = bored_address.clone();
         let topic = bored_address.get_topic();
 
-        // Check if store already joined/created in local daemon
-        let mut already_joined = false;
-        let stores_url = format!("{}/stores", self.api_base);
-        let mut request = self.http.get(&stores_url);
-        if !self.api_token.is_empty() {
-            request = request.bearer_auth(&self.api_token);
-        }
-        if let Ok(resp) = request.send().await {
-            if resp.status().is_success() {
-                if let Ok(json) = resp.json::<serde_json::Value>().await {
-                    if let Some(stores) = json.get("stores").and_then(|v| v.as_array()) {
-                        for store in stores {
-                            if let Some(t) = store.get("topic").and_then(|t| t.as_str()) {
-                                if t == topic {
-                                    already_joined = true;
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+        self.subscribe(&topic).await?;
+        self.bored_address = Some(bored_address.clone());
+
+        if let Some(bored) = Self::load_cache(&self.cache_dir, &bored_address) {
+            self.current_bored = Some(bored);
+        } else {
+            self.current_bored = None;
         }
 
-        if !already_joined {
-            // Join KV store only if not already joined
-            let join_url = format!("{}/stores/{}/join", self.api_base, topic);
-            let mut request = self.http.post(&join_url);
-            if !self.api_token.is_empty() {
-                request = request.bearer_auth(&self.api_token);
-            }
-            let _ = request.send().await;
-        }
+        self.publish_msg(&topic, &GossipMsg::SyncRequest).await?;
 
-        let mut last_err = BoredError::NoBored;
+        let mut got_data = self.current_bored.is_some();
         for _ in 0..5 {
-            match self.retrieve_bored(&bored_address).await {
-                Ok((bored, _)) => {
-                    self.current_bored = Some(bored);
-                    self.bored_address = Some(bored_address);
-                    return Ok(());
-                }
-                Err(e) => {
-                    last_err = e;
-                    tokio::time::sleep(tokio::time::Duration::from_millis(150)).await;
-                }
+            self.process_pending_events().await?;
+            if self.current_bored.is_some() {
+                got_data = true;
             }
+            tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
         }
-        Err(last_err)
+
+        if got_data {
+            Ok(())
+        } else {
+            let name = match &bored_address {
+                BoredAddress::Topic(t) => t.clone(),
+                BoredAddress::DerivedName(n) => n.clone(),
+            };
+            let bored = Bored::create(&name, Coordinate { x: 120, y: 40 });
+            self.current_bored = Some(bored.clone());
+            Self::save_cache(&self.cache_dir, &bored_address, &bored)?;
+            Ok(())
+        }
     }
 
-    /// Retrieve keys and reconstruct Bored data structure
+    /// Retrieve and process gossip events for Bored Address
     pub async fn retrieve_bored(
         &mut self,
-        bored_address: &BoredAddress,
+        _bored_address: &BoredAddress,
     ) -> Result<(Bored, u64), BoredError> {
-        let topic = bored_address.get_topic();
-
-        // 1. Fetch keys
-        let keys_url = format!("{}/stores/{}/keys", self.api_base, topic);
-        let mut request = self.http.get(&keys_url);
-        if !self.api_token.is_empty() {
-            request = request.bearer_auth(&self.api_token);
-        }
-
-        let resp = match request.send().await {
-            Ok(resp) => resp,
-            Err(_) => return Err(BoredError::ClientConnectionError),
-        };
-
-        if !resp.status().is_success() {
-            let err_body = resp.text().await.unwrap_or_default();
-            return Err(BoredError::X0xError(err_body));
-        }
-
-        let keys_json = resp.json::<serde_json::Value>().await?;
-        let keys = keys_json.get("keys")
-            .and_then(|v| v.as_array())
-            .map(|arr| {
-                arr.iter()
-                    .filter_map(|v| {
-                        if let Some(s) = v.as_str() {
-                            Some(s.to_string())
-                        } else {
-                            v.get("key").and_then(|k| k.as_str()).map(|s| s.to_string())
-                        }
-                    })
-                    .collect::<Vec<String>>()
-            })
-            .unwrap_or_default();
-
-        let mut meta_opt: Option<serde_json::Value> = None;
-        let mut notices = Vec::new();
-
-        for key in &keys {
-            if key == "meta" {
-                if let Ok(val) = self.get_store_value(&topic, "meta").await {
-                    meta_opt = Some(val);
-                }
-            } else if key.starts_with("notice:") {
-                if let Ok(val) = self.get_store_value(&topic, key).await {
-                    if let Ok(notice) = serde_json::from_value::<Notice>(val) {
-                        notices.push(notice);
-                    }
-                }
-            }
-        }
-
-        let meta = match meta_opt {
-            Some(m) => m,
-            None => {
-                return Err(BoredError::X0xError("No metadata found in the store".to_string()));
-            }
-        };
-
-        let name = meta.get("name").and_then(|v| v.as_str()).unwrap_or("Untitled Bored").to_string();
-        let dims_json = meta.get("dimensions");
-        let dimensions = if let Some(dims) = dims_json {
-            serde_json::from_value::<Coordinate>(dims.clone()).unwrap_or(Coordinate { x: 120, y: 40 })
+        self.process_pending_events().await?;
+        if let Some(ref bored) = self.current_bored {
+            Ok((bored.clone(), bored.get_notices().len() as u64))
         } else {
-            Coordinate { x: 120, y: 40 }
-        };
-
-        let bored = Bored {
-            protocol_version: ProtocolVersion::new(),
-            name,
-            dimensions,
-            notices,
-        };
-
-        Ok((bored, keys.len() as u64))
-    }
-
-    async fn get_store_value(&self, topic: &str, key: &str) -> Result<serde_json::Value, BoredError> {
-        let url = format!("{}/stores/{}/{}", self.api_base, topic, key);
-        let mut request = self.http.get(&url);
-        if !self.api_token.is_empty() {
-            request = request.bearer_auth(&self.api_token);
+            Err(BoredError::NoBored)
         }
-
-        let resp = request.send().await?;
-        if !resp.status().is_success() {
-            return Err(BoredError::X0xError(format!("Failed to retrieve key {}", key)));
-        }
-
-        let json = resp.json::<serde_json::Value>().await?;
-        let base64_val = json.get("value").and_then(|v| v.as_str()).ok_or_else(|| {
-            BoredError::X0xError("Value field missing in x0x response".to_string())
-        })?;
-
-        let decoded_bytes = base64::Engine::decode(&base64::prelude::BASE64_STANDARD, base64_val)
-            .map_err(|e| BoredError::X0xError(format!("Base64 decode error: {}", e)))?;
-
-        let val = serde_json::from_slice(&decoded_bytes)?;
-        Ok(val)
     }
 
     /// Refresh the current bored state from network
@@ -362,20 +426,12 @@ impl X0xBoredClient {
         let Some(address) = self.bored_address.clone() else {
             return Err(BoredError::NoBored);
         };
-        let mut last_err = BoredError::NoBored;
-        for _ in 0..5 {
-            match self.retrieve_bored(&address).await {
-                Ok((bored, _)) => {
-                    self.current_bored = Some(bored);
-                    return Ok(());
-                }
-                Err(e) => {
-                    last_err = e;
-                    tokio::time::sleep(tokio::time::Duration::from_millis(150)).await;
-                }
-            }
-        }
-        Err(last_err)
+        let topic = address.get_topic();
+
+        let _ = self.publish_msg(&topic, &GossipMsg::SyncRequest).await;
+        self.process_pending_events().await?;
+
+        Ok(())
     }
 
     /// Returns the cached current bored
@@ -446,7 +502,7 @@ impl X0xBoredClient {
         Ok(())
     }
 
-    /// Write notice and prune fully occluded ones (Option A - explicit deletes)
+    /// Write notice and publish via gossip message
     pub async fn add_draft_to_bored(&mut self) -> Result<(), BoredError> {
         let Some(bored) = &mut self.current_bored else {
             return Err(BoredError::NoBored);
@@ -465,52 +521,24 @@ impl X0xBoredClient {
                 "local"
             };
             let notice_key = format!("notice:{}:{}", timestamp, agent_prefix);
-            notice.set_notice_id(notice_key.clone());
+            notice.set_notice_id(notice_key);
 
             // Add locally
             bored.add(notice.clone(), notice.get_top_left())?;
-
-            // Push to x0x
-            let serialized = serde_json::to_string(&notice)?;
-            let base64_notice = base64::Engine::encode(&base64::prelude::BASE64_STANDARD, serialized.as_bytes());
-
-            let put_url = format!("{}/stores/{}/{}", self.api_base, topic, notice_key);
-            let mut request = self.http.put(&put_url).json(&serde_json::json!({
-                "value": base64_notice,
-                "content_type": "application/json"
-            }));
-            if !self.api_token.is_empty() {
-                request = request.bearer_auth(&self.api_token);
-            }
-
-            let resp = request.send().await?;
-            if !resp.status().is_success() {
-                return Err(BoredError::X0xError(format!("Failed to write notice {}", notice_key)));
-            }
-
-            // --- Explicit Pruning (Option A) ---
-            let original_notices = bored.notices.clone();
-            
-            // Prune locally
             bored.prune_non_visible()?;
-            
-            // Issue DELETE for pruned keys
-            for orig in original_notices {
-                if !bored.notices.contains(&orig) && !orig.get_notice_id().is_empty() {
-                    let del_url = format!("{}/stores/{}/{}", self.api_base, topic, orig.get_notice_id());
-                    let mut request = self.http.delete(&del_url);
-                    if !self.api_token.is_empty() {
-                        request = request.bearer_auth(&self.api_token);
-                    }
-                    let _ = request.send().await;
-                }
-            }
+
+            // Save cache
+            Self::save_cache(&self.cache_dir, bored_address, bored)?;
+
+            // Publish notice via gossip Msg
+            let notice_msg = GossipMsg::NoticeMsg {
+                notice: notice.clone(),
+            };
+            self.publish_msg(&topic, &notice_msg).await?;
 
             self.draft_notice = None;
         }
 
-        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
-        self.refresh_bored().await?;
         Ok(())
     }
 
@@ -544,11 +572,9 @@ mod x0x_tests {
         client1.create_bored("GoTo Board", Coordinate { x: 120, y: 40 }, Some(&topic)).await.expect("create failed");
         let address = client1.get_bored_address().expect("no address");
         
-        // 2. Load it with a fresh client2 (already created/joined in daemon)
+        // 2. Load it with a fresh client2
         let mut client2 = X0xBoredClient::init().await.expect("Failed init");
         let res = client2.go_to_bored(&address).await;
         assert!(res.is_ok(), "go_to_bored failed: {:?}", res);
     }
 }
-
-
