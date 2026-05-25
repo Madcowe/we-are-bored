@@ -383,31 +383,21 @@ impl Bored {
         }
         let whats_on_the_bored = WhatsOnTheBored::create(&self);
         // flaten whats_on_the_bored into 1 dimension
-        let mut whats_on_the_bored_1d = whats_on_the_bored.get_1d();
-        let notices_indexes: Vec<usize> = self
-            .notices
-            .iter()
-            .enumerate()
-            .map(|(notices_index, _)| notices_index)
+        let whats_on_the_bored_1d = whats_on_the_bored.get_1d();
+        // Determine which indices are actually visible on the board
+        let visible_indexes: std::collections::HashSet<usize> = whats_on_the_bored_1d
+            .into_iter()
+            .flatten()
             .collect();
-        whats_on_the_bored_1d.sort();
-        whats_on_the_bored_1d.dedup();
-        let whats_on_the_bored_1d: Vec<_> = whats_on_the_bored_1d
-            .iter()
-            .filter(|x| x.is_some())
-            .map(|x| x.unwrap())
-            .collect();
-        for notice_index in &notices_indexes {
-            let mut remove = true;
-            for on_bored in &whats_on_the_bored_1d {
-                if notice_index == on_bored {
-                    remove = false;
-                }
-            }
-            if remove {
-                self.notices.remove(*notice_index);
-            }
-        }
+
+        // Safely retain only the notices that are visible, avoiding index shifting bugs
+        let mut i = 0;
+        self.notices.retain(|_| {
+            let keep = visible_indexes.contains(&i);
+            i += 1;
+            keep
+        });
+
         Ok(())
     }
 

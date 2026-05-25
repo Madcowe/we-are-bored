@@ -80,7 +80,7 @@ impl X0xBoredClient {
 
         // Validate local daemon is running and reachable
         let health_url = format!("{}/health", api_base);
-        let mut request = http.get(&health_url);
+        let mut request = http.get(&health_url).timeout(std::time::Duration::from_secs(5));
         if !api_token.is_empty() {
             request = request.bearer_auth(&api_token);
         }
@@ -96,7 +96,7 @@ impl X0xBoredClient {
 
         // Fetch local Agent ID
         let agent_url = format!("{}/agent", api_base);
-        let mut request = http.get(&agent_url);
+        let mut request = http.get(&agent_url).timeout(std::time::Duration::from_secs(5));
         if !api_token.is_empty() {
             request = request.bearer_auth(&api_token);
         }
@@ -212,7 +212,7 @@ impl X0xBoredClient {
     /// Check if the x0xd daemon is up and responsive
     pub async fn check_daemon(&self) -> Result<bool, BoredError> {
         let health_url = format!("{}/health", self.api_base);
-        let mut request = self.http.get(&health_url);
+        let mut request = self.http.get(&health_url).timeout(std::time::Duration::from_secs(5));
         if !self.api_token.is_empty() {
             request = request.bearer_auth(&self.api_token);
         }
@@ -251,7 +251,7 @@ impl X0xBoredClient {
 
     async fn subscribe(&self, topic: &str) -> Result<(), BoredError> {
         let url = format!("{}/subscribe", self.api_base);
-        let mut request = self.http.post(&url).json(&serde_json::json!({
+        let mut request = self.http.post(&url).timeout(std::time::Duration::from_secs(5)).json(&serde_json::json!({
             "topic": topic
         }));
         if !self.api_token.is_empty() {
@@ -266,7 +266,7 @@ impl X0xBoredClient {
         let base64_payload = base64::Engine::encode(&base64::prelude::BASE64_STANDARD, serialized.as_bytes());
 
         let url = format!("{}/publish", self.api_base);
-        let mut request = self.http.post(&url).json(&serde_json::json!({
+        let mut request = self.http.post(&url).timeout(std::time::Duration::from_secs(5)).json(&serde_json::json!({
             "topic": topic,
             "payload": base64_payload
         }));
@@ -316,7 +316,7 @@ impl X0xBoredClient {
                     let base64_payload = base64::Engine::encode(&base64::prelude::BASE64_STANDARD, serialized.as_bytes());
 
                     let url = format!("{}/publish", api_base);
-                    let mut request = http.post(&url).json(&serde_json::json!({
+                    let mut request = http.post(&url).timeout(std::time::Duration::from_secs(5)).json(&serde_json::json!({
                         "topic": topic,
                         "payload": base64_payload
                     }));
