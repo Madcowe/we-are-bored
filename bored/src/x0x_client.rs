@@ -298,10 +298,13 @@ impl X0xBoredClient {
         };
         let address = BoredAddress::from_string(name)?;
 
-        // Only process events if we have joined/created the board (indicated by cache existence)
+        // Only process events if we have joined/created the board (indicated by cache existence),
+        // or if the message is a SyncResponse (which we can use to discover/join a board from the network).
         let path = Self::cache_path(cache_dir, &address);
         if !path.exists() {
-            return Ok(());
+            if !matches!(msg, GossipMsg::SyncResponse { .. }) {
+                return Ok(());
+            }
         }
 
         match msg {
@@ -346,26 +349,30 @@ impl X0xBoredClient {
                 }
             }
             GossipMsg::SyncResponse { name, dimensions, notices } => {
-                if let Some(mut bored) = Self::load_cache(cache_dir, &address) {
-                    let mut changed = false;
-                    if bored.name == "Untitled Bored" || bored.name == address.get_topic() {
-                        if name != "Untitled Bored" && name != address.get_topic() {
-                            bored.name = name;
-                            bored.dimensions = dimensions;
-                            changed = true;
-                        }
+                let mut bored = if let Some(bored) = Self::load_cache(cache_dir, &address) {
+                    bored
+                } else {
+                    Bored::create(&name, dimensions)
+                };
+                let mut changed = false;
+                if bored.name == "Untitled Bored" || bored.name == address.get_topic() {
+                    if name != "Untitled Bored" && name != address.get_topic() {
+                        bored.name = name;
+                        bored.dimensions = dimensions;
+                        changed = true;
                     }
-                    for notice in notices {
-                        let already_exists = bored.notices.iter().any(|n| n.get_notice_id() == notice.get_notice_id());
-                        if !already_exists {
-                            let _ = bored.add(notice.clone(), notice.get_top_left());
-                            changed = true;
-                        }
+                }
+                for notice in notices {
+                    let already_exists = bored.notices.iter().any(|n| n.get_notice_id() == notice.get_notice_id());
+                    if !already_exists {
+                        let _ = bored.add(notice.clone(), notice.get_top_left());
+                        changed = true;
                     }
-                    if changed {
-                        let _ = bored.prune_non_visible();
-                        Self::save_cache(cache_dir, &address, &bored)?;
-                    }
+                }
+                let is_new = !Self::cache_path(cache_dir, &address).exists();
+                if changed || is_new {
+                    let _ = bored.prune_non_visible();
+                    Self::save_cache(cache_dir, &address, &bored)?;
                 }
             }
         }
@@ -411,26 +418,31 @@ impl X0xBoredClient {
         self.subscribe(&topic).await?;
         self.bored_address = Some(bored_address.clone());
 
-        // Ensure cache file exists so the background thread automatically accepts sync responses for it
         let cache_exists = Self::cache_path(&self.cache_dir, &bored_address).exists();
         if !cache_exists {
-            let name = match &bored_address {
-                BoredAddress::Topic(t) => t.clone(),
-                BoredAddress::DerivedName(n) => n.clone(),
-            };
-            let bored = Bored::create(&name, Coordinate { x: 120, y: 40 });
-            Self::save_cache(&self.cache_dir, &bored_address, &bored)?;
-        }
+            // Publish a SyncRequest so any online peers reply with their visible notices
+            self.publish_msg(&topic, &GossipMsg::SyncRequest).await?;
 
-        // Publish a SyncRequest so any online peers reply with their visible notices
-        self.publish_msg(&topic, &GossipMsg::SyncRequest).await?;
-
-        // Sleep briefly to let the background thread receive and merge the SyncResponse into the cache file
-        for _ in 0..5 {
+            // Sleep and poll to let the background thread receive and merge the SyncResponse into the cache file
+            let mut found = false;
+            for _ in 0..10 {
+                tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+                if Self::cache_path(&self.cache_dir, &bored_address).exists() {
+                    found = true;
+                    break;
+                }
+            }
+            if !found {
+                return Err(BoredError::BoardDoesNotExist(bored_address.to_string()));
+            }
+        } else {
+            // It is cached, but let's publish a SyncRequest to get any new updates from peers in the background
+            let _ = self.publish_msg(&topic, &GossipMsg::SyncRequest).await;
+            // Sleep briefly to let the background thread receive and merge the SyncResponse into the cache file
             tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
         }
 
-        // Now load from the cache (which may now contain the synced notices!)
+        // Now load from the cache
         if let Some(bored) = Self::load_cache(&self.cache_dir, &bored_address) {
             self.current_bored = Some(bored);
             Ok(())
@@ -616,5 +628,20 @@ mod x0x_tests {
         let mut client2 = X0xBoredClient::init().await.expect("Failed init");
         let res = client2.go_to_bored(&address).await;
         assert!(res.is_ok(), "go_to_bored failed: {:?}", res);
+    }
+
+    #[tokio::test]
+    async fn test_go_to_bored_non_existent() {
+        let mut client = X0xBoredClient::init().await.expect("Failed init");
+        let unique_suffix = uuid::Uuid::new_v4().to_string()[0..8].to_string();
+        let topic = format!("bored.test.nonexistent.{}", unique_suffix);
+        let address = BoredAddress::from_string(&topic).expect("invalid address");
+
+        // Force delete cache file if it somehow exists
+        let cache_path = X0xBoredClient::cache_path(&client.cache_dir, &address);
+        let _ = std::fs::remove_file(cache_path);
+
+        let res = client.go_to_bored(&address).await;
+        assert!(matches!(res, Err(BoredError::BoardDoesNotExist(_))), "expected BoardDoesNotExist, got: {:?}", res);
     }
 }

@@ -89,6 +89,8 @@ pub enum BoredError {
     URLNameAlreadyExists(String),
     #[error("x0x API error: {0}")]
     X0xError(String),
+    #[error("The board '{0}' does not exist on the network. You must create it first using the create command.")]
+    BoardDoesNotExist(String),
 }
 
 impl From<serde_json::Error> for BoredError {
