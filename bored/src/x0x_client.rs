@@ -68,7 +68,8 @@ pub struct X0xBoredClient {
 }
 
 impl X0xBoredClient {
-    /// Initialize the client by discovering local daemon settings and fetching local agent ID.
+    /// Initialize the client by discovering local daemon settings, fetching local agent ID,
+    /// and starting a persistent background loop to process synchronization events.
     pub async fn init() -> Result<X0xBoredClient, BoredError> {
         let (api_base, api_token) = match get_api_credentials() {
             Some(creds) => creds,
@@ -121,6 +122,80 @@ impl X0xBoredClient {
         let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
         let cache_dir = std::path::PathBuf::from(home).join(".local/share/we-are-bored/cache");
         let _ = std::fs::create_dir_all(&cache_dir);
+
+        // Spawn background listener task to monitor all `/events` (gossip updates)
+        let http_clone = http.clone();
+        let api_base_clone = api_base.clone();
+        let api_token_clone = api_token.clone();
+        let cache_dir_clone = cache_dir.clone();
+
+        tokio::spawn(async move {
+            let mut buffer = String::new();
+            loop {
+                let url = format!("{}/events", api_base_clone);
+                let mut request = http_clone.get(&url);
+                if !api_token_clone.is_empty() {
+                    request = request.bearer_auth(&api_token_clone);
+                }
+
+                let resp = match request.send().await {
+                    Ok(resp) => resp,
+                    Err(_) => {
+                        tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+                        continue;
+                    }
+                };
+
+                if !resp.status().is_success() {
+                    tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+                    continue;
+                }
+
+                let mut resp = resp;
+                loop {
+                    match resp.chunk().await {
+                        Ok(Some(chunk)) => {
+                            if let Ok(s) = std::str::from_utf8(&chunk) {
+                                buffer.push_str(s);
+                                while let Some(pos) = buffer.find('\n') {
+                                    let line = buffer[..pos].trim().to_string();
+                                    buffer = buffer[pos + 1..].to_string();
+
+                                    if line.starts_with("data:") {
+                                        let data_str = line["data:".len()..].trim();
+                                        if let Ok(json) = serde_json::from_str::<serde_json::Value>(data_str) {
+                                            let data_obj = json.get("data").unwrap_or(&json);
+                                            if let (Some(topic), Some(payload_base64)) = (
+                                                data_obj.get("topic").and_then(|v| v.as_str()),
+                                                data_obj.get("payload").and_then(|v| v.as_str())
+                                            ) {
+                                                if let Ok(decoded) = base64::Engine::decode(&base64::prelude::BASE64_STANDARD, payload_base64) {
+                                                    if let Ok(msg) = serde_json::from_slice::<GossipMsg>(&decoded) {
+                                                        let _ = Self::handle_background_msg(
+                                                            &http_clone,
+                                                            &api_base_clone,
+                                                            &api_token_clone,
+                                                            &cache_dir_clone,
+                                                            topic,
+                                                            msg
+                                                        ).await;
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        _ => {
+                            // Connection dropped or finished; reconnect
+                            break;
+                        }
+                    }
+                }
+                tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
+            }
+        });
 
         Ok(X0xBoredClient {
             http,
@@ -207,132 +282,91 @@ impl X0xBoredClient {
         Ok(())
     }
 
-    async fn fetch_events(&self) -> Result<Vec<(String, GossipMsg)>, BoredError> {
-        let url = format!("{}/events", self.api_base);
-        let mut request = self.http.get(&url);
-        if !self.api_token.is_empty() {
-            request = request.bearer_auth(&self.api_token);
-        }
-
-        let resp = request.send().await?;
-        if !resp.status().is_success() {
-            return Ok(Vec::new());
-        }
-
-        let mut resp = resp;
-        let mut events = Vec::new();
-        let mut buffer = String::new();
-
-        // Drain available SSE chunks until a small timeout (50ms) occurs
-        loop {
-            let chunk_res = tokio::time::timeout(
-                tokio::time::Duration::from_millis(50),
-                resp.chunk()
-            ).await;
-
-            match chunk_res {
-                Ok(Ok(Some(chunk))) => {
-                    if let Ok(s) = std::str::from_utf8(&chunk) {
-                        buffer.push_str(s);
-                        while let Some(pos) = buffer.find('\n') {
-                            let line = buffer[..pos].trim().to_string();
-                            buffer = buffer[pos + 1..].to_string();
-
-                            if line.starts_with("data:") {
-                                let data_str = line["data:".len()..].trim();
-                                if let Ok(json) = serde_json::from_str::<serde_json::Value>(data_str) {
-                                    if let (Some(topic), Some(payload_base64)) = (
-                                        json.get("topic").and_then(|v| v.as_str()),
-                                        json.get("payload").and_then(|v| v.as_str())
-                                    ) {
-                                        if let Ok(decoded) = base64::Engine::decode(&base64::prelude::BASE64_STANDARD, payload_base64) {
-                                            if let Ok(msg) = serde_json::from_slice::<GossipMsg>(&decoded) {
-                                                events.push((topic.to_string(), msg));
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-                _ => {
-                    break;
-                }
-            }
-        }
-
-        Ok(events)
-    }
-
-    async fn process_pending_events(&mut self) -> Result<(), BoredError> {
-        let events = self.fetch_events().await?;
-        let current_address = match &self.bored_address {
-            Some(addr) => addr.clone(),
-            None => return Ok(()),
+    async fn handle_background_msg(
+        http: &reqwest::Client,
+        api_base: &str,
+        api_token: &str,
+        cache_dir: &std::path::Path,
+        topic: &str,
+        msg: GossipMsg,
+    ) -> Result<(), BoredError> {
+        // topic is usually "bored.bum"
+        let name = if topic.starts_with("bored.") {
+            &topic["bored.".len()..]
+        } else {
+            topic
         };
-        let topic = current_address.get_topic();
+        let address = BoredAddress::from_string(name)?;
 
-        let mut changed = false;
+        // Only process events if we have joined/created the board (indicated by cache existence)
+        let path = Self::cache_path(cache_dir, &address);
+        if !path.exists() {
+            return Ok(());
+        }
 
-        for (event_topic, msg) in events {
-            if event_topic != topic {
-                continue;
+        match msg {
+            GossipMsg::SyncRequest => {
+                if let Some(bored) = Self::load_cache(cache_dir, &address) {
+                    let response_msg = GossipMsg::SyncResponse {
+                        name: bored.get_name().to_string(),
+                        dimensions: bored.get_dimensions(),
+                        notices: bored.get_notices(),
+                    };
+                    let serialized = serde_json::to_string(&response_msg)?;
+                    let base64_payload = base64::Engine::encode(&base64::prelude::BASE64_STANDARD, serialized.as_bytes());
+
+                    let url = format!("{}/publish", api_base);
+                    let mut request = http.post(&url).json(&serde_json::json!({
+                        "topic": topic,
+                        "payload": base64_payload
+                    }));
+                    if !api_token.is_empty() {
+                        request = request.bearer_auth(api_token);
+                    }
+                    let _ = request.send().await;
+                }
             }
-
-            match msg {
-                GossipMsg::Meta { name, dimensions } => {
-                    if self.current_bored.is_none() {
-                        let bored = Bored::create(&name, dimensions);
-                        self.current_bored = Some(bored);
-                        changed = true;
+            GossipMsg::Meta { name, dimensions } => {
+                if let Some(mut bored) = Self::load_cache(cache_dir, &address) {
+                    if bored.name == "Untitled Bored" || bored.name == address.get_topic() {
+                        bored.name = name;
+                        bored.dimensions = dimensions;
+                        Self::save_cache(cache_dir, &address, &bored)?;
                     }
                 }
-                GossipMsg::NoticeMsg { notice } => {
-                    if let Some(ref mut bored) = self.current_bored {
-                        let already_exists = bored.notices.iter().any(|n| n.get_notice_id() == notice.get_notice_id());
-                        if !already_exists {
-                            let _ = bored.add(notice.clone(), notice.get_top_left());
-                            let _ = bored.prune_non_visible();
+            }
+            GossipMsg::NoticeMsg { notice } => {
+                if let Some(mut bored) = Self::load_cache(cache_dir, &address) {
+                    let already_exists = bored.notices.iter().any(|n| n.get_notice_id() == notice.get_notice_id());
+                    if !already_exists {
+                        let _ = bored.add(notice.clone(), notice.get_top_left());
+                        let _ = bored.prune_non_visible();
+                        Self::save_cache(cache_dir, &address, &bored)?;
+                    }
+                }
+            }
+            GossipMsg::SyncResponse { name, dimensions, notices } => {
+                if let Some(mut bored) = Self::load_cache(cache_dir, &address) {
+                    let mut changed = false;
+                    if bored.name == "Untitled Bored" || bored.name == address.get_topic() {
+                        if name != "Untitled Bored" && name != address.get_topic() {
+                            bored.name = name;
+                            bored.dimensions = dimensions;
                             changed = true;
                         }
                     }
-                }
-                GossipMsg::SyncRequest => {
-                    if let Some(ref bored) = self.current_bored {
-                        let response_msg = GossipMsg::SyncResponse {
-                            name: bored.get_name().to_string(),
-                            dimensions: bored.get_dimensions(),
-                            notices: bored.get_notices(),
-                        };
-                        let _ = self.publish_msg(&topic, &response_msg).await;
-                    }
-                }
-                GossipMsg::SyncResponse { name, dimensions, notices } => {
-                    if self.current_bored.is_none() {
-                        let bored = Bored::create(&name, dimensions);
-                        self.current_bored = Some(bored);
-                        changed = true;
-                    }
-                    if let Some(ref mut bored) = self.current_bored {
-                        for notice in notices {
-                            let already_exists = bored.notices.iter().any(|n| n.get_notice_id() == notice.get_notice_id());
-                            if !already_exists {
-                                let _ = bored.add(notice.clone(), notice.get_top_left());
-                                changed = true;
-                            }
-                        }
-                        if changed {
-                            let _ = bored.prune_non_visible();
+                    for notice in notices {
+                        let already_exists = bored.notices.iter().any(|n| n.get_notice_id() == notice.get_notice_id());
+                        if !already_exists {
+                            let _ = bored.add(notice.clone(), notice.get_top_left());
+                            changed = true;
                         }
                     }
+                    if changed {
+                        let _ = bored.prune_non_visible();
+                        Self::save_cache(cache_dir, &address, &bored)?;
+                    }
                 }
-            }
-        }
-
-        if changed {
-            if let Some(ref bored) = self.current_bored {
-                Self::save_cache(&self.cache_dir, &current_address, bored)?;
             }
         }
 
@@ -377,44 +411,43 @@ impl X0xBoredClient {
         self.subscribe(&topic).await?;
         self.bored_address = Some(bored_address.clone());
 
-        if let Some(bored) = Self::load_cache(&self.cache_dir, &bored_address) {
-            self.current_bored = Some(bored);
-        } else {
-            self.current_bored = None;
-        }
-
-        self.publish_msg(&topic, &GossipMsg::SyncRequest).await?;
-
-        let mut got_data = self.current_bored.is_some();
-        for _ in 0..5 {
-            self.process_pending_events().await?;
-            if self.current_bored.is_some() {
-                got_data = true;
-            }
-            tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
-        }
-
-        if got_data {
-            Ok(())
-        } else {
+        // Ensure cache file exists so the background thread automatically accepts sync responses for it
+        let cache_exists = Self::cache_path(&self.cache_dir, &bored_address).exists();
+        if !cache_exists {
             let name = match &bored_address {
                 BoredAddress::Topic(t) => t.clone(),
                 BoredAddress::DerivedName(n) => n.clone(),
             };
             let bored = Bored::create(&name, Coordinate { x: 120, y: 40 });
-            self.current_bored = Some(bored.clone());
             Self::save_cache(&self.cache_dir, &bored_address, &bored)?;
+        }
+
+        // Publish a SyncRequest so any online peers reply with their visible notices
+        self.publish_msg(&topic, &GossipMsg::SyncRequest).await?;
+
+        // Sleep briefly to let the background thread receive and merge the SyncResponse into the cache file
+        for _ in 0..5 {
+            tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+        }
+
+        // Now load from the cache (which may now contain the synced notices!)
+        if let Some(bored) = Self::load_cache(&self.cache_dir, &bored_address) {
+            self.current_bored = Some(bored);
             Ok(())
+        } else {
+            Err(BoredError::NoBored)
         }
     }
 
     /// Retrieve and process gossip events for Bored Address
     pub async fn retrieve_bored(
         &mut self,
-        _bored_address: &BoredAddress,
+        bored_address: &BoredAddress,
     ) -> Result<(Bored, u64), BoredError> {
-        self.process_pending_events().await?;
         if let Some(ref bored) = self.current_bored {
+            Ok((bored.clone(), bored.get_notices().len() as u64))
+        } else if let Some(bored) = Self::load_cache(&self.cache_dir, bored_address) {
+            self.current_bored = Some(bored.clone());
             Ok((bored.clone(), bored.get_notices().len() as u64))
         } else {
             Err(BoredError::NoBored)
@@ -429,9 +462,16 @@ impl X0xBoredClient {
         let topic = address.get_topic();
 
         let _ = self.publish_msg(&topic, &GossipMsg::SyncRequest).await;
-        self.process_pending_events().await?;
+        
+        // Sleep briefly to let background thread catch and write any new notices
+        tokio::time::sleep(tokio::time::Duration::from_millis(300)).await;
 
-        Ok(())
+        if let Some(bored) = Self::load_cache(&self.cache_dir, &address) {
+            self.current_bored = Some(bored);
+            Ok(())
+        } else {
+            Err(BoredError::NoBored)
+        }
     }
 
     /// Returns the cached current bored
