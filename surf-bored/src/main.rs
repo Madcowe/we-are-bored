@@ -154,9 +154,18 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 eprintln!("Because x0x uses port 12700 for local communication, if another user");
                 eprintln!("(or a background service) is already running the daemon, your app will");
                 eprintln!("connect to their daemon but get rejected due to a token mismatch.");
+
+                let token_path = if cfg!(target_os = "windows") {
+                    "%APPDATA%\\x0x\\api-token"
+                } else if cfg!(target_os = "macos") {
+                    "~/Library/Application Support/x0x/api-token"
+                } else {
+                    "~/.local/share/x0x/api-token"
+                };
+
                 eprintln!("\nTo fix this, you can either:");
                 eprintln!("1. Stop the daemon running on the other user account.");
-                eprintln!("2. Share the API token (~/.local/share/x0x/api-token) between users.");
+                eprintln!("2. Share the API token ({}) between users.", token_path);
                 eprintln!("3. Run your daemon on a different port using `x0xd --api-port <PORT>`.");
                 std::process::exit(1);
             }

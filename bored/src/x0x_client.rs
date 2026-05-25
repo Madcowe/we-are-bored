@@ -51,11 +51,34 @@ pub fn get_x0x_data_dir() -> Option<std::path::PathBuf> {
 
     #[cfg(target_os = "windows")]
     {
+        if let Ok(app_data) = std::env::var("APPDATA") {
+            let path = std::path::PathBuf::from(app_data).join("x0x");
+            if path.exists() {
+                return Some(path);
+            }
+        }
         if let Ok(local_app_data) = std::env::var("LOCALAPPDATA") {
-            return Some(std::path::PathBuf::from(local_app_data).join("x0x"));
+            let path = std::path::PathBuf::from(local_app_data).join("x0x");
+            if path.exists() {
+                return Some(path);
+            }
         }
         if let Ok(user_profile) = std::env::var("USERPROFILE") {
-            return Some(std::path::PathBuf::from(user_profile).join("AppData/Local/x0x"));
+            let path = std::path::PathBuf::from(&user_profile).join("AppData\\Roaming\\x0x");
+            if path.exists() {
+                return Some(path);
+            }
+            let path = std::path::PathBuf::from(&user_profile).join("AppData\\Local\\x0x");
+            if path.exists() {
+                return Some(path);
+            }
+        }
+        // Fallbacks if none of the folders exist yet
+        if let Ok(app_data) = std::env::var("APPDATA") {
+            return Some(std::path::PathBuf::from(app_data).join("x0x"));
+        }
+        if let Ok(local_app_data) = std::env::var("LOCALAPPDATA") {
+            return Some(std::path::PathBuf::from(local_app_data).join("x0x"));
         }
     }
 
