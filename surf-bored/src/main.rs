@@ -171,30 +171,61 @@ async fn run_app<B: Backend>(
     let previous_buffer = terminal.draw(|f| ui(f, app))?.buffer.clone();
     if let Err(_) = app.load_directory() {
         app.directory = Directory::default();
-        app.save_directory()?;
+        let _ = app.save_directory();
     }
-    if !app.has_local_connection() {
-        if let Some(home_address) = app.directory.get_home() {
-            match BoredAddress::from_string(home_address) {
-                Ok(home_address) => {
-                    let theme = app.theme.clone();
-                    let going_to_bored = app.goto_bored(home_address);
-                    match wait_pop_up(
-                        terminal,
-                        previous_buffer,
-                        going_to_bored,
-                        "Loading board from x0x...",
-                        theme,
-                    )
-                    .await
-                    {
-                        Err(e) => app.display_error(e),
-                        _ => (),
+
+    if let Some(home_address) = app.directory.get_home() {
+        match BoredAddress::from_string(home_address) {
+            Ok(home_address) => {
+                let theme = app.theme.clone();
+                let going_to_bored = app.goto_bored(home_address.clone());
+                let res = wait_pop_up(
+                    terminal,
+                    previous_buffer.clone(),
+                    going_to_bored,
+                    "Loading board from x0x...",
+                    theme.clone(),
+                )
+                .await;
+
+                if let Err(err) = res {
+                    // If welcome board does not exist on network, create it!
+                    let is_welcome_board = home_address.to_string() == "bored://welcome";
+                    if is_welcome_board {
+                        // Define future to create the board and add the welcome notice
+                        let create_and_init = async {
+                            app.create_bored_on_network("Welcome", Coordinate { x: 120, y: 40 }, Some("welcome")).await?;
+                            app.create_draft(Coordinate { x: 55, y: 6 })?;
+                            app.edit_draft("Welcome to the we are bored network\nrunning on the [x0x](https://x0x.md) network.")?;
+                            app.position_draft(Coordinate { x: 32, y: 17 })?;
+                            app.add_draft_to_bored().await?;
+                            app.change_view(View::BoredView);
+                            app.content_input = String::new();
+                            if let Some(bored) = app.get_current_bored() {
+                                if !bored.get_notices().is_empty() {
+                                    app.selected_notice = Some(0);
+                                }
+                            }
+                            Ok(())
+                        };
+                        match wait_pop_up(
+                            terminal,
+                            previous_buffer,
+                            create_and_init,
+                            "Initializing Welcome board...",
+                            theme,
+                        )
+                        .await {
+                            Err(e) => app.display_error(e),
+                            _ => (),
+                        }
+                    } else {
+                        app.display_error(err);
                     }
                 }
-                Err(e) => app.display_error(app::SurfBoredError::BoredError(e)),
-            };
-        }
+            }
+            Err(e) => app.display_error(app::SurfBoredError::BoredError(e)),
+        };
     }
 
     loop {
@@ -311,6 +342,12 @@ async fn run_app<B: Backend>(
                             Err(e) => app.display_error(e),
                             _ => (),
                         },
+                        KeyCode::Char('s') => {
+                            match app.save_current_bored_to_directory() {
+                                Err(e) => app.display_error(e),
+                                Ok(_) => app.display_error(app::SurfBoredError::Message("Successfully added board to directory!".to_string())),
+                            }
+                        }
                         _ => {}
                     },
                     View::NoticeView { .. } => match key.code {

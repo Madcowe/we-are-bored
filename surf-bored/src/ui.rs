@@ -308,10 +308,11 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
                     "q   Quit",
                 ]
             } else {
-                status_text = "Use (the arrow keys) to select a notice in that direction, (tab) to cycle selection, (enter) to view notice (n) to create a new notice or (space) to view menu.".to_string();
+                status_text = "Use (the arrow keys) to select a notice in that direction, (tab) to cycle selection, (enter) to view notice (n) to create a new notice, (s) to save to directory or (space) to view menu.".to_string();
                 vec![
                     "r   Refresh bored",
                     "n   New notice",
+                    "s   Save board to directory",
                     "c   Create bored",
                     "g   Goto bored",
                     "d   Open directory of boreds",

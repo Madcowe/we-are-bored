@@ -140,12 +140,35 @@ pub struct App {
     pub goto_input: String,
     pub menu_visible: bool,
 }
+fn determine_directory_path() -> String {
+    if let Ok(home) = std::env::var("HOME") {
+        if !home.is_empty() {
+            let standard_dir = std::path::PathBuf::from(home).join(".local/share/we-are-bored");
+            if std::fs::create_dir_all(&standard_dir).is_ok() {
+                let toml_path = standard_dir.join("directory_of_boreds.toml");
+                if toml_path.exists() {
+                    if std::fs::File::open(&toml_path).is_ok() {
+                        return toml_path.to_string_lossy().to_string();
+                    }
+                } else {
+                    let temp_path = standard_dir.join(".tmp_write_test");
+                    if std::fs::write(&temp_path, "").is_ok() {
+                        let _ = std::fs::remove_file(temp_path);
+                        return toml_path.to_string_lossy().to_string();
+                    }
+                }
+            }
+        }
+    }
+    "directory_of_boreds.toml".to_string()
+}
+
 impl App {
     pub fn new() -> App {
         App {
             client: None,
             directory: Directory::new(),
-            directory_path: "directory_of_boreds.toml".to_string(),
+            directory_path: determine_directory_path(),
             current_view: View::BoredView,
             previous_view: View::BoredView,
             interupted_view: View::BoredView,
@@ -309,6 +332,32 @@ impl App {
             Listing {
                 name: client.get_bored_name()?.to_string(),
                 bored_address: format!("{}", client.get_bored_address()?),
+            },
+            &self.directory_path,
+        )?;
+        Ok(())
+    }
+
+    pub fn save_current_bored_to_directory(&mut self) -> Result<(), SurfBoredError> {
+        let Some(ref client) = self.client else {
+            return Err(SurfBoredError::BoredError(BoredError::ClientConnectionError));
+        };
+        let Ok(bored) = client.get_current_bored() else {
+            return Err(SurfBoredError::Message("No board is currently loaded.".to_string()));
+        };
+        let Ok(address) = client.get_bored_address() else {
+            return Err(SurfBoredError::Message("Current board has no valid address.".to_string()));
+        };
+        
+        let address_str = address.to_string();
+        if self.directory.get_bored_addresses().iter().any(|l| l.bored_address == address_str) {
+            return Err(SurfBoredError::Message("This board is already in your directory.".to_string()));
+        }
+
+        self.directory.add(
+            Listing {
+                name: bored.get_name().to_string(),
+                bored_address: address_str,
             },
             &self.directory_path,
         )?;

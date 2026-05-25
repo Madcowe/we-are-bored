@@ -37,30 +37,11 @@ impl Directory {
     pub fn default() -> Directory {
         let mut directory = Directory::new();
         let listing = Listing::new(
-            "The genesis bored",
-            "bored://00a477e5e70ba4c1b8943db7b68c848f358a6059c8b6c514b5c47fcaeacbb3d0",
+            "Welcome",
+            "bored://welcome",
         );
         directory.bored_addresses.push(listing);
-        let listing = Listing::new(
-            "Bored of Phil Collins",
-            "bored://0ea6aa74936fcf6afc1fcd75391b7bcbcf26a20e7e2c50583f8f1d61dc9fa28a",
-        );
-        directory.bored_addresses.push(listing);
-        let listing = Listing::new(
-            "If hell is other people then that is you!",
-            "bored://you.are.ell",
-        );
-        directory.bored_addresses.push(listing);
-        let listing = Listing::new(
-            "Bored of autonomi community public files",
-            "bored://1c2bc9751fd44b2b6a5e6d24a7933e8f5b74e140d33fd310a6fa5e3fb293a45b",
-        );
-        directory.bored_addresses.push(listing);
-        let listing = Listing::new(
-            "The really big bored",
-            "bored://2185e6315dc0319a5845c6f4fc8bb980d13730651bfed59d2ed6050b626d30a9",
-        );
-        directory.bored_addresses.push(listing);
+        directory.home_bored = 0;
         directory
     }
 
@@ -88,8 +69,12 @@ impl Directory {
     }
 
     pub fn add(&mut self, listing: Listing, path: &str) -> Result<(), SurfBoredError> {
+        if let Some(pos) = self.bored_addresses.iter().position(|l| l.bored_address == listing.bored_address) {
+            self.home_bored = pos;
+            self.save_file(path)?;
+            return Ok(());
+        }
         self.bored_addresses.push(listing);
-        // this is only for convience in testing remove once working
         self.home_bored = self.bored_addresses.len() - 1;
         self.save_file(path)?;
         Ok(())
