@@ -141,21 +141,18 @@ pub struct App {
     pub menu_visible: bool,
 }
 fn determine_directory_path() -> String {
-    if let Ok(home) = std::env::var("HOME") {
-        if !home.is_empty() {
-            let standard_dir = std::path::PathBuf::from(home).join(".local/share/we-are-bored");
-            if std::fs::create_dir_all(&standard_dir).is_ok() {
-                let toml_path = standard_dir.join("directory_of_boreds.toml");
-                if toml_path.exists() {
-                    if std::fs::File::open(&toml_path).is_ok() {
-                        return toml_path.to_string_lossy().to_string();
-                    }
-                } else {
-                    let temp_path = standard_dir.join(".tmp_write_test");
-                    if std::fs::write(&temp_path, "").is_ok() {
-                        let _ = std::fs::remove_file(temp_path);
-                        return toml_path.to_string_lossy().to_string();
-                    }
+    if let Some(standard_dir) = bored::x0x_client::get_we_are_bored_data_dir() {
+        if std::fs::create_dir_all(&standard_dir).is_ok() {
+            let toml_path = standard_dir.join("directory_of_boreds.toml");
+            if toml_path.exists() {
+                if std::fs::File::open(&toml_path).is_ok() {
+                    return toml_path.to_string_lossy().to_string();
+                }
+            } else {
+                let temp_path = standard_dir.join(".tmp_write_test");
+                if std::fs::write(&temp_path, "").is_ok() {
+                    let _ = std::fs::remove_file(temp_path);
+                    return toml_path.to_string_lossy().to_string();
                 }
             }
         }

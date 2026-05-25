@@ -51,11 +51,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
         
         match e {
             BoredError::ClientConnectionError => {
-                let is_installed = std::process::Command::new("x0x")
+                let check_cmd = if cfg!(target_os = "windows") { "x0x.exe" } else { "x0x" };
+                let is_installed = std::process::Command::new(check_cmd)
                     .arg("--version")
                     .output()
                     .map(|out| out.status.success())
                     .unwrap_or(false);
+
+                let is_termux = std::env::var("TERMUX_VERSION").is_ok() || std::path::Path::new("/data/data/com.termux").exists();
 
                 if is_installed {
                     eprintln!("\nThe x0x daemon is installed but currently stopped.");
@@ -65,7 +68,23 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     eprintln!("\nPlease ensure the x0x daemon is installed and running on your system.");
                     eprintln!("For documentation and configuration details, visit: https://x0x.md");
                     eprintln!("GitHub repository: https://github.com/saorsa-labs/x0x");
-                    eprint!("\nWould you like me to attempt to install and start the x0x daemon for you now? (y/N): ");
+                    
+                    if cfg!(target_os = "windows") {
+                        eprintln!("\nTo install on Windows:");
+                        eprintln!("1. Download the latest Windows zip from: https://github.com/saorsa-labs/x0x/releases");
+                        eprintln!("2. Extract x0xd.exe and x0x.exe, and place them in your PATH.");
+                        eprintln!("3. Run: x0x start");
+                        std::process::exit(1);
+                    } else if is_termux {
+                        eprintln!("\nTo install on Android (Termux):");
+                        eprintln!("1. Clone the x0x repository: git clone https://github.com/saorsa-labs/x0x.git");
+                        eprintln!("2. Build from source: cargo build --release --bin x0xd --bin x0x");
+                        eprintln!("3. Copy target/release/x0x and x0xd to your path (e.g. $PREFIX/bin/).");
+                        eprintln!("4. Run: x0x start");
+                        std::process::exit(1);
+                    } else {
+                        eprint!("\nWould you like me to attempt to install and start the x0x daemon for you now? (y/N): ");
+                    }
                 }
 
                 use std::io::Write;
@@ -77,8 +96,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     if choice == "y" || choice == "yes" {
                         let status = if is_installed {
                             eprintln!("\nStarting x0x daemon...");
-                            eprintln!("Running: x0x start");
-                            std::process::Command::new("x0x")
+                            let start_cmd = if cfg!(target_os = "windows") { "x0x.exe" } else { "x0x" };
+                            eprintln!("Running: {} start", start_cmd);
+                            std::process::Command::new(start_cmd)
                                 .arg("start")
                                 .status()
                         } else {
@@ -109,9 +129,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
                             }
                             _ => {
                                 if is_installed {
+                                    let start_cmd = if cfg!(target_os = "windows") { "x0x.exe" } else { "x0x" };
                                     eprintln!("\nFailed to start x0x daemon automatically.");
                                     eprintln!("Please try running it manually in your shell:");
-                                    eprintln!("  x0x start");
+                                    eprintln!("  {} start", start_cmd);
                                 } else {
                                     eprintln!("\nFailed to execute installer automatically.");
                                     eprintln!("Please try running the installer command manually in your shell:");

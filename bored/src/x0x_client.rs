@@ -41,9 +41,60 @@ enum GossipMsg {
     },
 }
 
+pub fn get_x0x_data_dir() -> Option<std::path::PathBuf> {
+    #[cfg(target_os = "macos")]
+    {
+        if let Ok(home) = std::env::var("HOME") {
+            return Some(std::path::PathBuf::from(home).join("Library/Application Support/x0x"));
+        }
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        if let Ok(local_app_data) = std::env::var("LOCALAPPDATA") {
+            return Some(std::path::PathBuf::from(local_app_data).join("x0x"));
+        }
+        if let Ok(user_profile) = std::env::var("USERPROFILE") {
+            return Some(std::path::PathBuf::from(user_profile).join("AppData/Local/x0x"));
+        }
+    }
+
+    // Default Linux & Android/Termux
+    if let Ok(home) = std::env::var("HOME") {
+        return Some(std::path::PathBuf::from(home).join(".local/share/x0x"));
+    }
+
+    None
+}
+
+pub fn get_we_are_bored_data_dir() -> Option<std::path::PathBuf> {
+    #[cfg(target_os = "macos")]
+    {
+        if let Ok(home) = std::env::var("HOME") {
+            return Some(std::path::PathBuf::from(home).join("Library/Application Support/we-are-bored"));
+        }
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        if let Ok(local_app_data) = std::env::var("LOCALAPPDATA") {
+            return Some(std::path::PathBuf::from(local_app_data).join("we-are-bored"));
+        }
+        if let Ok(user_profile) = std::env::var("USERPROFILE") {
+            return Some(std::path::PathBuf::from(user_profile).join("AppData/Local/we-are-bored"));
+        }
+    }
+
+    // Default Linux & Android/Termux
+    if let Ok(home) = std::env::var("HOME") {
+        return Some(std::path::PathBuf::from(home).join(".local/share/we-are-bored"));
+    }
+
+    None
+}
+
 fn get_api_credentials() -> Option<(String, String)> {
-    let home = std::env::var("HOME").ok()?;
-    let path = std::path::PathBuf::from(home).join(".local/share/x0x");
+    let path = get_x0x_data_dir()?;
     let port_str = std::fs::read_to_string(path.join("api.port")).ok()?.trim().to_string();
     let token = std::fs::read_to_string(path.join("api-token")).ok()?.trim().to_string();
     
@@ -119,8 +170,9 @@ impl X0xBoredClient {
             .ok_or_else(|| BoredError::X0xError("agent_id missing in response".to_string()))?
             .to_string();
 
-        let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
-        let cache_dir = std::path::PathBuf::from(home).join(".local/share/we-are-bored/cache");
+        let cache_dir = get_we_are_bored_data_dir()
+            .unwrap_or_else(|| std::path::PathBuf::from("."))
+            .join("cache");
         let _ = std::fs::create_dir_all(&cache_dir);
 
         // Spawn background listener task to monitor all `/events` (gossip updates)
