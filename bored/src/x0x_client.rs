@@ -332,7 +332,11 @@ impl X0xBoredClient {
         if !self.api_token.is_empty() {
             request = request.bearer_auth(&self.api_token);
         }
-        let _ = request.send().await;
+        let resp = request.send().await?;
+        if !resp.status().is_success() {
+            let err_body = resp.text().await.unwrap_or_default();
+            return Err(BoredError::X0xError(err_body));
+        }
         Ok(())
     }
 
@@ -531,14 +535,18 @@ impl X0xBoredClient {
         &mut self,
         bored_address: &BoredAddress,
     ) -> Result<(Bored, u64), BoredError> {
-        if let Some(ref bored) = self.current_bored {
-            Ok((bored.clone(), bored.get_notices().len() as u64))
-        } else if let Some(bored) = Self::load_cache(&self.cache_dir, bored_address) {
+        if let Some(bored) = Self::load_cache(&self.cache_dir, bored_address) {
             self.current_bored = Some(bored.clone());
-            Ok((bored.clone(), bored.get_notices().len() as u64))
-        } else {
-            Err(BoredError::NoBored)
+            return Ok((bored.clone(), bored.get_notices().len() as u64));
         }
+
+        if self.bored_address.as_ref() == Some(bored_address)
+            && let Some(ref bored) = self.current_bored
+        {
+            return Ok((bored.clone(), bored.get_notices().len() as u64));
+        }
+
+        Err(BoredError::NoBored)
     }
 
     /// Refresh the current bored state from network
@@ -563,6 +571,12 @@ impl X0xBoredClient {
 
     /// Returns the cached current bored
     pub fn get_current_bored(&self) -> Result<Bored, BoredError> {
+        if let Some(address) = &self.bored_address
+            && let Some(bored) = Self::load_cache(&self.cache_dir, address)
+        {
+            return Ok(bored);
+        }
+
         let Some(bored) = self.current_bored.clone() else {
             return Err(BoredError::NoBored);
         };
@@ -679,6 +693,66 @@ impl X0xBoredClient {
 #[cfg(test)]
 mod x0x_tests {
     use super::*;
+
+    fn test_cache_dir() -> std::path::PathBuf {
+        let path = std::env::temp_dir().join(format!(
+            "we-are-bored-test-{}",
+            uuid::Uuid::new_v4()
+        ));
+        std::fs::create_dir_all(&path).expect("create test cache dir");
+        path
+    }
+
+    fn test_client(
+        cache_dir: std::path::PathBuf,
+        address: BoredAddress,
+        current_bored: Bored,
+    ) -> X0xBoredClient {
+        X0xBoredClient {
+            http: reqwest::Client::new(),
+            api_base: "http://127.0.0.1:0".to_string(),
+            api_token: String::new(),
+            agent_id: "test-agent".to_string(),
+            current_bored: Some(current_bored),
+            draft_notice: None,
+            bored_address: Some(address),
+            cache_dir,
+        }
+    }
+
+    #[test]
+    fn get_current_bored_prefers_cache_over_stale_memory() {
+        let cache_dir = test_cache_dir();
+        let address = BoredAddress::from_string("bored.test.cache-current").expect("valid address");
+        let stale = Bored::create("stale", Coordinate { x: 10, y: 10 });
+        let fresh = Bored::create("fresh", Coordinate { x: 20, y: 20 });
+        X0xBoredClient::save_cache(&cache_dir, &address, &fresh).expect("save cache");
+
+        let client = test_client(cache_dir.clone(), address, stale);
+        let loaded = client.get_current_bored().expect("current bored");
+
+        assert_eq!(loaded.get_name(), "fresh");
+        assert_eq!(loaded.get_dimensions(), Coordinate { x: 20, y: 20 });
+        let _ = std::fs::remove_dir_all(cache_dir);
+    }
+
+    #[tokio::test]
+    async fn retrieve_bored_reloads_cache_and_updates_current_bored() {
+        let cache_dir = test_cache_dir();
+        let address =
+            BoredAddress::from_string("bored.test.retrieve-current").expect("valid address");
+        let stale = Bored::create("stale", Coordinate { x: 10, y: 10 });
+        let fresh = Bored::create("fresh", Coordinate { x: 30, y: 30 });
+        X0xBoredClient::save_cache(&cache_dir, &address, &fresh).expect("save cache");
+
+        let mut client = test_client(cache_dir.clone(), address.clone(), stale);
+        let (loaded, count) = client.retrieve_bored(&address).await.expect("retrieve bored");
+
+        assert_eq!(loaded.get_name(), "fresh");
+        assert_eq!(count, 0);
+        assert_eq!(client.current_bored.expect("updated current").get_name(), "fresh");
+        let _ = std::fs::remove_dir_all(cache_dir);
+    }
 
     #[tokio::test]
     async fn test_create_bored_integration() {
