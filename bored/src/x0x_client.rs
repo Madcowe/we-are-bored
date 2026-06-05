@@ -41,6 +41,11 @@ enum GossipMsg {
     },
 }
 
+const DISCOVERY_SYNC_ATTEMPTS: usize = 5;
+const DISCOVERY_SYNC_WAIT: tokio::time::Duration = tokio::time::Duration::from_secs(1);
+const REFRESH_SYNC_ATTEMPTS: usize = 3;
+const REFRESH_SYNC_WAIT: tokio::time::Duration = tokio::time::Duration::from_millis(700);
+
 pub fn get_x0x_data_dir() -> Option<std::path::PathBuf> {
     #[cfg(target_os = "macos")]
     {
@@ -497,16 +502,14 @@ impl X0xBoredClient {
         self.subscribe(&topic).await?;
         self.bored_address = Some(bored_address.clone());
 
-        let cache_exists = Self::cache_path(&self.cache_dir, &bored_address).exists();
-        if !cache_exists {
-            // Publish a SyncRequest so any online peers reply with their visible notices
-            self.publish_msg(&topic, &GossipMsg::SyncRequest).await?;
-
-            // Sleep and poll to let the background thread receive and merge the SyncResponse into the cache file
+        let cache_path = Self::cache_path(&self.cache_dir, &bored_address);
+        if !cache_path.exists() {
+            // Publish SyncRequests so any online peers have time to reply with their visible notices.
             let mut found = false;
-            for _ in 0..10 {
-                tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
-                if Self::cache_path(&self.cache_dir, &bored_address).exists() {
+            for _ in 0..DISCOVERY_SYNC_ATTEMPTS {
+                self.publish_msg(&topic, &GossipMsg::SyncRequest).await?;
+                tokio::time::sleep(DISCOVERY_SYNC_WAIT).await;
+                if cache_path.exists() {
                     found = true;
                     break;
                 }
@@ -515,10 +518,11 @@ impl X0xBoredClient {
                 return Err(BoredError::BoardDoesNotExist(bored_address.to_string()));
             }
         } else {
-            // It is cached, but let's publish a SyncRequest to get any new updates from peers in the background
-            let _ = self.publish_msg(&topic, &GossipMsg::SyncRequest).await;
-            // Sleep briefly to let the background thread receive and merge the SyncResponse into the cache file
-            tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+            // It is cached, but send a few SyncRequests to get recent updates from peers.
+            for _ in 0..REFRESH_SYNC_ATTEMPTS {
+                let _ = self.publish_msg(&topic, &GossipMsg::SyncRequest).await;
+                tokio::time::sleep(REFRESH_SYNC_WAIT).await;
+            }
         }
 
         // Now load from the cache
@@ -556,10 +560,11 @@ impl X0xBoredClient {
         };
         let topic = address.get_topic();
 
-        let _ = self.publish_msg(&topic, &GossipMsg::SyncRequest).await;
-        
-        // Sleep briefly to let background thread catch and write any new notices
-        tokio::time::sleep(tokio::time::Duration::from_millis(300)).await;
+        // Send a few SyncRequests to give peer-to-peer gossip time to reach responders.
+        for _ in 0..REFRESH_SYNC_ATTEMPTS {
+            let _ = self.publish_msg(&topic, &GossipMsg::SyncRequest).await;
+            tokio::time::sleep(REFRESH_SYNC_WAIT).await;
+        }
 
         if let Some(bored) = Self::load_cache(&self.cache_dir, &address) {
             self.current_bored = Some(bored);
