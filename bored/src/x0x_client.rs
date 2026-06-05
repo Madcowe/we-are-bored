@@ -145,6 +145,11 @@ impl X0xBoredClient {
     /// Initialize the client by discovering local daemon settings, fetching local agent ID,
     /// and starting a persistent background loop to process synchronization events.
     pub async fn init() -> Result<X0xBoredClient, BoredError> {
+        let data_dir = get_we_are_bored_data_dir().unwrap_or_else(|| std::path::PathBuf::from("."));
+        Self::init_with_data_dir(data_dir).await
+    }
+
+    async fn init_with_data_dir(data_dir: std::path::PathBuf) -> Result<X0xBoredClient, BoredError> {
         let (api_base, api_token) = match get_api_credentials() {
             Some(creds) => creds,
             None => ("http://127.0.0.1:12700".to_string(), String::new()),
@@ -193,9 +198,7 @@ impl X0xBoredClient {
             .ok_or_else(|| BoredError::X0xError("agent_id missing in response".to_string()))?
             .to_string();
 
-        let cache_dir = get_we_are_bored_data_dir()
-            .unwrap_or_else(|| std::path::PathBuf::from("."))
-            .join("cache");
+        let cache_dir = data_dir.join("cache");
         let _ = std::fs::create_dir_all(&cache_dir);
 
         // Spawn background listener task to monitor all `/events` (gossip updates)
@@ -777,6 +780,42 @@ mod x0x_tests {
         let mut client2 = X0xBoredClient::init().await.expect("Failed init");
         let res = client2.go_to_bored(&address).await;
         assert!(res.is_ok(), "go_to_bored failed: {:?}", res);
+    }
+
+    #[tokio::test]
+    async fn test_go_to_bored_syncs_between_isolated_caches() {
+        let dir1 = std::env::temp_dir().join(format!(
+            "we-are-bored-isolated-a-{}",
+            uuid::Uuid::new_v4()
+        ));
+        let dir2 = std::env::temp_dir().join(format!(
+            "we-are-bored-isolated-b-{}",
+            uuid::Uuid::new_v4()
+        ));
+
+        let mut client1 = X0xBoredClient::init_with_data_dir(dir1.clone())
+            .await
+            .expect("init client1");
+        let mut client2 = X0xBoredClient::init_with_data_dir(dir2.clone())
+            .await
+            .expect("init client2");
+
+        let topic = format!("bored.test.isolated.{}", uuid::Uuid::new_v4());
+        client1
+            .create_bored("Isolated Cache Board", Coordinate { x: 120, y: 40 }, Some(&topic))
+            .await
+            .expect("create board");
+        let address = client1.get_bored_address().expect("address");
+
+        let res = client2.go_to_bored(&address).await;
+        assert!(res.is_ok(), "go_to_bored failed with isolated caches: {res:?}");
+
+        let loaded = client2.get_current_bored().expect("loaded board");
+        assert_eq!(loaded.get_name(), "Isolated Cache Board");
+        assert!(dir2.join("cache").join(format!("{}.json", address.get_topic())).exists());
+
+        let _ = std::fs::remove_dir_all(dir1);
+        let _ = std::fs::remove_dir_all(dir2);
     }
 
     #[tokio::test]
