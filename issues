@@ -1,0 +1,3 @@
+- Version number wrong (0.5.1 should be 0.6.1)
+- If you let it try and isntall but you don't have curl installed id does not this...but then says everything has ran fine.
+- Still sometime after a refresh no commands except ctrl + c work

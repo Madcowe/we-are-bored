@@ -36,10 +36,7 @@ impl Directory {
 
     pub fn default() -> Directory {
         let mut directory = Directory::new();
-        let listing = Listing::new(
-            "Welcome",
-            "bored://welcome",
-        );
+        let listing = Listing::new("Welcome", "bored://welcome");
         directory.bored_addresses.push(listing);
         directory.home_bored = 0;
         directory
@@ -69,7 +66,11 @@ impl Directory {
     }
 
     pub fn add(&mut self, listing: Listing, path: &str) -> Result<(), SurfBoredError> {
-        if let Some(pos) = self.bored_addresses.iter().position(|l| l.bored_address == listing.bored_address) {
+        if let Some(pos) = self
+            .bored_addresses
+            .iter()
+            .position(|l| l.bored_address == listing.bored_address)
+        {
             self.home_bored = pos;
             self.save_file(path)?;
             return Ok(());
@@ -125,7 +126,7 @@ impl Directory {
 pub fn about_bored() -> Bored {
     let mut about = Bored::create("About", Coordinate { x: 80, y: 24 });
     let mut notice = Notice::create(Coordinate { x: 20, y: 5 });
-    notice.write("Surf Bored\n\nV0.6.1").unwrap();
+    notice.write("Surf Bored\n\nV0.6.2").unwrap();
     about.add(notice, Coordinate { x: 3, y: 2 }).unwrap();
     let mut notice = Notice::create(Coordinate { x: 50, y: 5 });
     notice
