@@ -325,10 +325,17 @@ impl App {
             bored.get_dimensions(),
             self.selected_notice,
         ));
+        let Ok(address) = client.get_bored_address() else {
+            return Err(SurfBoredError::Message("Current board has no valid address.".to_string()));
+        };
+        let address_str = address.to_string();
+        if self.directory.get_bored_addresses().iter().any(|l| l.bored_address == address_str) {
+            return Err(SurfBoredError::Message("This board is already in your directory.".to_string()));
+        }
         self.directory.add(
             Listing {
                 name: client.get_bored_name()?.to_string(),
-                bored_address: format!("{}", client.get_bored_address()?),
+                bored_address: address_str,
             },
             &self.directory_path,
         )?;

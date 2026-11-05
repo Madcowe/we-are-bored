@@ -175,3 +175,59 @@ impl Listing {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn add_cannot_create_two_rows_with_the_same_bored_address() {
+        let mut directory = Directory::new();
+        directory
+            .add(Listing::new("Welcome", "bored://welcome"), "directory_of_boreds.toml")
+                .unwrap();
+        directory
+            .add(
+                Listing::new("Spartacus", "bored://i.am.sparticus"),
+                "directory_of_boreds.toml",
+            )
+            .unwrap();
+        // same address, different name: the address is the key, so it collapses to one row
+        directory
+            .add(
+                Listing::new("Welcome", "bored://i.am.sparticus"),
+                "directory_of_boreds.toml",
+            )
+            .unwrap();
+        assert_eq!(directory.get_bored_addresses().len(), 2);
+        assert_eq!(directory.get_bored_addresses()[0].name, "Welcome");
+        assert_eq!(directory.get_bored_addresses()[1].name, "Spartacus");
+        // and no address is shared by two rows
+        let mut seen = std::collections::HashSet::new();
+        for listing in directory.get_bored_addresses() {
+            assert!(seen.insert(listing.bored_address.clone()), "duplicate bored_address");
+        }
+    }
+
+    #[test]
+    fn add_allows_two_rows_with_the_same_name_but_different_bored_address() {
+        let mut directory = Directory::new();
+        directory
+            .add(Listing::new("Welcome", "bored://welcome"), "directory_of_boreds.toml")
+                .unwrap();
+        // same name, different address: two distinct boards, both must be added
+        directory
+            .add(
+                Listing::new("Welcome", "bored://i.am.sparticus"),
+                "directory_of_boreds.toml",
+            )
+            .unwrap();
+        assert_eq!(directory.get_bored_addresses().len(), 2);
+        assert_eq!(directory.get_bored_addresses()[0].bored_address, "bored://welcome");
+        assert_eq!(directory.get_bored_addresses()[1].bored_address, "bored://i.am.sparticus");
+        let mut seen = std::collections::HashSet::new();
+        for listing in directory.get_bored_addresses() {
+            assert!(seen.insert(listing.bored_address.clone()), "duplicate bored_address");
+        }
+    }
+}
