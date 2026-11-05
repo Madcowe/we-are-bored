@@ -365,6 +365,10 @@ impl Bored {
     pub fn get_name(&self) -> &str {
         &self.name
     }
+    /// Change the board's display name
+    pub fn set_name(&mut self, name: &str) {
+        self.name = name.to_string();
+    }
 
     pub fn remove_newest_notice(&mut self) {
         if !self.notices.is_empty() {

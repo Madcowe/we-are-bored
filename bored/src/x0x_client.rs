@@ -590,6 +590,14 @@ impl X0xBoredClient {
         };
         Ok(bored)
     }
+    /// Set the current bored, updating in-memory cache and on-disk cache
+    pub fn set_current_bored(&mut self, bored: Bored) -> Result<(), BoredError> {
+        self.current_bored = Some(bored.clone());
+        if let Some(address) = &self.bored_address {
+            Self::save_cache(&self.cache_dir, address, &bored)?;
+        }
+        Ok(())
+    }
 
     /// Get current bored address
     pub fn get_bored_address(&self) -> Result<BoredAddress, BoredError> {

@@ -378,6 +378,37 @@ async fn run_app<B: Backend>(
                                 Ok(_) => app.display_error(app::SurfBoredError::Message("Successfully added board to directory!".to_string())),
                             }
                         }
+                        KeyCode::Char('e') => {
+                            if let Some(bored) = app.get_current_bored() {
+                                app.edit_name_input = bored.get_name().to_string();
+                                app.change_view(View::BoredViewEditMode);
+                            }
+                        }
+                        _ => {}
+                    },
+                    View::BoredViewEditMode => match key.code {
+                        KeyCode::Enter => {
+                            if !app.edit_name_input.is_empty() {
+                                if let Some(bored) = app.get_current_bored() {
+                                    let mut updated = bored.clone();
+                                    updated.set_name(&app.edit_name_input);
+                                    if let Err(e) = app.set_current_bored(updated) {
+                                        app.display_error(e);
+                                    } else {
+                                        app.change_view(View::BoredView);
+                                    }
+                                }
+                            }
+                        }
+                        KeyCode::Esc => {
+                            app.change_view(View::BoredView);
+                        }
+                        KeyCode::Backspace => {
+                            app.edit_name_input.pop();
+                        }
+                        KeyCode::Char(c) => {
+                            app.edit_name_input.push(c);
+                        }
                         _ => {}
                     },
                     View::NoticeView { .. } => match key.code {

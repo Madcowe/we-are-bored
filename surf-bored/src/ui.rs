@@ -112,7 +112,9 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
     let url_span = Span::styled(bored_url, url_style);
     let title_text = Text::from_iter(vec![name_span, url_span]);
     let title = Paragraph::new(title_text).block(title_block);
-    frame.render_widget(title, ui_chunks[0]);
+    if app.current_view != View::BoredViewEditMode {
+        frame.render_widget(title, ui_chunks[0]);
+    }
 
     // modify based on current_view
     match &app.current_view {
@@ -310,6 +312,7 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
             } else {
                 status_text = "Use (the arrow keys) to select a notice in that direction, (tab) to cycle selection, (enter) to view notice (n) to create a new notice, (s) to save to directory or (space) to view menu.".to_string();
                 vec![
+                    "e   Edit bored name",
                     "r   Refresh bored",
                     "n   New notice",
                     "s   Save board to directory",
@@ -320,6 +323,28 @@ pub fn ui(frame: &mut Frame, app: &mut App) {
                     "q   Quit",
                 ]
             }
+        }
+        View::BoredViewEditMode => {
+            status_text = "Press (enter) to confirm or (esc) to cancel".to_string();
+            let edit_block = Block::default()
+                .title("Editing Bored Name")
+                .borders(Borders::ALL)
+                .style(app.theme.text_style());
+            let edit_text = if app.edit_name_input.is_empty() {
+                "(empty)".to_string()
+            } else {
+                app.edit_name_input.clone()
+            };
+            frame.render_widget(edit_block, ui_chunks[0]);
+            let line = ui_chunks[0].height.saturating_sub(2);
+            let y = ui_chunks[0].y + (line / 2).max(1);
+            let edit_area = Rect::new(
+                ui_chunks[0].x + 2,
+                y,
+                ui_chunks[0].width.saturating_sub(4),
+                1,
+            );
+            frame.render_widget(Paragraph::new(edit_text).style(app.theme.inverted_text_style()), edit_area);
         }
         View::NoticeView { hyperlinks_index } => {
             if let Some(notice) = app.get_selected_notice() {

@@ -77,6 +77,7 @@ pub enum View {
     CreateView(CreateMode),
     GoToView,
     DirectoryView(usize),
+    BoredViewEditMode,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -138,6 +139,7 @@ pub struct App {
     pub link_text_input: String,
     pub link_url_input: String,
     pub goto_input: String,
+    pub edit_name_input: String,
     pub menu_visible: bool,
 }
 fn determine_directory_path() -> String {
@@ -176,8 +178,9 @@ impl App {
             url_name_input: String::new(),
             content_input: String::new(),
             link_text_input: String::new(),
-            link_url_input: String::new(),
             goto_input: String::new(),
+            link_url_input: String::new(),
+            edit_name_input: String::new(),
             menu_visible: false,
         }
     }
@@ -365,6 +368,14 @@ impl App {
             },
             &self.directory_path,
         )?;
+        Ok(())
+    }
+    /// Set the current bored via the client
+    pub fn set_current_bored(&mut self, bored: Bored) -> Result<(), SurfBoredError> {
+        let Some(client) = &mut self.client else {
+            return Err(SurfBoredError::BoredError(BoredError::ClientConnectionError));
+        };
+        client.set_current_bored(bored)?;
         Ok(())
     }
 
