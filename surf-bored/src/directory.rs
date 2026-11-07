@@ -81,6 +81,22 @@ impl Directory {
         Ok(())
     }
 
+    pub fn update_name(
+        &mut self,
+        bored_address: &str,
+        new_name: &str,
+        path: &str,
+    ) -> Result<bool, SurfBoredError> {
+        for listing in self.bored_addresses.iter_mut() {
+            if listing.bored_address == bored_address {
+                listing.name = new_name.to_string();
+                self.save_file(path)?;
+                return Ok(true);
+            }
+        }
+        Ok(false)
+    }
+
     pub fn set_home(&mut self, home_bored: usize) {
         self.home_bored = home_bored
     }

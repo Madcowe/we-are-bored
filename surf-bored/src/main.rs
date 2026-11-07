@@ -265,7 +265,10 @@ async fn run_app<B: Backend>(
                 // Skip events that are not KeyEvenKind::Press
                 continue;
             }
-            if key.code == KeyCode::Char('c') && key.modifiers == KeyModifiers::CONTROL {
+            if !matches!(app.current_view, View::DraftView(_))
+                && key.code == KeyCode::Char('c')
+                && key.modifiers == KeyModifiers::CONTROL
+            {
                 break;
             } else {
                 match &app.current_view {
@@ -396,6 +399,24 @@ async fn run_app<B: Backend>(
                                         app.display_error(e);
                                     } else {
                                         app.change_view(View::BoredView);
+                                        if let Some(address) = app.get_current_address() {
+                                            let addr_str = address.to_string();
+                                            match app.directory.update_name(
+                                                &addr_str,
+                                                &app.edit_name_input,
+                                                &app.directory_path,
+                                            ) {
+                                                Ok(true) => {}
+                                                Ok(false) => {
+                                                    app.display_error(app::SurfBoredError::Message(
+                                                        format!("Directory entry not found for {addr_str}"),
+                                                    ));
+                                                }
+                                                Err(e) => {
+                                                    app.display_error(e);
+                                                }
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -572,6 +593,8 @@ async fn run_app<B: Backend>(
                     },
                     View::DraftView(draft_mode) => match draft_mode {
                         DraftMode::Content => match key.code {
+                            KeyCode::Char('c') if key.modifiers == KeyModifiers::CONTROL => app.revert_view(),
+                            KeyCode::Char('q') => break,
                             KeyCode::Esc => app.revert_view(),
                             KeyCode::Backspace => {
                                 if let Some(mut draft) = app.get_draft() {
@@ -616,6 +639,7 @@ async fn run_app<B: Backend>(
                             _ => {}
                         },
                         DraftMode::Hyperlink(hyperlink_mode) => match key.code {
+                            KeyCode::Char('q') => break,
                             KeyCode::Esc => app.current_view = View::DraftView(DraftMode::Content),
                             KeyCode::Tab => {
                                 app.current_view =
@@ -679,6 +703,9 @@ async fn run_app<B: Backend>(
                             _ => (),
                         },
                         DraftMode::Position => {
+                            if key.code == KeyCode::Char('q') {
+                                break;
+                            }
                             if key.code == KeyCode::Esc {
                                 app.current_view = View::DraftView(DraftMode::Content);
                             }
